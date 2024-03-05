@@ -11,7 +11,7 @@ If you are a webdesigner interested in Jekyll, the static website generator, thi
 
 ## A Responsive Jekyll Theme: *Feeling Responsive*
 
-Do you want to get to know *Feeling Responsive*? Than check it out first and have a look on its home at  <http://phlow.github.io/feeling-responsive/>.
+Do you want to get to know *Feeling Responsive*? Than check it out first and have a look on its home at  <http://gosites-co-il.github.io/kodem.co.il/>.
 
 To get to know *Feeling Responsive* check out all the features explained in the [documentation][1].
 
@@ -54,13 +54,13 @@ Click the image to [watch the YouTube-Video-Tutorial][4].
 
 
 
- [1]: http://phlow.github.io/feeling-responsive/documentation/
+ [1]: http://gosites-co-il.github.io/kodem.co.il/documentation/
  [2]: https://github.com/Phlow/feeling-responsive/blob/gh-pages/LICENSE
- [3]: http://phlow.github.io/feeling-responsive/info/
+ [3]: http://gosites-co-il.github.io/kodem.co.il/info/
  [4]: https://www.youtube.com/watch?v=rLS-BEvlEyY
  [5]: https://github.com/TWiStErRob
- [6]: https://phlow.github.io/feeling-responsive/changelog/
- [7]: http://phlow.github.io/feeling-responsive/
+ [6]: https:///gosites-co-il.github.io/kodem.co.il/changelog/
+ [7]: http://gosites-co-il.github.io/kodem.co.il/
  [8]: http://phlow.github.io/simplicity/
  [9]: #
  [10]: #
