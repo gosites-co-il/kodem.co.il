@@ -6,8 +6,9 @@ import { config } from 'dotenv';
 import { join } from 'path';
 
 config();
+const workspaceRoot = join(__dirname, '../../..');
 process.env.DATABASE_URL ??=
-  `file:${join(process.cwd(), 'libs/database/prisma/kodem.db')}`;
+  `file:${join(workspaceRoot, 'libs/database/prisma/kodem.db')}`;
 
 async function bootstrap() {
   const { Logger } = await import('@nestjs/common');

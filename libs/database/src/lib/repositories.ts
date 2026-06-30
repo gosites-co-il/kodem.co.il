@@ -1,5 +1,6 @@
 import {
   CreateWorkspaceInput,
+  CreateWorkspaceForUserInput,
   Workspace,
   WorkspaceId,
   createId,
@@ -10,6 +11,7 @@ import {
 } from '@kodem/contracts';
 import { getPrismaClient } from './client';
 import { mapEventRowToDomain, mapEventToPersistence } from './mappers';
+import { mapWorkspaceRowToDomain } from './mappers/workspace.mapper';
 
 export class WorkspaceRepository {
   private readonly db = getPrismaClient();
@@ -33,6 +35,7 @@ export class WorkspaceRepository {
           id: workspaceId,
           name: input.name,
           slug: input.slug,
+          ownerId: userId,
           status: 'onboarding',
           websiteUrl: input.websiteUrl,
         },
@@ -45,6 +48,10 @@ export class WorkspaceRepository {
           role: 'owner',
         },
       }),
+      this.db.user.update({
+        where: { id: userId },
+        data: { activeWorkspaceId: workspaceId },
+      }),
     ]);
 
     return {
@@ -52,6 +59,7 @@ export class WorkspaceRepository {
         id: workspaceId,
         name: input.name,
         slug: input.slug,
+        ownerId: userId,
         status: 'onboarding',
         websiteUrl: input.websiteUrl,
         createdAt: now,
@@ -62,32 +70,64 @@ export class WorkspaceRepository {
     };
   }
 
+  async createForUser(input: CreateWorkspaceForUserInput): Promise<{
+    workspace: Workspace;
+    memberId: MemberId;
+  }> {
+    const workspaceId = createId<'WorkspaceId'>('ws');
+    const memberId = createId<'MemberId'>('mem');
+    const now = new Date();
+
+    await this.db.$transaction([
+      this.db.workspace.create({
+        data: {
+          id: workspaceId,
+          name: input.name,
+          slug: input.slug,
+          ownerId: input.ownerId,
+          status: 'onboarding',
+          websiteUrl: input.websiteUrl,
+        },
+      }),
+      this.db.member.create({
+        data: {
+          id: memberId,
+          workspaceId,
+          userId: input.ownerId,
+          role: 'owner',
+        },
+      }),
+      this.db.user.update({
+        where: { id: input.ownerId },
+        data: { activeWorkspaceId: workspaceId },
+      }),
+    ]);
+
+    return {
+      workspace: {
+        id: workspaceId,
+        name: input.name,
+        slug: input.slug,
+        ownerId: input.ownerId,
+        status: 'onboarding',
+        websiteUrl: input.websiteUrl,
+        createdAt: now,
+        updatedAt: now,
+      },
+      memberId,
+    };
+  }
+
   async findById(id: WorkspaceId): Promise<Workspace | null> {
     const row = await this.db.workspace.findUnique({ where: { id } });
     if (!row) return null;
-    return {
-      id: row.id as WorkspaceId,
-      name: row.name,
-      slug: row.slug,
-      status: row.status as Workspace['status'],
-      websiteUrl: row.websiteUrl ?? undefined,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
+    return mapWorkspaceRowToDomain(row);
   }
 
   async findBySlug(slug: string): Promise<Workspace | null> {
     const row = await this.db.workspace.findUnique({ where: { slug } });
     if (!row) return null;
-    return {
-      id: row.id as WorkspaceId,
-      name: row.name,
-      slug: row.slug,
-      status: row.status as Workspace['status'],
-      websiteUrl: row.websiteUrl ?? undefined,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
+    return mapWorkspaceRowToDomain(row);
   }
 }
 

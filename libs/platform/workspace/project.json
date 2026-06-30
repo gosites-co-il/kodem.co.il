@@ -1,0 +1,8 @@
+{
+  "name": "platform-workspace",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/workspace/src",
+  "projectType": "library",
+  "tags": ["scope:platform", "type:util"],
+  "targets": {}
+}
