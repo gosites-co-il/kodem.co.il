@@ -1,3 +1,2 @@
-export * from './lib/schema';
-export * from './lib/bus';
-export * from './lib/event-bus';
+export { EVENT_TYPES } from './lib/constants';
+export { KodemEventBus } from './lib/event-bus';

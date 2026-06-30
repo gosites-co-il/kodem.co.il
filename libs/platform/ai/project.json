@@ -1,0 +1,8 @@
+{
+  "name": "platform-ai",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/ai/src",
+  "projectType": "library",
+  "tags": ["scope:platform", "type:feature"],
+  "targets": {}
+}

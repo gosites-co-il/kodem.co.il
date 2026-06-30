@@ -3,6 +3,6 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/events/src",
   "projectType": "library",
-  "tags": ["layer:core"],
+  "tags": ["scope:events", "type:data"],
   "targets": {}
 }

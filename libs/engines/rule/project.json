@@ -1,0 +1,8 @@
+{
+  "name": "engines-rule",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engines/rule/src",
+  "projectType": "library",
+  "tags": ["scope:engine", "type:feature"],
+  "targets": {}
+}

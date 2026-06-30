@@ -3,13 +3,13 @@
     "style": "default",
     "rsc": true,
     "tailwind": {
-"config": "apps/app/tailwind.config.js",
-"css": "apps/app/src/app/global.css",
+      "config": "apps/app/tailwind.config.js",
+      "css": "apps/app/src/app/global.css",
       "baseColor": "slate",
       "cssVariables": true
     },
     "aliases": {
-      "components": "@libs/shadcn-ui/components",
-      "utils": "@libs/shadcn-ui/lib/utils"
+      "components": "@kodem/design-system/components",
+      "utils": "@kodem/design-system/lib/utils"
     }
   }

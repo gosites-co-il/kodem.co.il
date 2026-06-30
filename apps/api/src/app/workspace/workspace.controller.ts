@@ -7,7 +7,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { CreateWorkspaceInput } from '@kodem/core';
+import { CreateWorkspaceInput } from '@kodem/contracts';
 import { WorkspaceService } from './workspace.service';
 import {
   BusinessProfileRepository,

@@ -1,9 +1,16 @@
-import { createId, EventId } from '@kodem/core';
-import { KodemEvent, CreateEventInput } from './schema';
-import { EventBus, EventStore } from './bus';
+import { createId, EventId } from '@kodem/contracts';
+import {
+  KodemEvent,
+  CreateEventInput,
+  EventBus,
+  EventStore,
+} from '@kodem/contracts';
 
 export class KodemEventBus implements EventBus {
-  private handlers = new Map<string, Array<(event: KodemEvent) => Promise<void>>>();
+  private handlers = new Map<
+    string,
+    Array<(event: KodemEvent) => Promise<void>>
+  >();
 
   constructor(private readonly store: EventStore) {}
 

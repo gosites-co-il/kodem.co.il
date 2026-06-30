@@ -5,9 +5,11 @@ import {
   createId,
   UserId,
   MemberId,
-} from '@kodem/core';
-import { KodemEvent, EventStore } from '@kodem/events';
+  KodemEvent,
+  EventStore,
+} from '@kodem/contracts';
 import { getPrismaClient } from './client';
+import { mapEventRowToDomain, mapEventToPersistence } from './mappers';
 
 export class WorkspaceRepository {
   private readonly db = getPrismaClient();
@@ -92,17 +94,10 @@ export class WorkspaceRepository {
 export class PrismaEventStore implements EventStore {
   private readonly db = getPrismaClient();
 
-  async save<TPayload>(event: KodemEvent<TPayload>): Promise<KodemEvent<TPayload>> {
-    await this.db.event.create({
-      data: {
-        id: event.id,
-        type: event.type,
-        workspaceId: event.workspaceId,
-        payload: JSON.stringify(event.payload),
-        status: event.status ?? 'pending',
-        occurredAt: event.occurredAt,
-      },
-    });
+  async save<TPayload extends Record<string, unknown>>(
+    event: KodemEvent<TPayload>,
+  ): Promise<KodemEvent<TPayload>> {
+    await this.db.event.create({ data: mapEventToPersistence(event) });
     return event;
   }
 
@@ -112,15 +107,7 @@ export class PrismaEventStore implements EventStore {
       orderBy: { occurredAt: 'asc' },
       take: limit,
     });
-    return rows.map((row) => ({
-      id: row.id as KodemEvent['id'],
-      type: row.type as KodemEvent['type'],
-      workspaceId: row.workspaceId as KodemEvent['workspaceId'],
-      payload: JSON.parse(row.payload),
-      occurredAt: row.occurredAt,
-      immutable: true as const,
-      status: row.status as KodemEvent['status'],
-    }));
+    return rows.map(mapEventRowToDomain);
   }
 
   async markProcessing(id: string): Promise<void> {
@@ -149,14 +136,6 @@ export class PrismaEventStore implements EventStore {
       where: { workspaceId },
       orderBy: { occurredAt: 'desc' },
     });
-    return rows.map((row) => ({
-      id: row.id as KodemEvent['id'],
-      type: row.type as KodemEvent['type'],
-      workspaceId: row.workspaceId as KodemEvent['workspaceId'],
-      payload: JSON.parse(row.payload),
-      occurredAt: row.occurredAt,
-      immutable: true as const,
-      status: row.status as KodemEvent['status'],
-    }));
+    return rows.map(mapEventRowToDomain);
   }
 }

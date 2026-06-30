@@ -2,57 +2,48 @@
 
 ## Cursor Cloud specific instructions
 
-This is an Nx (v23) integrated monorepo for **Kodem** — a PLG AI business intelligence platform. Package manager: npm.
+Nx (v23) integrated monorepo for **Kodem**. See `.cursor/rules/nx.md` for structure standards.
 
 ### Applications
 
 | App | Path | Stack | Dev command | URL |
 |-----|------|-------|-------------|-----|
-| **app** | `apps/app` | Next.js 16 (SaaS UI) | `CI=true npx nx dev app` | http://localhost:3000 |
-| **web** | `apps/web` | Astro (marketing) | `CI=true npx nx dev web` | http://localhost:4321 |
-| **api** | `apps/api` | NestJS (backend) | `CI=true npx nx serve api` | http://localhost:3333/api |
-| **worker** | `apps/worker` | NestJS (engine runner) | `CI=true npx nx serve worker` | http://localhost:3334/worker |
+| **app** | `apps/app` | Next.js SaaS UI | `CI=true npx nx dev app` | http://localhost:3000 |
+| **marketing** | `apps/marketing` | Astro marketing site | `CI=true npx nx dev marketing` | http://localhost:4321 |
+| **api** | `apps/api` | NestJS backend | `CI=true npx nx serve api` | http://localhost:3333/api |
+| **worker** | `apps/worker` | NestJS engine runner | `CI=true npx nx serve worker` | http://localhost:3334/worker |
 
-### Libraries (`libs/`)
+### Library layout (`libs/`)
 
-| Lib | Purpose | Tag |
-|-----|---------|-----|
-| `core` | Workspace, User, Member, Role, IDs | `layer:core` |
-| `business` | BusinessProfile, Lead, Contact, etc. | `layer:domain` |
-| `events` | Event schema, bus, store interface | `layer:core` |
-| `engines` | Discovery, Insight, Recommendation, Rule, Learning | `layer:engines` |
-| `ai` | LLM abstraction, prompts | `layer:ai` |
-| `insights` | Insight schema & formatting | `layer:domain` |
-| `recommendations` | Action generation & prioritization | `layer:domain` |
-| `integrations` | External system adapters | `layer:integration` |
-| `database` | Prisma client & repositories | `layer:core` |
-| `auth` | JWT, sessions, RBAC | `layer:core` |
-| `subscription` | Plans & entitlements | `layer:domain` |
-| `ui` | Shared React design system (shadcn) | `layer:domain` |
+```
+platform/     auth, subscription, ai
+workspace/    core, events, profile, insights, recommendations
+modules/      crm (+ digital-card, etc. later)
+engines/      discovery, insight, recommendation, rule, learning, pipeline, shared
+integrations/ external adapters
+database/     prisma + repositories
+shared/       ui, types
+```
 
-Path aliases: `@kodem/<lib>` (see `tsconfig.base.json`).
+Import via `@kodem/<category>/<lib>` (e.g. `@kodem/workspace/core`, `@kodem/modules/crm`).
+
+Nx tags: `scope:platform|workspace|module|engine|integration|database|shared`.
 
 ### Execution flow
 
 ```
-User Action → API → Event created → Worker consumes → Engines run → DB → App shows results
+Module/API → Event → Worker → Engines → BKM artifacts → Module/UI
 ```
 
-Engines are **never** triggered from UI or API request lifecycle — only from the worker.
-
-### Standard commands
+### Commands
 
 - Lint: `CI=true npx nx run-many -t lint`
-- Test: `CI=true npx nx run-many -t test`
 - Build all: `npm run build`
 - DB: `npm run db:generate` / `npm run db:push`
 
-### Non-obvious caveats
+### Caveats
 
-- Prefix Nx commands with `CI=true` to skip interactive telemetry prompts.
-- `apps/app` and `apps/api` both expose `/api` paths but on different servers (3000 vs 3333).
-- Within `libs/ui`, use **relative** imports between files in the same project (not `@kodem/ui/...`).
-- `apps/app:lint` may crash with circular JSON from legacy `eslint-config-next` under ESLint 9.
-- Jest must stay on v30; environment packages pinned to `^30`.
-- Prisma is pinned to v6 (v7 has breaking config changes). SQLite DB at `libs/database/prisma/kodem.db`.
-- If `npx nx` fails with missing `.nx/nxw.js`, run via `node node_modules/nx/dist/bin/nx.js` instead.
+- Prefix Nx with `CI=true` for non-interactive runs.
+- Within `libs/shared/ui`, use **relative** imports between files in the same project.
+- Prisma pinned to v6. DB: `libs/database/prisma/kodem.db`.
+- If `npx nx` fails (missing `.nx/nxw.js`), use `node node_modules/nx/dist/bin/nx.js`.

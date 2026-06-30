@@ -1,0 +1,8 @@
+{
+  "name": "engines-learning",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engines/learning/src",
+  "projectType": "library",
+  "tags": ["scope:engine", "type:feature"],
+  "targets": {}
+}

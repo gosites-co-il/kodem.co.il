@@ -1,0 +1,8 @@
+{
+  "name": "engines-insight",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engines/insight/src",
+  "projectType": "library",
+  "tags": ["scope:engine", "type:feature"],
+  "targets": {}
+}

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CreateWorkspaceInput } from '@kodem/core';
+import { CreateWorkspaceInput } from '@kodem/contracts';
 import {
   WorkspaceRepository,
   PrismaEventStore,

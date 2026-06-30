@@ -2,43 +2,41 @@
 
 Engine-driven PLG business intelligence — Nx integrated monorepo.
 
-## Architecture
+Structure follows [`.cursor/rules/nx.md`](.cursor/rules/nx.md).
 
-```
-User Action → API (NestJS) → Event → Worker → Engines → Database → App UI
-```
+## Applications
 
 | App | Purpose | Dev |
 |-----|---------|-----|
 | `apps/app` | Next.js SaaS UI | `CI=true npx nx dev app` |
-| `apps/web` | Astro marketing site | `CI=true npx nx dev web` |
+| `apps/marketing` | Astro marketing site | `CI=true npx nx dev marketing` |
 | `apps/api` | NestJS backend | `CI=true npx nx serve api` |
 | `apps/worker` | Engine runner | `CI=true npx nx serve worker` |
+
+## Libraries
+
+```
+libs/platform/    auth, subscription, ai
+libs/workspace/   core, events, profile, insights, recommendations
+libs/modules/     crm
+libs/engines/     discovery, insight, recommendation, rule, learning, pipeline
+libs/database/    prisma + repositories
+libs/integrations/
+libs/shared/      ui, types
+```
+
+Imports: `@kodem/workspace/core`, `@kodem/modules/crm`, `@kodem/engines/pipeline`, etc.
 
 ## Quick start
 
 ```bash
 npm install
 npm run db:push
-CI=true npx nx serve api      # :3333/api
-CI=true npx nx serve worker   # :3334/worker
-CI=true npx nx dev app        # :3000
-CI=true npx nx dev web        # :4321
+CI=true npx nx serve api
+CI=true npx nx serve worker
+CI=true npx nx dev app
+CI=true npx nx dev marketing
 ```
-
-Create a workspace:
-
-```bash
-curl -X POST http://localhost:3333/api/workspaces \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Acme","slug":"acme","ownerEmail":"a@acme.co.il","ownerName":"Jane"}'
-```
-
-The worker polls for events and runs Discovery → Insight → Recommendation engines.
-
-## Libraries
-
-Shared code lives in `libs/` with `@kodem/*` path aliases. See [AGENTS.md](./AGENTS.md) for dependency rules and tags.
 
 ## shadcn/ui
 
@@ -46,4 +44,4 @@ Shared code lives in `libs/` with `@kodem/*` path aliases. See [AGENTS.md](./AGE
 npx shadcn@latest add button
 ```
 
-Export from `libs/ui/src/index.ts` and import via `@kodem/ui`.
+Export from `libs/shared/ui/src/index.ts` — import via `@kodem/shared/ui`.

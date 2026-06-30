@@ -1,0 +1,8 @@
+{
+  "name": "engines-shared",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engines/shared/src",
+  "projectType": "library",
+  "tags": ["scope:engine", "type:util"],
+  "targets": {}
+}

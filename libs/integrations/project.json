@@ -3,6 +3,6 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/integrations/src",
   "projectType": "library",
-  "tags": ["layer:integration"],
+  "tags": ["scope:integration", "type:util"],
   "targets": {}
 }

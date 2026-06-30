@@ -1,0 +1,8 @@
+{
+  "name": "workspace-bkm",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/workspace/bkm/src",
+  "projectType": "library",
+  "tags": ["scope:workspace", "type:feature"],
+  "targets": {}
+}

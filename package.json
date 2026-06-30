@@ -1,12 +1,12 @@
 {
   "name": "kodem",
   "scripts": {
-    "build": "nx run-many -t build --projects=app,api,worker,web",
+    "build": "nx run-many -t build --projects=app,api,worker,marketing",
     "prepare": "husky install && prisma generate --schema=libs/database/prisma/schema.prisma",
     "dev": "nx dev app",
     "dev:api": "nx serve api",
     "dev:worker": "nx serve worker",
-    "dev:web": "nx dev web",
+    "dev:marketing": "nx dev marketing",
     "db:generate": "prisma generate --schema=libs/database/prisma/schema.prisma",
     "db:push": "prisma db push --schema=libs/database/prisma/schema.prisma"
   },

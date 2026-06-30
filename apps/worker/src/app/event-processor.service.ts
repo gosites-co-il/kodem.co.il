@@ -1,13 +1,20 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { PrismaEventStore, WorkspaceRepository } from '@kodem/database';
+import { KodemEvent } from '@kodem/contracts';
+import { EVENT_TYPES } from '@kodem/events';
 import {
+  PrismaEventStore,
+  WorkspaceRepository,
   BusinessProfileRepository,
   InsightRepository,
   RecommendationRepository,
+  getPrismaClient,
 } from '@kodem/database';
-import { runEnginePipeline } from '@kodem/engines';
-import { KodemEvent, EVENT_TYPES } from '@kodem/events';
-import { getPrismaClient } from '@kodem/database';
+import { runEnginePipeline } from '@kodem/engines/pipeline';
+import {
+  toInsight,
+  toRecommendation,
+  prioritize,
+} from '@kodem/workspace/bkm';
 
 @Injectable()
 export class EventProcessorService implements OnModuleInit {
@@ -74,12 +81,18 @@ export class EventProcessorService implements OnModuleInit {
         await this.profileRepo.upsert(result.profile);
       }
 
-      if (result.insights.length > 0) {
-        await this.insightRepo.saveMany(result.insights);
+      if (result.insightDrafts.length > 0) {
+        const insights = result.insightDrafts.map((draft) =>
+          toInsight(event.workspaceId, draft),
+        );
+        await this.insightRepo.saveMany(insights);
       }
 
-      if (result.recommendations.length > 0) {
-        await this.recommendationRepo.saveMany(result.recommendations);
+      if (result.recommendationDrafts.length > 0) {
+        const recommendations = prioritize(result.recommendationDrafts).map(
+          (draft) => toRecommendation(event.workspaceId, draft),
+        );
+        await this.recommendationRepo.saveMany(recommendations);
       }
 
       if (event.type === EVENT_TYPES.WORKSPACE_CREATED) {
