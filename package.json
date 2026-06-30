@@ -1,12 +1,14 @@
 {
   "name": "kodem",
   "scripts": {
-    "build": "nx run-many -t build --projects=app,api,worker,marketing",
+    "nx": "node node_modules/nx/dist/bin/nx.js",
+    "build": "npm run nx -- run-many -t build --projects=app,api,worker,marketing",
     "prepare": "husky install && prisma generate --schema=libs/database/prisma/schema.prisma",
-    "dev": "nx dev app",
-    "dev:api": "nx serve api",
-    "dev:worker": "nx serve worker",
-    "dev:marketing": "nx dev marketing",
+    "dev": "concurrently -n next,api -c blue,green \"npm run nx -- dev app\" \"npm run nx -- serve api\"",
+    "dev:app": "npm run nx -- dev app",
+    "dev:api": "npm run nx -- serve api",
+    "dev:worker": "npm run nx -- serve worker",
+    "dev:marketing": "npm run nx -- dev marketing",
     "db:generate": "prisma generate --schema=libs/database/prisma/schema.prisma",
     "db:push": "prisma db push --schema=libs/database/prisma/schema.prisma"
   },
@@ -62,6 +64,7 @@
     "@vitest/ui": "4.1.9",
     "autoprefixer": "^10.4.21",
     "babel-jest": "^30.0.0",
+    "concurrently": "^10.0.3",
     "eslint": "^9.38.0",
     "eslint-config-next": "^16.2.4",
     "eslint-config-prettier": "^10.0.0",

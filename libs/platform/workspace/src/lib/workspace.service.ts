@@ -81,6 +81,49 @@ export class WorkspaceService {
     }
     return membership;
   }
+
+  async listForUser(userId: UserId): Promise<
+    Array<{
+      workspace: import('@kodem/contracts').Workspace;
+      role: import('@kodem/contracts').RoleName;
+      membership: Member;
+    }>
+  > {
+    const memberships = await this.memberRepo.findByUserId(userId);
+    const results = [];
+
+    for (const membership of memberships) {
+      const workspace = await this.workspaceRepo.findById(membership.workspaceId);
+      if (workspace) {
+        results.push({
+          workspace,
+          role: membership.role,
+          membership,
+        });
+      }
+    }
+
+    return results;
+  }
+
+  async switchTo(
+    userId: UserId,
+    workspaceId: WorkspaceId,
+  ): Promise<ResolvedWorkspace> {
+    const membership = await this.assertMembership(userId, workspaceId);
+    const workspace = await this.workspaceRepo.findById(workspaceId);
+    if (!workspace) {
+      throw new Error('Workspace not found');
+    }
+
+    await this.userRepo.setActiveWorkspace(userId, workspaceId);
+
+    return {
+      workspace,
+      membership,
+      role: membership.role,
+    };
+  }
 }
 
 export type { ResolvedWorkspace };

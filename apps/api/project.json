@@ -63,6 +63,24 @@
           "buildTarget": "api:build:production"
         }
       }
+    },
+    "dev": {
+      "continuous": true,
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "api:build",
+        "runBuildTargetDependencies": false
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "api:build:development"
+        },
+        "production": {
+          "buildTarget": "api:build:production"
+        }
+      }
     }
   },
   "tags": ["type:app", "scope:api"],
