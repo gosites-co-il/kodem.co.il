@@ -2,23 +2,57 @@
 
 ## Cursor Cloud specific instructions
 
-This is an Nx (v22) monorepo using npm. Two runnable apps plus shared libs:
+This is an Nx (v23) integrated monorepo for **Kodem** — a PLG AI business intelligence platform. Package manager: npm.
 
-- `next-app` — Next.js 16 frontend (Turbopack). Dev: `npx nx dev next-app` → http://localhost:3000. Has a built-in route handler at `/api/hello`.
-- `api` — Express backend. Dev: `npx nx serve api` → http://localhost:3333/api (builds via webpack first, then runs the node bundle).
-- `libs/shadcn-ui`, `libs/shared/interfaces` — shared libraries.
+### Applications
 
-Standard task commands (see `nx.json` plugins and each `project.json`):
+| App | Path | Stack | Dev command | URL |
+|-----|------|-------|-------------|-----|
+| **app** | `apps/app` | Next.js 16 (SaaS UI) | `CI=true npx nx dev app` | http://localhost:3000 |
+| **web** | `apps/web` | Astro (marketing) | `CI=true npx nx dev web` | http://localhost:4321 |
+| **api** | `apps/api` | NestJS (backend) | `CI=true npx nx serve api` | http://localhost:3333/api |
+| **worker** | `apps/worker` | NestJS (engine runner) | `CI=true npx nx serve worker` | http://localhost:3334/worker |
 
-- Lint: `npx nx run-many -t lint` (or `npx nx lint <project>`).
-- Test (Jest): `npx nx run-many -t test` (or `npx nx test <project>`).
-- Build: `npm run build` (Next.js prod build) / `npx nx build api`.
+### Libraries (`libs/`)
+
+| Lib | Purpose | Tag |
+|-----|---------|-----|
+| `core` | Workspace, User, Member, Role, IDs | `layer:core` |
+| `business` | BusinessProfile, Lead, Contact, etc. | `layer:domain` |
+| `events` | Event schema, bus, store interface | `layer:core` |
+| `engines` | Discovery, Insight, Recommendation, Rule, Learning | `layer:engines` |
+| `ai` | LLM abstraction, prompts | `layer:ai` |
+| `insights` | Insight schema & formatting | `layer:domain` |
+| `recommendations` | Action generation & prioritization | `layer:domain` |
+| `integrations` | External system adapters | `layer:integration` |
+| `database` | Prisma client & repositories | `layer:core` |
+| `auth` | JWT, sessions, RBAC | `layer:core` |
+| `subscription` | Plans & entitlements | `layer:domain` |
+| `ui` | Shared React design system (shadcn) | `layer:domain` |
+
+Path aliases: `@kodem/<lib>` (see `tsconfig.base.json`).
+
+### Execution flow
+
+```
+User Action → API → Event created → Worker consumes → Engines run → DB → App shows results
+```
+
+Engines are **never** triggered from UI or API request lifecycle — only from the worker.
+
+### Standard commands
+
+- Lint: `CI=true npx nx run-many -t lint`
+- Test: `CI=true npx nx run-many -t test`
+- Build all: `npm run build`
+- DB: `npm run db:generate` / `npm run db:push`
 
 ### Non-obvious caveats
 
-- Nx is interactive on a fresh VM: the first Nx command prompts `Share usage data with the Nx team?` and blocks. Prefix Nx commands with `CI=true` (e.g. `CI=true npx nx dev next-app`) to run non-interactively. This is why dev servers should be started with `CI=true`.
-- `next-app` and `api` both expose a path that contains `/api`, but they are different servers: Express serves `http://localhost:3333/api`; the Next.js route handler is `http://localhost:3000/api/hello`.
-- Within `libs/shadcn-ui`, the `@nx/enforce-module-boundaries` rule requires **relative** imports between files in the same project (e.g. `../../lib/utils`), not the `@libs/shadcn-ui/...` path alias. New shadcn components added via the CLI use the alias and must be converted (e.g. `npx nx lint shadcn-ui --fix`).
-- `next-app:lint` crashes with `Converting circular structure to JSON` from the legacy `eslint-config-next` / `@eslint/eslintrc` compat layer under ESLint 9. This is pre-existing and unrelated to app code; the other projects lint cleanly.
-- `libs/shadcn-ui/src/components/ui/calendar.tsx` does not typecheck against the installed `react-day-picker` v9 (uses the removed v8 `IconLeft` custom component). It's vendored component source that needs a re-pull/migration; unrelated to the rest of the lib, which compiles fine.
-- Jest must stay on the v30 line across the board. `jest@^30` is incompatible with `jest-environment-jsdom`/`jest-environment-node` v29 (tests fail with `this._moduleMocker.clearMocksOnScope is not a function`); the environment packages are pinned to `^30` to match.
+- Prefix Nx commands with `CI=true` to skip interactive telemetry prompts.
+- `apps/app` and `apps/api` both expose `/api` paths but on different servers (3000 vs 3333).
+- Within `libs/ui`, use **relative** imports between files in the same project (not `@kodem/ui/...`).
+- `apps/app:lint` may crash with circular JSON from legacy `eslint-config-next` under ESLint 9.
+- Jest must stay on v30; environment packages pinned to `^30`.
+- Prisma is pinned to v6 (v7 has breaking config changes). SQLite DB at `libs/database/prisma/kodem.db`.
+- If `npx nx` fails with missing `.nx/nxw.js`, run via `node node_modules/nx/dist/bin/nx.js` instead.

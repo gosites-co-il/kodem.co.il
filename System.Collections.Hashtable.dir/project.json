@@ -1,0 +1,19 @@
+{
+  "name": "System.Collections.Hashtable.name",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "System.Collections.Hashtable.dir/src",
+  "projectType": "library",
+  "tags": ["System.Collections.Hashtable.tags"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/System.Collections.Hashtable.dir",
+        "main": "System.Collections.Hashtable.dir/src/index.ts",
+        "tsConfig": "System.Collections.Hashtable.dir/tsconfig.lib.json",
+        "assets": ["System.Collections.Hashtable.dir/*.md"]
+      }
+    }
+  }
+}

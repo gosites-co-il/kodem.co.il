@@ -9,6 +9,7 @@ export default [
       '**/dist',
       '**/vite.config.*.timestamp*',
       '**/vitest.config.*.timestamp*',
+      'libs/database/src/generated/**',
     ],
   },
   {
@@ -17,12 +18,64 @@ export default [
       '@nx/enforce-module-boundaries': [
         'error',
         {
-          enforceBuildableLibDependency: true,
+          enforceBuildableLibDependency: false,
           allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?js$'],
           depConstraints: [
             {
-              sourceTag: '*',
-              onlyDependOnLibsWithTags: ['*'],
+              sourceTag: 'type:app',
+              onlyDependOnLibsWithTags: [
+                'layer:core',
+                'layer:domain',
+                'layer:engines',
+                'layer:ai',
+                'layer:integration',
+              ],
+            },
+            {
+              sourceTag: 'scope:web',
+              notDependOnLibsWithTags: ['layer:engines'],
+            },
+            {
+              sourceTag: 'scope:marketing',
+              onlyDependOnLibsWithTags: [],
+            },
+            {
+              sourceTag: 'scope:api',
+              notDependOnLibsWithTags: ['layer:engines'],
+            },
+            {
+              sourceTag: 'scope:worker',
+              onlyDependOnLibsWithTags: [
+                'layer:core',
+                'layer:domain',
+                'layer:engines',
+                'layer:ai',
+                'layer:integration',
+              ],
+            },
+            {
+              sourceTag: 'layer:engines',
+              onlyDependOnLibsWithTags: [
+                'layer:core',
+                'layer:domain',
+                'layer:ai',
+              ],
+            },
+            {
+              sourceTag: 'layer:ai',
+              onlyDependOnLibsWithTags: ['layer:core'],
+            },
+            {
+              sourceTag: 'layer:core',
+              onlyDependOnLibsWithTags: ['layer:core'],
+            },
+            {
+              sourceTag: 'layer:domain',
+              onlyDependOnLibsWithTags: ['layer:core', 'layer:domain'],
+            },
+            {
+              sourceTag: 'layer:integration',
+              onlyDependOnLibsWithTags: ['layer:core', 'layer:integration'],
             },
           ],
         },
@@ -40,21 +93,20 @@ export default [
       '**/*.cjs',
       '**/*.mjs',
     ],
-    // Override or add rules here
     rules: {},
   },
   {
-    files: ["**/*.css"],
-    plugins: ["eslint-plugin-css"],
+    files: ['**/*.css'],
+    plugins: ['eslint-plugin-css'],
     rules: {
-      "css/rule-name": "error"
+      'css/rule-name': 'error',
     },
   },
   {
-    files: ["**/*.html"],
-    plugins: ["eslint-plugin-html"],
+    files: ['**/*.html'],
+    plugins: ['eslint-plugin-html'],
     rules: {
-      "html/report-bad-indentation": "error"
+      'html/report-bad-indentation': 'error',
     },
   },
 ];

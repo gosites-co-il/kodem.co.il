@@ -1,0 +1,8 @@
+{
+  "name": "insights",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/insights/src",
+  "projectType": "library",
+  "tags": ["layer:domain"],
+  "targets": {}
+}

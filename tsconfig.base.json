@@ -15,9 +15,20 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@shared/interfaces": ["libs/shared/interfaces/src/index.ts"],
-      "@libs/shadcn-ui": ["libs/shadcn-ui/src/index.ts"],
-      "@libs/shadcn-ui/*": ["libs/shadcn-ui/src/*"]
+      "@kodem/core": ["libs/core/src/index.ts"],
+      "@kodem/business": ["libs/business/src/index.ts"],
+      "@kodem/events": ["libs/events/src/index.ts"],
+      "@kodem/engines": ["libs/engines/src/index.ts"],
+      "@kodem/ai": ["libs/ai/src/index.ts"],
+      "@kodem/insights": ["libs/insights/src/index.ts"],
+      "@kodem/recommendations": ["libs/recommendations/src/index.ts"],
+      "@kodem/integrations": ["libs/integrations/src/index.ts"],
+      "@kodem/database": ["libs/database/src/index.ts"],
+      "@kodem/auth": ["libs/auth/src/index.ts"],
+      "@kodem/subscription": ["libs/subscription/src/index.ts"],
+      "@kodem/ui": ["libs/ui/src/index.ts"],
+      "@kodem/ui/*": ["libs/ui/src/*"],
+      "@shared/interfaces": ["libs/shared/interfaces/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

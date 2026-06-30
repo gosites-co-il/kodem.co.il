@@ -135,7 +135,8 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
-.nx/installation
+*.db
+libs/database/src/generated/
 .nx/cache
 .nx/workspace-data
 vite.config.*.timestamp*

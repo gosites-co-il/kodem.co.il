@@ -3,8 +3,8 @@
     "style": "default",
     "rsc": true,
     "tailwind": {
-"config": "apps/next-app/tailwind.config.js",
-"css": "apps/next-app/src/app/global.css",
+"config": "apps/app/tailwind.config.js",
+"css": "apps/app/src/app/global.css",
       "baseColor": "slate",
       "cssVariables": true
     },

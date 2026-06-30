@@ -1,21 +1,26 @@
 /**
- * This is not a production server yet!
- * This is only a minimal backend to get started.
+ * Kodem API — orchestrates business logic and emits events.
  */
 
-import express from 'express';
-import * as path from 'path';
+import { config } from 'dotenv';
+import { join } from 'path';
 
-const app = express();
+config();
+process.env.DATABASE_URL ??=
+  `file:${join(process.cwd(), 'libs/database/prisma/kodem.db')}`;
 
-app.use('/assets', express.static(path.join(__dirname, 'assets')));
+async function bootstrap() {
+  const { Logger } = await import('@nestjs/common');
+  const { NestFactory } = await import('@nestjs/core');
+  const { AppModule } = await import('./app/app.module');
 
-app.get('/api', (req, res) => {
-  res.send({ message: 'Welcome to api!' });
-});
+  const app = await NestFactory.create(AppModule);
+  const globalPrefix = 'api';
+  app.setGlobalPrefix(globalPrefix);
+  app.enableCors();
+  const port = process.env.PORT || 3333;
+  await app.listen(port);
+  Logger.log(`Kodem API running at http://localhost:${port}/${globalPrefix}`);
+}
 
-const port = process.env.PORT || 3333;
-const server = app.listen(port, () => {
-  console.log(`Listening at http://localhost:${port}/api`);
-});
-server.on('error', console.error);
+bootstrap();

@@ -1,0 +1,51 @@
+---
+const plans = [
+  { name: 'Free', price: 'Free', modules: ['discovery', 'insights'] },
+  { name: 'Starter', price: '$49/mo', modules: ['discovery', 'insights', 'recommendations'] },
+  { name: 'Growth', price: '$149/mo', modules: ['discovery', 'insights', 'recommendations', 'integrations'] },
+  { name: 'Enterprise', price: 'Contact us', modules: ['All modules + learning'] },
+];
+---
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Kodem pricing — plans for every stage of growth." />
+    <title>Pricing — Kodem</title>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="/">Kodem</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/signup">Sign up</a>
+      </nav>
+    </header>
+    <main>
+      <h1>Pricing</h1>
+      <div class="plans">
+        {plans.map((plan) => (
+          <article class="plan">
+            <h2>{plan.name}</h2>
+            <p class="price">{plan.price}</p>
+            <ul>
+              {plan.modules.map((m) => <li>{m}</li>)}
+            </ul>
+            <a href="/signup">Get started</a>
+          </article>
+        ))}
+      </div>
+    </main>
+  </body>
+</html>
+
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 960px; margin: 0 auto; padding: 2rem; }
+  nav { display: flex; gap: 1.5rem; margin-bottom: 2rem; }
+  nav a:first-child { font-weight: 700; margin-right: auto; }
+  .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+  .plan { border: 1px solid #e5e5e5; border-radius: 8px; padding: 1.5rem; }
+  .price { font-size: 1.5rem; font-weight: 700; }
+  .plan a { display: inline-block; margin-top: 1rem; color: #111; }
+</style>

@@ -1,6 +1,6 @@
 {
   "installation": {
-    "version": "20.8.0"
+    "version": "23.0.1"
   },
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "defaultBase": "dev",
@@ -59,7 +59,9 @@
         "targetName": "test"
       },
       "exclude": [
-        "apps/api-e2e/**/*"
+        "apps/api-e2e/**/*",
+        "apps/api-e2e/**/*",
+        "apps/worker-e2e/**/*"
       ]
     },
     {
@@ -75,9 +77,12 @@
   ],
   "targetDefaults": {
     "e2e-ci--**/*": {
-      "dependsOn": [
-        "^build"
-      ]
+      "dependsOn": ["^build"]
+    },
+    "@nx/js:tsc": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["default", "^default"]
     }
   },
   "generators": {
@@ -92,5 +97,7 @@
         "unitTestRunner": "none"
       }
     }
-  }
+  },
+  "analytics": false,
+  "neverConnectToCloud": true
 }

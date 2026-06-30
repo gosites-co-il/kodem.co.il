@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Workspace {
+  id         String   @id
+  name       String
+  slug       String   @unique
+  status     String   @default("onboarding")
+  websiteUrl String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  members    Member[]
+  events     Event[]
+  profiles   BusinessProfile[]
+  insights   InsightRecord[]
+  recommendations RecommendationRecord[]
+}
+
+model User {
+  id        String   @id
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members   Member[]
+}
+
+model Member {
+  id          String   @id
+  workspaceId String
+  userId      String
+  role        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@unique([workspaceId, userId])
+}
+
+model Event {
+  id          String   @id
+  type        String
+  workspaceId String
+  payload     String
+  status      String   @default("pending")
+  error       String?
+  occurredAt  DateTime @default(now())
+  processedAt DateTime?
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([status, occurredAt])
+}
+
+model BusinessProfile {
+  id                    String   @id @default(cuid())
+  workspaceId           String   @unique
+  name                  String
+  industry              String?
+  services              String
+  classification        String?
+  communicationChannels String
+  hypotheses            String
+  version               Int      @default(1)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  workspace             Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model InsightRecord {
+  id             String   @id
+  workspaceId    String
+  title          String
+  what           String
+  why            String
+  confidence     Float
+  supportingData String
+  createdAt      DateTime @default(now())
+
+  workspace      Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model RecommendationRecord {
+  id             String   @id
+  workspaceId    String
+  action         String
+  rationale      String
+  expectedImpact String
+  priority       Int
+  isPrimary      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  workspace      Workspace @relation(fields: [workspaceId], references: [id])
+}
