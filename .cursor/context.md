@@ -1,4 +1,4 @@
-# Kodem AI Context
+# Kodem System Context
 
 Version: 1.0
 
@@ -6,236 +6,200 @@ Version: 1.0
 
 # Purpose
 
-This file provides the primary context for AI-assisted development inside the Kodem repository.
+This file defines the current state of the Kodem project.
 
-Read this file before making architectural or implementation decisions.
+It provides working context for AI agents (Cursor) during development.
 
-This document summarizes the platform. Detailed rules are located under `.cursor/rules`.
+Unlike architecture or rules, this file is dynamic.
+
+It should be updated as the system evolves.
 
 ---
 
-# What is Kodem?
+# System Overview
 
 Kodem is an AI-powered Business Operating System.
 
-It helps businesses understand themselves, improve continuously, and make better decisions.
+It helps businesses:
 
-Kodem is **not**:
-
-- A CRM
-- A Dashboard
-- A Website Builder
-- An AI Chatbot
-
-Instead, it is a platform that continuously builds and enriches a Business Knowledge Model (BKM) for every business.
+- Understand their operations
+- Manage customers (CRM)
+- Capture business knowledge
+- Generate insights
+- Improve decision-making using AI
 
 ---
 
-# Core Architecture
+# Core System Model
 
-The platform is organized into four conceptual layers.
+The system is based on five runtime concepts:
 
-```text
-Platform
-
-↓
-
-Workspace
-
-↓
-
-Business Knowledge Model
-
-↓
-
-Modules
+```
+Modules → Events → Engines → Business Knowledge Model (BKM) → Insights
 ```
 
-Users interact with Modules.
+---
 
-Modules consume Business Knowledge.
+# Current System State
 
-Business Knowledge is maintained by Engines.
+## Implemented Concepts
 
-The Platform provides shared services.
+✔ Nx Monorepo structure defined  
+✔ Architecture layer defined  
+✔ AI integration rules defined  
+✔ Event-driven system model defined  
+✔ Module-based system design defined  
 
 ---
 
-# Platform
+## Defined (Not Yet Implemented)
 
-The Platform provides shared infrastructure.
-
-Examples:
-
-- Authentication
-- Authorization
-- Subscription Management
-- AI Gateway
-- Integrations
-- Module Catalog
-- Feature Flags
-- Monitoring
-- Logging
-
-There is only one Platform.
+⏳ Workspace implementation  
+⏳ CRM module  
+⏳ Digital Card module  
+⏳ Event system runtime implementation  
+⏳ Engine execution pipeline  
+⏳ Business Knowledge persistence layer  
+⏳ AI Gateway implementation  
 
 ---
 
-# Workspace
+## Active Development Focus
 
-A Workspace represents a single business.
+At this stage, development should prioritize:
 
-Everything owned by a customer belongs to a Workspace.
-
-Each Workspace contains:
-
-- Business Profile
-- Members
-- Events
-- Business Knowledge
-- Assets
-- AI Configuration
-- Module Configuration
+1. Workspace foundation
+2. Core Module structure (CRM + Digital Card)
+3. Event system implementation
+4. Basic BKM structure
+5. First Engine (Insight Engine V1)
 
 ---
 
-# Business Knowledge Model (BKM)
+# Active Architecture Boundaries
 
-The Business Knowledge Model is the most valuable asset of Kodem.
+## Must be respected at all times:
 
-The BKM is the platform's understanding of a business.
-
-Every feature should improve it.
-
-Modules consume it.
-
-Engines enrich it.
-
-The BKM is always the source of truth.
+- Modules own UI + user interactions
+- Events represent system truth
+- Engines produce intelligence only
+- BKM is system memory
+- AI is a supporting layer only
 
 ---
 
-# Modules
+# What Cursor Should Optimize For
 
-Modules provide business capabilities.
+When generating code, prioritize:
 
-Examples:
-
-Core Modules
-
-- CRM
-- Digital Card
-
-Premium Modules
-
-- Marketing
-- Insights
-- Automation
-- Booking
-
-Modules never own business knowledge.
+✔ Working vertical slices  
+✔ Event-driven correctness  
+✔ Clear module ownership  
+✔ Minimal abstractions  
+✔ Reusability aligned with Nx structure  
 
 ---
 
-# Engines
+# What Cursor Should Avoid
 
-Engines continuously improve Business Knowledge.
+Never:
 
-Current Engines:
-
-- Discovery
-- Learning
-- Insight
-- Recommendation
-- Rule
-
-Engines never know about UI.
+✘ Over-engineer missing features  
+✘ Create unnecessary libraries  
+✘ Add AI without validation layer  
+✘ Bypass Event system  
+✘ Mix UI and business logic  
+✘ Implement Engines inside Modules  
 
 ---
 
-# Events
+# Current Milestone Mindset
 
-Every meaningful action creates an immutable Event.
+The system is currently in:
 
-Events trigger Workers.
+> MVP Foundation Phase
 
-Workers execute Engines.
+Meaning:
 
-Engines update Business Knowledge.
-
----
-
-# AI
-
-All AI communication happens through the AI Gateway.
-
-Never call AI providers directly.
-
-Workspace AI configuration determines which provider or strategy should be used.
-
-Supported strategies include:
-
-- Platform Managed
-- Preferred Provider
-- Bring Your Own AI
+- Focus is on core system loop
+- Not on scalability optimizations
+- Not on advanced AI features
+- Not on marketplace or extensibility
 
 ---
 
-# Repository
+# MVP Core Loop
 
-This repository is an Nx Integrated Monorepo.
+The first usable system must enable:
 
-Applications:
-
-- marketing (Astro)
-- web (Next.js)
-- api (NestJS)
-- worker (NestJS)
-
-Shared logic belongs inside libs.
-
-Avoid duplicating code between applications.
+```
+User creates Workspace
+→ Adds business info
+→ System builds initial Business Knowledge
+→ CRM captures leads
+→ Events are generated
+→ Insight Engine produces value
+→ User sees improvement suggestions
+```
 
 ---
 
-# Development Principles
+# System Health Indicators
+
+The system is considered healthy if:
+
+- Events are consistently generated
+- BKM is continuously updated
+- Modules remain simple and isolated
+- Engines operate independently
+- AI does not control system behavior
+
+---
+
+# Architecture Drift Warning
+
+If any of the following happens:
+
+- Business logic appears in UI
+- Events are skipped
+- Engines become tightly coupled to Modules
+- Database is accessed directly outside repository layer
+
+→ The architecture is drifting and must be corrected immediately.
+
+---
+
+# Development Priority Rules
 
 Always prioritize:
 
-1. Architecture
-2. Maintainability
-3. Simplicity
-4. Reusability
-5. Scalability
+1. Correct system behavior
+2. Event integrity
+3. Business Knowledge accuracy
+4. Module clarity
+5. Simplicity of implementation
 
-Never optimize for short-term convenience.
+Never prioritize:
 
----
-
-# Before Implementing
-
-Always ask:
-
-- Does this belong to the Platform?
-- Does this belong to the Workspace?
-- Does this improve the Business Knowledge Model?
-- Should this generate an Event?
-- Can this be reused?
-- Does this fit the existing architecture?
-
-If the answer is uncertain, stop and revisit the architecture before implementing.
+- Premature optimization
+- Generic abstractions
+- AI complexity
+- Over-engineering
 
 ---
 
-# Rule Files
+# Golden Rule
 
-Before implementing features, consult the following documents:
+The system is not defined by what exists in code.
 
-- `.cursor/rules/product.md`
-- `.cursor/rules/glossary.md`
-- `.cursor/rules/architecture.md`
-- `.cursor/rules/nx.md`
-- `.cursor/rules/coding-standards.md`
-- `.cursor/rules/ai.md`
+It is defined by how Events, Engines, Modules, and Business Knowledge interact.
 
-These files define the official development rules for the Kodem platform.
+---
+
+# Final Principle
+
+Kodem is a living system.
+
+This context reflects its current state.
+
+When the system evolves, this file must evolve with it.
