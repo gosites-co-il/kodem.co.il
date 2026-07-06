@@ -11,7 +11,7 @@ import {
 } from '@kodem/contracts';
 import { getPrismaClient } from './client';
 import { mapEventRowToDomain, mapEventToPersistence } from './mappers';
-import { mapWorkspaceRowToDomain } from './mappers/workspace.mapper';
+import { mapWorkspaceRowToDomain, serializeSetupData } from './mappers/workspace.mapper';
 
 export class WorkspaceRepository {
   private readonly db = getPrismaClient();
@@ -37,6 +37,8 @@ export class WorkspaceRepository {
           slug: input.slug,
           ownerId: userId,
           status: 'onboarding',
+          onboardingStatus: 'NOT_STARTED',
+          onboardingStep: 0,
           websiteUrl: input.websiteUrl,
         },
       }),
@@ -61,6 +63,8 @@ export class WorkspaceRepository {
         slug: input.slug,
         ownerId: userId,
         status: 'onboarding',
+        onboardingStatus: 'NOT_STARTED',
+        onboardingStep: 0,
         websiteUrl: input.websiteUrl,
         createdAt: now,
         updatedAt: now,
@@ -86,6 +90,8 @@ export class WorkspaceRepository {
           slug: input.slug,
           ownerId: input.ownerId,
           status: 'onboarding',
+          onboardingStatus: 'NOT_STARTED',
+          onboardingStep: 0,
           websiteUrl: input.websiteUrl,
         },
       }),
@@ -110,6 +116,8 @@ export class WorkspaceRepository {
         slug: input.slug,
         ownerId: input.ownerId,
         status: 'onboarding',
+        onboardingStatus: 'NOT_STARTED',
+        onboardingStep: 0,
         websiteUrl: input.websiteUrl,
         createdAt: now,
         updatedAt: now,
@@ -127,6 +135,29 @@ export class WorkspaceRepository {
   async findBySlug(slug: string): Promise<Workspace | null> {
     const row = await this.db.workspace.findUnique({ where: { slug } });
     if (!row) return null;
+    return mapWorkspaceRowToDomain(row);
+  }
+
+  async updateOnboarding(
+    id: WorkspaceId,
+    data: {
+      name?: string;
+      websiteUrl?: string | null;
+      industry?: string | null;
+      businessSize?: string | null;
+      onboardingStatus?: string;
+      onboardingStep?: number;
+      status?: string;
+      setupData?: string | null;
+    },
+  ): Promise<Workspace> {
+    const row = await this.db.workspace.update({
+      where: { id },
+      data: {
+        ...data,
+        updatedAt: new Date(),
+      },
+    });
     return mapWorkspaceRowToDomain(row);
   }
 }

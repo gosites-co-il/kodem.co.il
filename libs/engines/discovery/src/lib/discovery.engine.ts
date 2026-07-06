@@ -21,6 +21,12 @@ export class DiscoveryEngine implements Engine<DiscoveryInput, DiscoveryOutput> 
       name: input.businessName,
       industry,
       services: ['Core Service'],
+      products: [],
+      emails: [],
+      phones: [],
+      addresses: [],
+      socialProfiles: [],
+      verifiedFields: [],
       classification: 'SMB',
       communicationChannels: input.websiteUrl ? ['website'] : ['manual'],
       hypotheses: [

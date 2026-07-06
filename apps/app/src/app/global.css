@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @config '../../tailwind.config.js';
+@plugin 'tailwindcss-animate';
 
 @source '../../components/**/*.{ts,tsx}';
 @source '../**/*.{ts,tsx}';
@@ -26,7 +27,29 @@
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
     --ring: 240 5.9% 10%;
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 6%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 6%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
   }
 
   * {
@@ -36,5 +59,44 @@
   body {
     @apply min-h-screen bg-background text-foreground antialiased;
     font-feature-settings: 'rlig' 1, 'calt' 1;
+    text-align: start;
+  }
+}
+
+@layer utilities {
+  .auth-canvas-gradient {
+    background: radial-gradient(
+      ellipse 120% 80% at 50% -20%,
+      hsl(var(--muted)),
+      hsl(var(--background)) 50%,
+      hsl(var(--background))
+    );
+  }
+
+  .auth-dot-grid {
+    background-image: radial-gradient(
+      circle,
+      hsl(var(--foreground) / 0.07) 1px,
+      transparent 1px
+    );
+    background-size: 24px 24px;
+  }
+
+  .auth-top-glow {
+    background: radial-gradient(
+      ellipse 80% 50% at 50% -20%,
+      hsl(var(--foreground) / 0.06),
+      transparent
+    );
+  }
+
+  .app-surface {
+    background:
+      radial-gradient(
+        ellipse 90% 60% at 50% -30%,
+        hsl(var(--muted) / 0.55),
+        transparent 55%
+      ),
+      hsl(var(--background));
   }
 }

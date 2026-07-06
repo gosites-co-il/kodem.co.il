@@ -1,20 +1,34 @@
 import type {
+  AdvanceSetupInput,
   AuthResult,
+  BusinessProfile,
+  EntryResolution,
+  Insight,
   Member,
+  Recommendation,
   RoleName,
+  SetupStateResponse,
   User,
   Workspace,
 } from '@kodem/contracts';
 import { API_URL } from './constants';
 import { getToken } from './auth/storage';
 
-export class ApiError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
+export type ApiError = Error & { status: number; name: 'ApiError' };
+
+export function createApiError(status: number, message: string): ApiError {
+  const error = new Error(message) as ApiError;
+  error.name = 'ApiError';
+  error.status = status;
+  return error;
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  return (
+    error instanceof Error &&
+    error.name === 'ApiError' &&
+    typeof (error as ApiError).status === 'number'
+  );
 }
 
 export interface MeResponse {
@@ -42,7 +56,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { message?: string };
-    throw new ApiError(res.status, body.message ?? res.statusText);
+    throw createApiError(res.status, body.message ?? res.statusText);
   }
 
   return res.json() as Promise<T>;
@@ -76,6 +90,59 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ workspaceId }),
     });
+  },
+
+  resolveEntry(workspaceSelected?: boolean) {
+    const query = workspaceSelected ? '?workspaceSelected=true' : '';
+    return request<EntryResolution>(`/entry/resolve${query}`);
+  },
+
+  getSetup() {
+    return request<SetupStateResponse>('/workspace/setup');
+  },
+
+  advanceSetupStep(body: AdvanceSetupInput) {
+    return request<SetupStateResponse>('/workspace/setup/step', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  discoverWebsite(websiteUrl: string) {
+    return request<SetupStateResponse>('/workspace/setup/discover', {
+      method: 'POST',
+      body: JSON.stringify({ websiteUrl }),
+    });
+  },
+
+  runSetupPreparation() {
+    return request<SetupStateResponse>('/workspace/setup/prepare', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  },
+
+  completeSetup() {
+    return request<SetupStateResponse>('/workspace/setup/complete', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  },
+
+  getWorkspaceOverview() {
+    return request<{
+      workspace: Workspace;
+      profile: BusinessProfile | null;
+      insights: Insight[];
+      recommendations: Recommendation[];
+      primaryRecommendation: Recommendation | undefined;
+      discoveryProgress: {
+        website: boolean;
+        profile: boolean;
+        insights: boolean;
+        recommendations: boolean;
+      };
+    }>('/workspace/overview');
   },
 };
 

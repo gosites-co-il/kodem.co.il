@@ -57,7 +57,8 @@
       },
       "configurations": {
         "development": {
-          "buildTarget": "worker:build:development"
+          "buildTarget": "worker:build:development",
+          "inspect": false
         },
         "production": {
           "buildTarget": "worker:build:production"

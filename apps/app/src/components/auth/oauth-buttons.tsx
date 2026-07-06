@@ -1,29 +1,29 @@
 'use client';
 
-import { Button } from '@kodem/design-system/components/ui/button';
-import { getOAuthUrl } from '../../lib/api';
+import { m } from '../../lib/auth/motion-provider';
+import { fadeUp, usePrefersReducedMotion } from '../../lib/auth/motion';
+import { OAuthButton, type OAuthProvider } from './oauth-button';
 
-const providers = [
-  { id: 'google' as const, label: 'Continue with Google' },
-  { id: 'github' as const, label: 'Continue with GitHub' },
-  { id: 'facebook' as const, label: 'Continue with Facebook' },
-];
+const providers: OAuthProvider[] = ['google', 'github', 'facebook'];
 
 export function OAuthButtons() {
+  const prefersReducedMotion = usePrefersReducedMotion();
+
   return (
-    <div className="grid gap-2">
-      {providers.map((provider) => (
-        <Button
-          key={provider.id}
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={() => {
-            window.location.href = getOAuthUrl(provider.id);
+    <div className="grid gap-2.5">
+      {providers.map((provider, index) => (
+        <m.div
+          key={provider}
+          initial={prefersReducedMotion ? false : fadeUp.hidden}
+          animate={prefersReducedMotion ? undefined : fadeUp.visible}
+          transition={{
+            duration: 0.4,
+            delay: 0.25 + index * 0.08,
+            ease: 'easeOut',
           }}
         >
-          {provider.label}
-        </Button>
+          <OAuthButton provider={provider} />
+        </m.div>
       ))}
     </div>
   );

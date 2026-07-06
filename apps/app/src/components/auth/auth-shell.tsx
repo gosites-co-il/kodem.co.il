@@ -13,18 +13,16 @@ export function AuthShell({
 }) {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center px-4 py-12">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-muted via-background to-background"
-      />
+      <div aria-hidden className="auth-dot-grid pointer-events-none absolute inset-0" />
+      <div aria-hidden className="auth-top-glow pointer-events-none absolute inset-0" />
 
       <div className="relative z-10 w-full max-w-[420px] space-y-8">
         <div className="space-y-2 text-center">
           <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-xl font-semibold tracking-tight"
+            href="/login"
+            className="inline-flex items-center gap-2 text-xl font-semibold tracking-tight transition-opacity hover:opacity-80"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
               K
             </span>
             Kodem

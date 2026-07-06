@@ -27,12 +27,12 @@ export function AuthCallbackHandler() {
     const oauthError = searchParams.get('error');
 
     if (oauthError) {
-      setError('Authentication failed. Please try again.');
+      setError('ההתחברות נכשלה. נסו שוב.');
       return;
     }
 
     if (!token) {
-      setError('Missing authentication token.');
+      setError('חסר אסימון אימות.');
       return;
     }
 
@@ -45,21 +45,9 @@ export function AuthCallbackHandler() {
           workspace: me.workspace,
           role: me.role,
         });
-
-        const { workspaces } = await api.listWorkspaces();
-        if (workspaces.length === 0) {
-          setError('No workspace found for this account.');
-          return;
-        }
-
-        if (workspaces.length === 1) {
-          router.replace(ROUTES.dashboard);
-          return;
-        }
-
-        router.replace(ROUTES.workspaceSelect);
+        router.replace(ROUTES.entry);
       } catch {
-        setError('Unable to complete sign in. Please try again.');
+        setError('לא ניתן להשלים את ההתחברות. נסו שוב.');
       }
     }
 
@@ -71,12 +59,12 @@ export function AuthCallbackHandler() {
       <div className="flex min-h-screen items-center justify-center px-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Sign in failed</CardTitle>
+            <CardTitle>ההתחברות נכשלה</CardTitle>
             <CardDescription>{error}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild className="w-full">
-              <Link href={ROUTES.login}>Back to sign in</Link>
+              <Link href={ROUTES.login}>חזרה לכניסה</Link>
             </Button>
           </CardContent>
         </Card>
@@ -86,7 +74,7 @@ export function AuthCallbackHandler() {
 
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <p className="text-sm text-muted-foreground">Completing sign in…</p>
+      <p className="text-sm text-muted-foreground">משלימים התחברות…</p>
     </div>
   );
 }

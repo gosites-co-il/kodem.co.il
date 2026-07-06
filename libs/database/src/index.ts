@@ -1,4 +1,5 @@
 export * from './lib/client';
+export * from './lib/env';
 export * from './lib/repositories';
 export * from './lib/platform-repositories';
 export * from './lib/output-repositories';

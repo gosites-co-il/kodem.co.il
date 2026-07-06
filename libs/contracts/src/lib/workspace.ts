@@ -1,5 +1,7 @@
 import { Auditable } from './types';
 import { UserId, WorkspaceId } from './ids';
+import type { OnboardingStatus } from './onboarding';
+import type { WorkspaceSetupData } from './workspace-setup';
 
 export type WorkspaceStatus = 'active' | 'onboarding' | 'suspended';
 
@@ -9,7 +11,12 @@ export interface Workspace extends Auditable {
   slug: string;
   ownerId: UserId;
   status: WorkspaceStatus;
+  onboardingStatus: OnboardingStatus;
+  onboardingStep: number;
   websiteUrl?: string;
+  industry?: string;
+  businessSize?: string;
+  setupData?: WorkspaceSetupData;
 }
 
 export interface CreateWorkspaceInput {

@@ -9,7 +9,7 @@ import {
   useState,
 } from 'react';
 import type { RoleName, User, Workspace } from '@kodem/contracts';
-import { api, ApiError } from '../lib/api';
+import { api, isApiError } from '../lib/api';
 import { clearToken, getToken, setToken } from '../lib/auth/storage';
 import { ROUTES } from '../lib/constants';
 
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: true,
       });
     } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
+      if (isApiError(error) && error.status === 401) {
         clearToken();
       }
       setState({

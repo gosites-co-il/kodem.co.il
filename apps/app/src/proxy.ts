@@ -6,9 +6,19 @@ const publicPaths = [
   ROUTES.login,
   ROUTES.register,
   ROUTES.callback,
+  ROUTES.terms,
+  ROUTES.privacy,
 ];
 
-export function middleware(request: NextRequest) {
+const authRequiredPaths = [
+  ROUTES.entry,
+  ROUTES.workspaceSelect,
+  ROUTES.setup,
+  ROUTES.onboarding,
+  ROUTES.dashboard,
+];
+
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(TOKEN_COOKIE)?.value;
 
@@ -17,14 +27,20 @@ export function middleware(request: NextRequest) {
   );
 
   if (isPublic) {
-    if (token && (pathname === ROUTES.login || pathname === ROUTES.register)) {
-      return NextResponse.redirect(new URL(ROUTES.dashboard, request.url));
+    if (
+      token &&
+      (pathname === ROUTES.login ||
+        pathname === ROUTES.loginEmail ||
+        pathname === ROUTES.register)
+    ) {
+      return NextResponse.redirect(new URL(ROUTES.entry, request.url));
     }
     return NextResponse.next();
   }
 
-  const isProtected =
-    pathname.startsWith('/dashboard') || pathname.startsWith('/workspace');
+  const isProtected = authRequiredPaths.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
 
   if (isProtected && !token) {
     const loginUrl = new URL(ROUTES.login, request.url);
@@ -37,10 +53,16 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/entry',
     '/dashboard/:path*',
+    '/setup/:path*',
+    '/onboarding/:path*',
     '/workspace/:path*',
     '/login',
+    '/login/:path*',
     '/register',
     '/auth/callback',
+    '/terms',
+    '/privacy',
   ],
 };

@@ -1,19 +1,17 @@
-import type { RoleName, User, Workspace } from '@kodem/contracts';
 import { ROUTES } from '../constants';
-import { api } from '../api';
 import { setToken } from './storage';
 
 export interface AuthSession {
-  user: User;
-  workspace: Workspace;
-  role: RoleName;
+  user: import('@kodem/contracts').User;
+  workspace: import('@kodem/contracts').Workspace;
+  role: import('@kodem/contracts').RoleName;
 }
 
 export async function persistAuthResult(result: {
   token: string;
-  user: User;
-  workspace: Workspace;
-  role: RoleName;
+  user: AuthSession['user'];
+  workspace: AuthSession['workspace'];
+  role: AuthSession['role'];
 }): Promise<AuthSession> {
   setToken(result.token);
   return {
@@ -23,26 +21,9 @@ export async function persistAuthResult(result: {
   };
 }
 
+/** @deprecated Use completeAuthFlow from lib/entry/entry-flow */
 export async function resolvePostAuthRoute(): Promise<string> {
-  const { workspaces } = await api.listWorkspaces();
-
-  if (workspaces.length === 0) {
-    return `${ROUTES.login}?error=no_workspace`;
-  }
-
-  if (workspaces.length === 1) {
-    return ROUTES.dashboard;
-  }
-
-  return ROUTES.workspaceSelect;
+  return ROUTES.entry;
 }
 
-export async function completeAuthFlow(result: {
-  token: string;
-  user: User;
-  workspace: Workspace;
-  role: RoleName;
-}): Promise<string> {
-  await persistAuthResult(result);
-  return resolvePostAuthRoute();
-}
+export { completeAuthFlow } from '../entry/entry-flow';

@@ -10,8 +10,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@kodem/design-system/components/ui/card';
-import { api, ApiError, type WorkspaceListItem } from '../../lib/api';
+import { api, isApiError, type WorkspaceListItem } from '../../lib/api';
 import { ROUTES } from '../../lib/constants';
+import { fetchEntryResolution } from '../../lib/entry/entry-flow';
 import { useAuth } from '../../providers/auth-provider';
 import { AuthShell } from '../auth/auth-shell';
 
@@ -28,19 +29,20 @@ export function WorkspaceSelectForm() {
       try {
         const { workspaces: items } = await api.listWorkspaces();
         if (items.length === 0) {
-          setError('No workspaces available for this account.');
+          setError('אין סביבות עבודה זמינות לחשבון זה.');
           return;
         }
         if (items.length === 1) {
-          router.replace(ROUTES.dashboard);
+          const resolution = await fetchEntryResolution();
+          router.replace(resolution.route);
           return;
         }
         setWorkspaces(items);
       } catch (err) {
         setError(
-          err instanceof ApiError
+          isApiError(err)
             ? err.message
-            : 'Unable to load workspaces.',
+            : 'לא ניתן לטעון סביבות עבודה.',
         );
       } finally {
         setIsLoading(false);
@@ -62,12 +64,14 @@ export function WorkspaceSelectForm() {
         role: result.role,
         token: result.token,
       });
-      router.replace(ROUTES.dashboard);
+
+      const resolution = await api.resolveEntry(true);
+      router.replace(resolution.route);
     } catch (err) {
       setError(
-        err instanceof ApiError
+        isApiError(err)
           ? err.message
-          : 'Unable to switch workspace.',
+          : 'לא ניתן לבחור סביבת עבודה.',
       );
       setLoadingId(null);
     }
@@ -76,21 +80,21 @@ export function WorkspaceSelectForm() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading workspaces…</p>
+        <p className="text-sm text-muted-foreground">טוען סביבות עבודה…</p>
       </div>
     );
   }
 
   return (
     <AuthShell
-      title="Choose workspace"
-      description="Select the workspace you want to enter"
+      title="בחירת סביבת עבודה"
+      description="בחרו את סביבת העבודה שאליה תיכנסו"
     >
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Your workspaces</CardTitle>
+          <CardTitle className="text-base">הסביבות שלכם</CardTitle>
           <CardDescription>
-            You belong to multiple workspaces. Pick one to continue.
+            אתם שייכים למספר סביבות עבודה. בחרו אחת כדי להמשיך.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -110,7 +114,7 @@ export function WorkspaceSelectForm() {
                 onClick={() => handleSelect(item.workspace.id)}
                 disabled={loadingId !== null}
               >
-                {loadingId === item.workspace.id ? 'Selecting…' : 'Select'}
+                {loadingId === item.workspace.id ? 'בוחר…' : 'בחר'}
               </Button>
             </div>
           ))}

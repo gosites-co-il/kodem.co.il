@@ -2,12 +2,9 @@
  * Kodem Worker — runs engines asynchronously on events.
  */
 
-import { config } from 'dotenv';
-import { join } from 'path';
+import { configureDatabaseEnv } from '@kodem/database';
 
-config();
-process.env.DATABASE_URL ??=
-  `file:${join(process.cwd(), 'libs/database/prisma/kodem.db')}`;
+configureDatabaseEnv(__dirname);
 
 async function bootstrap() {
   const { Logger } = await import('@nestjs/common');

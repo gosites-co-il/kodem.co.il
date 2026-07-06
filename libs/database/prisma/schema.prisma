@@ -9,14 +9,19 @@ datasource db {
 }
 
 model Workspace {
-  id         String   @id
-  name       String
-  slug       String   @unique
-  ownerId    String
-  status     String   @default("onboarding")
-  websiteUrl String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id               String   @id
+  name             String
+  slug             String   @unique
+  ownerId          String
+  status           String   @default("onboarding")
+  onboardingStatus String   @default("NOT_STARTED")
+  onboardingStep   Int      @default(0)
+  websiteUrl       String?
+  industry         String?
+  businessSize     String?
+  setupData        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   owner      User     @relation("WorkspaceOwner", fields: [ownerId], references: [id])
   members    Member[]
@@ -88,11 +93,26 @@ model BusinessProfile {
   id                    String   @id @default(cuid())
   workspaceId           String   @unique
   name                  String
+  legalName             String?
+  description           String?
   industry              String?
-  services              String
+  subIndustry           String?
+  website               String?
+  logo                  String?
+  language              String?
+  timezone              String?
+  emails                String   @default("[]")
+  phones                String   @default("[]")
+  addresses             String   @default("[]")
+  socialProfiles        String   @default("[]")
+  services              String   @default("[]")
+  products              String   @default("[]")
   classification        String?
-  communicationChannels String
-  hypotheses            String
+  communicationChannels String   @default("[]")
+  hypotheses            String   @default("[]")
+  confidenceScore       Float?
+  verifiedFields        String   @default("[]")
+  sourceData            String?
   version               Int      @default(1)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt

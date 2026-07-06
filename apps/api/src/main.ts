@@ -2,13 +2,9 @@
  * Kodem API — orchestrates business logic and emits events.
  */
 
-import { config } from 'dotenv';
-import { join } from 'path';
+import { configureDatabaseEnv } from '@kodem/database';
 
-config();
-const workspaceRoot = join(__dirname, '../../..');
-process.env.DATABASE_URL ??=
-  `file:${join(workspaceRoot, 'libs/database/prisma/kodem.db')}`;
+configureDatabaseEnv(__dirname);
 
 async function bootstrap() {
   const { Logger } = await import('@nestjs/common');

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ArrowRight } from 'lucide-react';
 import { Button } from '@kodem/design-system/components/ui/button';
 import { Input } from '@kodem/design-system/components/ui/input';
 import { Label } from '@kodem/design-system/components/ui/label';
@@ -13,15 +14,15 @@ import {
   CardHeader,
   CardTitle,
 } from '@kodem/design-system/components/ui/card';
-import { Separator } from '@kodem/design-system/components/ui/separator';
-import { api, ApiError } from '../../lib/api';
+import { api, isApiError } from '../../lib/api';
 import { completeAuthFlow } from '../../lib/auth/session';
 import { ROUTES } from '../../lib/constants';
+import { useAuth } from '../../providers/auth-provider';
 import { AuthShell } from './auth-shell';
-import { OAuthButtons } from './oauth-buttons';
 
 export function RegisterForm() {
   const router = useRouter();
+  const { setSession } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,12 +37,18 @@ export function RegisterForm() {
     try {
       const result = await api.register({ email, name, password });
       const nextRoute = await completeAuthFlow(result);
+      setSession({
+        user: result.user,
+        workspace: result.workspace,
+        role: result.role,
+        token: result.token,
+      });
       router.replace(nextRoute);
     } catch (err) {
       setError(
-        err instanceof ApiError
+        isApiError(err)
           ? err.message
-          : 'Unable to create account. Try again.',
+          : 'לא ניתן ליצור חשבון. נסו שוב.',
       );
     } finally {
       setIsSubmitting(false);
@@ -50,26 +57,38 @@ export function RegisterForm() {
 
   return (
     <AuthShell
-      title="Create account"
-      description="Start your Kodem workspace"
+      title="יצירת חשבון"
+      description="התחילו עם workspace חדש ב-Kodem"
       footer={
         <>
-          Already have an account?{' '}
-          <Link href={ROUTES.login} className="font-medium text-foreground underline-offset-4 hover:underline">
-            Sign in
+          כבר יש לכם חשבון?{' '}
+          <Link
+            href={ROUTES.login}
+            className="font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            התחברו
           </Link>
         </>
       }
     >
+      <div className="mb-2">
+        <Button variant="ghost" size="sm" className="gap-1 ps-0" asChild>
+          <Link href={ROUTES.login}>
+            <ArrowRight className="size-4" aria-hidden />
+            חזרה
+          </Link>
+        </Button>
+      </div>
+
       <Card className="border shadow-sm">
         <CardHeader className="space-y-1 pb-4">
-          <CardTitle className="text-base font-medium">Email registration</CardTitle>
-          <CardDescription>Create your Kodem platform account</CardDescription>
+          <CardTitle className="text-base font-medium">פרטי חשבון</CardTitle>
+          <CardDescription>צרו את חשבון הפלטפורמה שלכם</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">שם</Label>
               <Input
                 id="name"
                 type="text"
@@ -80,24 +99,28 @@ export function RegisterForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">אימייל</Label>
               <Input
                 id="email"
                 type="email"
                 autoComplete="email"
                 required
+                dir="ltr"
+                className="text-start"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">סיסמה</Label>
               <Input
                 id="password"
                 type="password"
                 autoComplete="new-password"
                 required
                 minLength={8}
+                dir="ltr"
+                className="text-start"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -106,18 +129,9 @@ export function RegisterForm() {
               <p className="text-sm text-destructive">{error}</p>
             ) : null}
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating account…' : 'Create account'}
+              {isSubmitting ? 'יוצר חשבון…' : 'צרו חשבון'}
             </Button>
           </form>
-
-          <div className="relative">
-            <Separator />
-            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-              or
-            </span>
-          </div>
-
-          <OAuthButtons />
         </CardContent>
       </Card>
     </AuthShell>
