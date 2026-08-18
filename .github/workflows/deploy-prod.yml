@@ -33,4 +33,3 @@ jobs:
       environment: production
       image_tag: ${{ github.ref_name }}
       extra_tags: prod
-    secrets: inherit

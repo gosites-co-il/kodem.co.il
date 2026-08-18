@@ -13,15 +13,6 @@ on:
         required: false
         type: string
         default: ''
-    secrets:
-      SSH_HOST:
-        required: true
-      SSH_USER:
-        required: true
-      SSH_KEY:
-        required: true
-      GHCR_PULL_TOKEN:
-        required: true
 
 permissions:
   contents: read

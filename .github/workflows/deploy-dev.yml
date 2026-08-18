@@ -16,4 +16,3 @@ jobs:
       environment: development
       image_tag: dev
       extra_tags: dev
-    secrets: inherit
