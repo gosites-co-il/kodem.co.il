@@ -4,7 +4,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 COPY . .
 RUN npm run db:generate
@@ -20,6 +20,7 @@ COPY --from=builder /app/dist/apps/api/main.js ./main.js
 RUN npm install --omit=dev
 
 COPY --from=builder /app/libs/database/prisma ./prisma
+COPY --from=builder /app/libs/database/src/generated/prisma ./libs/database/src/generated/prisma
 RUN npm install prisma@6 @prisma/client@6 && npx prisma generate --schema=./prisma/schema.prisma
 
 COPY docker/entrypoint-api.sh /entrypoint.sh

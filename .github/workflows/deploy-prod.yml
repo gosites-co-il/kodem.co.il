@@ -28,7 +28,6 @@ jobs:
 
   deploy:
     needs: guard
-    environment: production
     uses: ./.github/workflows/deploy.yml
     with:
       environment: production

@@ -7,7 +7,7 @@ ARG API_ORIGIN=http://api:3333
 ENV API_ORIGIN=$API_ORIGIN
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 COPY . .
 RUN npm run db:generate
