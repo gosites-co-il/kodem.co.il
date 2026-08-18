@@ -10,6 +10,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
 
 COPY . .
+ENV PRISMA_HIDE_UPDATE_MESSAGE=1
 RUN npm run db:generate
 RUN CI=true npx nx build app
 

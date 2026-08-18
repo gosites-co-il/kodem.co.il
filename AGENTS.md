@@ -63,6 +63,8 @@ curl http://localhost:3000/api/health
 
 **GitHub Environment secrets** (per environment): `SSH_HOST`, `SSH_USER`, `SSH_KEY`, `GHCR_PULL_TOKEN`
 
+Images are built as **linux/amd64** (native on GitHub-hosted runners). If the Oracle VM is Ampere (ARM), pass `platforms: linux/arm64` in the workflow or use an ARM runner — multi-arch QEMU builds are very slow.
+
 **Oracle bootstrap** (once): `bash deploy/bootstrap-oracle.sh` — creates `/opt/kodem/.env`, nginx, Docker.
 
 **Release to production:**

@@ -13,6 +13,11 @@ on:
         required: false
         type: string
         default: ''
+      platforms:
+        description: Docker platforms. Native amd64 on GitHub-hosted runners is much faster than QEMU arm64.
+        required: false
+        type: string
+        default: linux/amd64
 
 permissions:
   contents: read
@@ -34,7 +39,6 @@ jobs:
       - run: CI=true npx nx run-many -t lint --projects=app,api,worker
 
   build-and-push:
-    needs: validate
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -50,6 +54,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: docker/setup-qemu-action@v3
+        if: contains(inputs.platforms, 'arm64')
 
       - uses: docker/setup-buildx-action@v3
 
@@ -73,16 +78,17 @@ jobs:
         with:
           context: .
           file: ${{ matrix.file }}
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ inputs.platforms }}
           push: true
+          provenance: false
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             API_ORIGIN=http://api:3333
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=ghcr.io/gosites-co-il/kodem-${{ matrix.service }}:buildcache
+          cache-to: type=registry,ref=ghcr.io/gosites-co-il/kodem-${{ matrix.service }}:buildcache,mode=max
 
   deploy:
-    needs: build-and-push
+    needs: [validate, build-and-push]
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
