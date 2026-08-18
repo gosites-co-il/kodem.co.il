@@ -1,0 +1,142 @@
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      image_tag:
+        required: true
+        type: string
+      extra_tags:
+        required: false
+        type: string
+        default: ''
+    secrets:
+      SSH_HOST:
+        required: true
+      SSH_USER:
+        required: true
+      SSH_KEY:
+        required: true
+      GHCR_PULL_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: CI=true npx nx run-many -t lint --projects=app,api,worker
+
+  build-and-push:
+    needs: validate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: app
+            file: docker/Dockerfile.app
+          - service: api
+            file: docker/Dockerfile.api
+          - service: worker
+            file: docker/Dockerfile.worker
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image tags
+        id: meta
+        run: |
+          TAGS="ghcr.io/gosites-co-il/kodem-${{ matrix.service }}:${{ inputs.image_tag }}"
+          TAGS="$TAGS,ghcr.io/gosites-co-il/kodem-${{ matrix.service }}:${{ github.sha }}"
+          if [ -n "${{ inputs.extra_tags }}" ]; then
+            TAGS="$TAGS,ghcr.io/gosites-co-il/kodem-${{ matrix.service }}:${{ inputs.extra_tags }}"
+          fi
+          echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            API_ORIGIN=http://api:3333
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy docker-compose to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          source: docker-compose.yml
+          target: /opt/kodem/
+
+      - name: Deploy stack
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd /opt/kodem
+            export IMAGE_TAG=${{ inputs.image_tag }}
+            echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker compose ps
+            docker image prune -f
+
+      - name: Smoke test API health
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -euo pipefail
+            for i in $(seq 1 30); do
+              if curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then
+                echo "Health check passed"
+                exit 0
+              fi
+              sleep 5
+            done
+            echo "Health check failed"
+            docker compose -f /opt/kodem/docker-compose.yml logs --tail=100
+            exit 1

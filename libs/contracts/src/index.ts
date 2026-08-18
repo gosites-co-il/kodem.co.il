@@ -16,6 +16,8 @@ export * from './lib/insight';
 export * from './lib/recommendation';
 export * from './lib/crm';
 export * from './lib/events';
+export * from './lib/business-intelligence';
+export * from './lib/discovery';
 export * from './lib/engines';
 export * from './lib/oauth';
 export * from './lib/auth';

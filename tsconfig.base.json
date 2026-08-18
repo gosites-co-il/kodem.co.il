@@ -29,6 +29,7 @@
       "@kodem/modules/crm/feature-contacts": ["libs/modules/crm/feature-contacts/src/index.ts"],
       "@kodem/engines/shared": ["libs/engines/shared/src/index.ts"],
       "@kodem/engines/discovery": ["libs/engines/discovery/src/index.ts"],
+      "@kodem/engines/business-intelligence": ["libs/engines/business-intelligence/src/index.ts"],
       "@kodem/engines/insight": ["libs/engines/insight/src/index.ts"],
       "@kodem/engines/recommendation": ["libs/engines/recommendation/src/index.ts"],
       "@kodem/engines/rule": ["libs/engines/rule/src/index.ts"],

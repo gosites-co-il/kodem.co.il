@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import { Heebo } from 'next/font/google';
 import './global.css';
 import { getThemeInitScript } from '@kodem/design-system/lib/theme-script';
@@ -23,12 +24,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="he" dir="rtl" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{ __html: getThemeInitScript() }}
-        />
-      </head>
       <body className={`${heebo.variable} font-sans`}>
+        <Script id="kodem-theme-init" strategy="beforeInteractive">
+          {getThemeInitScript()}
+        </Script>
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>

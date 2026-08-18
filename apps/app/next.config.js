@@ -8,6 +8,7 @@ const apiOrigin = process.env.API_ORIGIN ?? 'http://localhost:3333';
 /** @type {import('@nx/next/plugins/with-nx').WithNxOptions} */
 const nextConfig = {
   nx: {},
+  output: 'standalone',
   async rewrites() {
     return [
       {

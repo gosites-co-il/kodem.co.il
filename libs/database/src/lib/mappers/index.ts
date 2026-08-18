@@ -1,4 +1,5 @@
 export * from './business-profile.mapper';
+export * from './business-report.mapper';
 export * from './bkm.mapper';
 export * from './event.mapper';
 export * from './user.mapper';

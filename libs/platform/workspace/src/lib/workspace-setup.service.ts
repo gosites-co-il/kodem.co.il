@@ -2,6 +2,7 @@ import {
   SETUP_STEPS,
   migrateLegacyStepIndex,
   type AdvanceSetupInput,
+  type DiscoveryEventPublisher,
   type SetupStateResponse,
   type SetupStepId,
   type Workspace,
@@ -10,6 +11,7 @@ import {
 } from '@kodem/contracts';
 import {
   BusinessProfileRepository,
+  BusinessReportRepository,
   PrismaEventStore,
   WorkspaceRepository,
 } from '@kodem/database';
@@ -20,6 +22,10 @@ import {
   draftToBusinessProfile,
   mergeConfirmedDraft,
 } from './profile-draft.builder';
+import {
+  buildProfileDraftFromReport,
+  reportFromDraft,
+} from './report-draft.builder';
 import { SetupProgressService } from './setup-progress.service';
 
 const STEP_INDEX: Record<SetupStepId, number> = Object.fromEntries(
@@ -34,6 +40,7 @@ function serializeSetup(data: WorkspaceSetupData | undefined): string | null {
 export class WorkspaceSetupService {
   private readonly workspaceRepo = new WorkspaceRepository();
   private readonly profileRepo = new BusinessProfileRepository();
+  private readonly reportRepo = new BusinessReportRepository();
   private readonly progressService = new SetupProgressService();
   private readonly discoveryService = new BusinessDiscoveryService();
   private readonly eventBus = new KodemEventBus(new PrismaEventStore());
@@ -42,7 +49,9 @@ export class WorkspaceSetupService {
     const workspace = await this.requireWorkspace(workspaceId);
     const setup = this.mergeSetupData(workspace);
 
-    const freshDraft = buildProfileDraftFromSetup(setup);
+    const freshDraft = setup.businessReport
+      ? buildProfileDraftFromReport(setup.businessReport, setup.discovered)
+      : buildProfileDraftFromSetup(setup);
     setup.confirmedProfile = setup.confirmedProfile
       ? mergeConfirmedDraft(freshDraft, setup.confirmedProfile)
       : freshDraft;
@@ -67,18 +76,40 @@ export class WorkspaceSetupService {
     workspaceId: WorkspaceId,
     input: AdvanceSetupInput,
   ): Promise<SetupStateResponse> {
+    if (input.action === 'restart_discovery') {
+      return this.restartDiscovery(workspaceId);
+    }
+
     const workspace = await this.requireWorkspace(workspaceId);
     const currentSetup = this.mergeSetupData(workspace);
     const nextSetup = this.mergeStepData(currentSetup, input);
     const stepIndex = STEP_INDEX[input.step];
     const nextStepIndex = Math.min(stepIndex + 1, SETUP_STEPS.length - 1);
 
-    if (input.step === 'business_confirmation') {
+    if (input.step === 'business_understanding') {
+      if (input.data?.businessReport) {
+        nextSetup.businessReport = {
+          ...currentSetup.businessReport,
+          ...input.data.businessReport,
+        };
+      }
       nextSetup.confirmedProfile = mergeConfirmedDraft(
-        currentSetup.confirmedProfile ?? buildProfileDraftFromSetup(nextSetup),
+        currentSetup.confirmedProfile ??
+          (nextSetup.businessReport
+            ? buildProfileDraftFromReport(
+                nextSetup.businessReport,
+                nextSetup.discovered,
+              )
+            : buildProfileDraftFromSetup(nextSetup)),
         input.data?.confirmedProfile ??
-          buildProfileDraftFromSetup(nextSetup),
+          (nextSetup.businessReport
+            ? buildProfileDraftFromReport(
+                nextSetup.businessReport,
+                nextSetup.discovered,
+              )
+            : buildProfileDraftFromSetup(nextSetup)),
       );
+      await this.finalizeBusinessFromApproval(workspaceId, nextSetup);
     }
 
     const patch = this.buildWorkspacePatch(input.step, nextSetup);
@@ -91,20 +122,42 @@ export class WorkspaceSetupService {
     });
 
     if (input.step === 'business_discovery' && nextSetup.business?.websiteUrl) {
-      void this.runDiscoveryInBackground(workspaceId, nextSetup.business.websiteUrl);
+      void this.runDiscoveryInBackground(
+        workspaceId,
+        nextSetup.business.websiteUrl,
+        nextSetup.business.name ?? workspace.name,
+      );
     }
 
     if (input.step === 'business_discovery' && !nextSetup.business?.websiteUrl) {
-      nextSetup.discovered = { status: 'idle' };
-      nextSetup.confirmedProfile = buildProfileDraftFromSetup(nextSetup);
-      await this.workspaceRepo.updateOnboarding(workspaceId, {
-        setupData: serializeSetup(nextSetup),
-      });
+      void this.runDiscoveryInBackground(
+        workspaceId,
+        '',
+        nextSetup.business?.name ?? workspace.name,
+      );
     }
 
     if (input.step === 'workspace_creation') {
       await this.finalizeWorkspaceCreation(workspaceId, nextSetup);
     }
+
+    return this.getState(workspaceId);
+  }
+
+  /** Return to business discovery and clear incomplete BI results. */
+  async restartDiscovery(workspaceId: WorkspaceId): Promise<SetupStateResponse> {
+    const workspace = await this.requireWorkspace(workspaceId);
+    const setup = this.mergeSetupData(workspace);
+
+    delete setup.businessReport;
+    delete setup.discovered;
+    delete setup.confirmedProfile;
+
+    await this.workspaceRepo.updateOnboarding(workspaceId, {
+      onboardingStep: STEP_INDEX.business_discovery,
+      onboardingStatus: 'IN_PROGRESS',
+      setupData: serializeSetup(setup),
+    });
 
     return this.getState(workspaceId);
   }
@@ -160,30 +213,93 @@ export class WorkspaceSetupService {
     const setup = this.mergeSetupData(workspace);
 
     setup.discovered = { status: 'running' };
+    setup.businessReport = {
+      workspaceId,
+      facts: [],
+      understanding: {
+        businessSummary: { value: '', confidence: 0, source: 'facts' },
+        industry: { value: '', confidence: 0, source: 'facts' },
+        businessModel: { value: '', confidence: 0, source: 'facts' },
+        targetAudience: { value: '', confidence: 0, source: 'facts' },
+        idealCustomer: { value: '', confidence: 0, source: 'facts' },
+        mainServices: { value: [], confidence: 0, source: 'facts' },
+        products: { value: [], confidence: 0, source: 'facts' },
+        uniqueSellingProposition: { value: '', confidence: 0, source: 'facts' },
+        competitiveAdvantages: { value: [], confidence: 0, source: 'facts' },
+        brandVoice: { value: '', confidence: 0, source: 'facts' },
+        keywords: { value: [], confidence: 0, source: 'facts' },
+        customerJourney: { value: '', confidence: 0, source: 'facts' },
+        marketingChannels: { value: [], confidence: 0, source: 'facts' },
+        confidence: 0,
+        missingInformation: [],
+      },
+      recommendations: [],
+      questions: [],
+      confidence: 0,
+      generatedAt: new Date(),
+      status: 'running',
+    };
     await this.workspaceRepo.updateOnboarding(workspaceId, {
       setupData: serializeSetup(setup),
     });
 
     try {
-      const discovered = await this.discoveryService.discover(websiteUrl);
-      setup.discovered = discovered;
+      const analysis = await this.discoveryService.discover(
+        websiteUrl,
+        setup.business?.name ?? workspace.name,
+        workspaceId,
+        this.createDiscoveryPublisher(workspaceId),
+      );
+      setup.discovered = analysis.discovered;
+      setup.businessReport = analysis.report;
 
-      if (discovered.businessName?.value && !setup.business?.name) {
+      if (analysis.discovered.businessName?.value && !setup.business?.name) {
         setup.business = {
           ...setup.business,
-          name: discovered.businessName.value,
+          name: analysis.discovered.businessName.value,
         };
       }
-      if (discovered.industry?.value && !setup.business?.industry) {
+      if (analysis.discovered.industry?.value && !setup.business?.industry) {
         setup.business = {
           ...setup.business,
-          industry: discovered.industry.value,
+          industry: analysis.discovered.industry.value,
         };
       }
 
-      setup.confirmedProfile = buildProfileDraftFromSetup(setup);
+      setup.confirmedProfile = buildProfileDraftFromReport(
+        analysis.report,
+        analysis.discovered,
+      );
     } catch {
       setup.discovered = { status: 'failed' };
+      setup.businessReport = {
+        ...(setup.businessReport ?? {
+          workspaceId,
+          facts: [],
+          understanding: {
+            businessSummary: { value: '', confidence: 0, source: 'facts' },
+            industry: { value: '', confidence: 0, source: 'facts' },
+            businessModel: { value: '', confidence: 0, source: 'facts' },
+            targetAudience: { value: '', confidence: 0, source: 'facts' },
+            idealCustomer: { value: '', confidence: 0, source: 'facts' },
+            mainServices: { value: [], confidence: 0, source: 'facts' },
+            products: { value: [], confidence: 0, source: 'facts' },
+            uniqueSellingProposition: { value: '', confidence: 0, source: 'facts' },
+            competitiveAdvantages: { value: [], confidence: 0, source: 'facts' },
+            brandVoice: { value: '', confidence: 0, source: 'facts' },
+            keywords: { value: [], confidence: 0, source: 'facts' },
+            customerJourney: { value: '', confidence: 0, source: 'facts' },
+            marketingChannels: { value: [], confidence: 0, source: 'facts' },
+            confidence: 0,
+            missingInformation: [],
+          },
+          recommendations: [],
+          questions: [],
+          confidence: 0,
+          generatedAt: new Date(),
+        }),
+        status: 'failed',
+      };
       setup.confirmedProfile = buildProfileDraftFromSetup(setup);
     }
 
@@ -215,15 +331,18 @@ export class WorkspaceSetupService {
     return SETUP_STEPS[Math.max(0, Math.min(index, SETUP_STEPS.length - 1))];
   }
 
-  private async finalizeWorkspaceCreation(
+  private async finalizeBusinessFromApproval(
     workspaceId: WorkspaceId,
     setup: WorkspaceSetupData,
   ): Promise<void> {
     const draft =
-      setup.confirmedProfile ?? buildProfileDraftFromSetup(setup);
+      setup.confirmedProfile ??
+      (setup.businessReport
+        ? buildProfileDraftFromReport(setup.businessReport, setup.discovered)
+        : buildProfileDraftFromSetup(setup));
 
     if (!draft.businessName.trim()) {
-      throw new Error('Business profile must be confirmed before workspace creation');
+      throw new Error('Business must be approved before continuing');
     }
 
     const profile = draftToBusinessProfile(
@@ -233,9 +352,34 @@ export class WorkspaceSetupService {
     );
     await this.profileRepo.upsert(profile);
 
+    if (setup.businessReport) {
+      const report = reportFromDraft({
+        ...setup.businessReport,
+        approvedAt: new Date(),
+      });
+      await this.reportRepo.upsert(report);
+    }
+
+    await this.workspaceRepo.updateOnboarding(workspaceId, {
+      name: draft.businessName,
+      websiteUrl: draft.website ?? null,
+      industry: draft.industry ?? null,
+    });
+  }
+
+  private async finalizeWorkspaceCreation(
+    workspaceId: WorkspaceId,
+    setup: WorkspaceSetupData,
+  ): Promise<void> {
     setup.modules ??= this.progressService.defaultModules();
     setup.ai ??= this.progressService.defaultAi();
     setup.connections ??= { connected: [], skipped: [] };
+
+    const draft =
+      setup.confirmedProfile ??
+      (setup.businessReport
+        ? buildProfileDraftFromReport(setup.businessReport, setup.discovered)
+        : buildProfileDraftFromSetup(setup));
 
     await this.workspaceRepo.updateOnboarding(workspaceId, {
       name: draft.businessName,
@@ -259,17 +403,40 @@ export class WorkspaceSetupService {
   private async runDiscoveryInBackground(
     workspaceId: WorkspaceId,
     websiteUrl: string,
+    businessName: string,
   ): Promise<void> {
     try {
-      await this.discoverWebsite(workspaceId, websiteUrl);
       await this.eventBus.emit({
-        type: 'discovery.started' as never,
+        type: EVENT_TYPES.DISCOVERY_STARTED,
         workspaceId,
-        payload: { websiteUrl },
+        payload: { websiteUrl, businessName },
       });
+      await this.discoverWebsite(workspaceId, websiteUrl);
     } catch {
       // Discovery is best-effort during setup
     }
+  }
+
+  private createDiscoveryPublisher(
+    workspaceId: WorkspaceId,
+  ): DiscoveryEventPublisher {
+    return {
+      publish: async (event) => {
+        const typeMap = {
+          'discovery.started': EVENT_TYPES.DISCOVERY_STARTED,
+          'asset.discovered': EVENT_TYPES.ASSET_DISCOVERED,
+          'asset.processed': EVENT_TYPES.ASSET_PROCESSED,
+          'discovery.completed': EVENT_TYPES.DISCOVERY_COMPLETED,
+          'business.updated': EVENT_TYPES.BUSINESS_UPDATED,
+        } as const;
+
+        await this.eventBus.emit({
+          type: typeMap[event.type],
+          workspaceId,
+          payload: event.payload as unknown as Record<string, unknown>,
+        });
+      },
+    };
   }
 
   private mergeSetupData(workspace: Workspace): WorkspaceSetupData {
@@ -304,6 +471,7 @@ export class WorkspaceSetupService {
       modules: data.modules ?? current.modules,
       ai: data.ai ?? current.ai,
       discovered: data.discovered ?? current.discovered,
+      businessReport: data.businessReport ?? current.businessReport,
       confirmedProfile: data.confirmedProfile ?? current.confirmedProfile,
     };
   }
@@ -324,7 +492,7 @@ export class WorkspaceSetupService {
       };
     }
 
-    if (step === 'business_confirmation' && setup.confirmedProfile) {
+    if (step === 'business_understanding' && setup.confirmedProfile) {
       return {
         name: setup.confirmedProfile.businessName.trim() || undefined,
         websiteUrl: setup.confirmedProfile.website?.trim() || null,

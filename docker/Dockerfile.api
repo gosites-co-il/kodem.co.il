@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run db:generate
+RUN CI=true npx nx build api
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY --from=builder /app/dist/apps/api/package.json ./package.json
+COPY --from=builder /app/dist/apps/api/main.js ./main.js
+RUN npm install --omit=dev
+
+COPY --from=builder /app/libs/database/prisma ./prisma
+RUN npm install prisma@6 @prisma/client@6 && npx prisma generate --schema=./prisma/schema.prisma
+
+COPY docker/entrypoint-api.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 3333
+ENTRYPOINT ["/entrypoint.sh"]

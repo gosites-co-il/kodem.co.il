@@ -27,9 +27,14 @@ function toFileUrl(filePath: string): string {
 export function configureDatabaseEnv(bundleDirname: string): void {
   config();
 
+  const configured = process.env.DATABASE_URL;
+
+  if (configured && !configured.startsWith('file:')) {
+    return;
+  }
+
   const workspaceRoot = findWorkspaceRoot(bundleDirname);
   const defaultDbPath = join(workspaceRoot, 'libs/database/prisma/kodem.db');
-  const configured = process.env.DATABASE_URL;
 
   let resolvedPath = defaultDbPath;
 

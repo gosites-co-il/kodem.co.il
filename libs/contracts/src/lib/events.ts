@@ -8,7 +8,11 @@ export type EventType =
   | 'task.completed'
   | 'insight.generated'
   | 'recommendation.generated'
-  | 'discovery.completed';
+  | 'discovery.started'
+  | 'discovery.completed'
+  | 'asset.discovered'
+  | 'asset.processed'
+  | 'business.updated';
 
 export type EventStatus = 'pending' | 'processing' | 'completed' | 'failed';
 

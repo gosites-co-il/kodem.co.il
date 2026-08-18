@@ -8,5 +8,9 @@ export const EVENT_TYPES = {
   TASK_COMPLETED: 'task.completed',
   INSIGHT_GENERATED: 'insight.generated',
   RECOMMENDATION_GENERATED: 'recommendation.generated',
+  DISCOVERY_STARTED: 'discovery.started',
   DISCOVERY_COMPLETED: 'discovery.completed',
+  ASSET_DISCOVERED: 'asset.discovered',
+  ASSET_PROCESSED: 'asset.processed',
+  BUSINESS_UPDATED: 'business.updated',
 } as const satisfies Record<string, EventType>;

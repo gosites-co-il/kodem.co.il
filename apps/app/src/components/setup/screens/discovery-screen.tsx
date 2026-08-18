@@ -47,7 +47,7 @@ export function DiscoveryScreen({
       <div className="mt-8">
         <SetupPrimaryButton
           disabled={isSubmitting}
-          onClick={() => void advance('discovery')}
+          onClick={() => void advance('business_understanding')}
         >
           {isSubmitting ? 'ממשיך…' : 'המשך'}
         </SetupPrimaryButton>

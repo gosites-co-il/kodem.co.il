@@ -1,13 +1,19 @@
-import { BusinessProfile, Insight, Recommendation, WorkspaceId } from '@kodem/contracts';
+import { BusinessProfile, BusinessReport, Insight, Recommendation, WorkspaceId } from '@kodem/contracts';
 import { getPrismaClient } from './client';
 import {
   mapProfileRowToDomain,
   mapProfileToPersistence,
+} from './mappers/business-profile.mapper';
+import {
+  mapBusinessReportRowToDomain,
+  mapBusinessReportToPersistence,
+} from './mappers/business-report.mapper';
+import {
   mapInsightRowToDomain,
   mapInsightToPersistence,
   mapRecommendationRowToDomain,
   mapRecommendationToPersistence,
-} from './mappers';
+} from './mappers/bkm.mapper';
 
 export class BusinessProfileRepository {
   private readonly db = getPrismaClient();
@@ -27,6 +33,27 @@ export class BusinessProfileRepository {
     });
     if (!row) return null;
     return mapProfileRowToDomain(row);
+  }
+}
+
+export class BusinessReportRepository {
+  private readonly db = getPrismaClient();
+
+  async upsert(report: BusinessReport): Promise<void> {
+    const data = mapBusinessReportToPersistence(report);
+    await this.db.businessReport.upsert({
+      where: { workspaceId: report.workspaceId },
+      create: data,
+      update: data,
+    });
+  }
+
+  async findByWorkspace(workspaceId: WorkspaceId): Promise<BusinessReport | null> {
+    const row = await this.db.businessReport.findUnique({
+      where: { workspaceId },
+    });
+    if (!row) return null;
+    return mapBusinessReportRowToDomain(row);
   }
 }
 

@@ -1,0 +1,8 @@
+{
+  "name": "engines-business-intelligence",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engines/business-intelligence/src",
+  "projectType": "library",
+  "tags": ["scope:engine", "type:feature"],
+  "targets": {}
+}

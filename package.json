@@ -10,7 +10,9 @@
     "dev:worker": "npm run nx -- serve worker",
     "dev:marketing": "npm run nx -- dev marketing",
     "db:generate": "prisma generate --schema=libs/database/prisma/schema.prisma",
-    "db:push": "prisma db push --schema=libs/database/prisma/schema.prisma"
+    "db:push": "prisma db push --schema=libs/database/prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema=libs/database/prisma/schema.prisma",
+    "db:migrate:deploy": "prisma migrate deploy --schema=libs/database/prisma/schema.prisma"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,css,html}": [

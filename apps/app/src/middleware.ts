@@ -18,7 +18,7 @@ const authRequiredPaths = [
   ROUTES.dashboard,
 ];
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(TOKEN_COOKIE)?.value;
 

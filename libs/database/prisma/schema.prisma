@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -27,6 +27,7 @@ model Workspace {
   members    Member[]
   events     Event[]
   profiles   BusinessProfile[]
+  businessReports BusinessReport[]
   insights   InsightRecord[]
   recommendations RecommendationRecord[]
 }
@@ -118,6 +119,22 @@ model BusinessProfile {
   updatedAt             DateTime @updatedAt
 
   workspace             Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model BusinessReport {
+  id              String   @id @default(cuid())
+  workspaceId     String   @unique
+  facts           String   @default("[]")
+  understanding   String
+  recommendations String   @default("[]")
+  questions       String   @default("[]")
+  confidence      Float?
+  generatedAt     DateTime @default(now())
+  approvedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspace       Workspace @relation(fields: [workspaceId], references: [id])
 }
 
 model InsightRecord {

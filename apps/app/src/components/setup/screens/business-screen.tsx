@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { Input } from '@kodem/design-system/components/ui/input';
 import { Label } from '@kodem/design-system/components/ui/label';
 import {
@@ -41,6 +42,15 @@ export function BusinessScreen({
   const [isDiscovering, setIsDiscovering] = useState(false);
 
   const discovered = state.setup.discovered;
+  const discoveredName =
+    discovered?.name ?? discovered?.businessName?.value ?? '';
+  const discoveredIndustry = discovered?.industry?.value ?? '';
+  if (discoveredName && !name) {
+    setName(discoveredName);
+  }
+  if (discoveredIndustry && !industry) {
+    setIndustry(discoveredIndustry);
+  }
 
   useEffect(() => {
     const url = websiteUrl.trim();
@@ -56,11 +66,6 @@ export function BusinessScreen({
 
     return () => clearTimeout(timer);
   }, [websiteUrl, onRefresh]);
-
-  useEffect(() => {
-    if (discovered?.name && !name) setName(discovered.name);
-    if (discovered?.industry && !industry) setIndustry(discovered.industry);
-  }, [discovered, name, industry]);
 
   return (
     <SetupShell centered={false}>
@@ -99,21 +104,25 @@ export function BusinessScreen({
           {discovered?.status === 'completed' ? (
             <div className="rounded-lg border border-border/60 bg-muted/40 p-4 text-sm space-y-2">
               <p className="font-medium">מה שמצאנו</p>
-              {discovered.description ? (
-                <p className="text-muted-foreground">{discovered.description}</p>
+              {discovered.description?.value ? (
+                <p className="text-muted-foreground">
+                  {discovered.description.value}
+                </p>
               ) : null}
               <div className="flex flex-wrap gap-2 text-xs">
-                {discovered.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={discovered.logoUrl}
+                {(discovered.logoUrl ?? discovered.logo?.value) ? (
+                  <Image
+                    src={discovered.logoUrl ?? discovered.logo?.value ?? ''}
                     alt=""
+                    width={32}
+                    height={32}
+                    unoptimized
                     className="size-8 rounded"
                   />
                 ) : null}
-                {discovered.email ? (
+                {(discovered.email ?? discovered.emails?.value?.[0]) ? (
                   <span className="rounded-full bg-background px-2 py-1" dir="ltr">
-                    {discovered.email}
+                    {discovered.email ?? discovered.emails?.value?.[0]}
                   </span>
                 ) : null}
               </div>
@@ -157,7 +166,7 @@ export function BusinessScreen({
           <SetupPrimaryButton
             disabled={isSubmitting || !name.trim() || !industry}
             onClick={() =>
-              void advance('business', {
+              void advance('business_discovery', {
                 business: {
                   name: name.trim(),
                   websiteUrl: websiteUrl.trim(),

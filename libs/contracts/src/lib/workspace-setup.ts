@@ -1,3 +1,4 @@
+import type { BusinessReportDraft } from './business-intelligence';
 import type { BusinessProfileDraft } from './profile';
 import type { SourcedValue } from './sourced-value';
 
@@ -5,7 +6,7 @@ import type { SourcedValue } from './sourced-value';
 export type SetupStepId =
   | 'welcome'
   | 'business_discovery'
-  | 'business_confirmation'
+  | 'business_understanding'
   | 'workspace_creation'
   | 'connections'
   | 'modules'
@@ -16,7 +17,7 @@ export type SetupStepId =
 export const SETUP_STEPS: readonly SetupStepId[] = [
   'welcome',
   'business_discovery',
-  'business_confirmation',
+  'business_understanding',
   'workspace_creation',
   'connections',
   'modules',
@@ -25,8 +26,12 @@ export const SETUP_STEPS: readonly SetupStepId[] = [
   'ready',
 ] as const;
 
-/** @deprecated Use business_discovery — kept for in-flight setup migration. */
-export type LegacySetupStepId = SetupStepId | 'business' | 'discovery';
+/** @deprecated Use business_understanding */
+export type LegacySetupStepId =
+  | SetupStepId
+  | 'business'
+  | 'discovery'
+  | 'business_confirmation';
 
 export type IntegrationId =
   | 'google_workspace'
@@ -119,6 +124,7 @@ export interface SetupDiscoveryFinding {
 export interface WorkspaceSetupData {
   business?: SetupBusinessData;
   discovered?: DiscoveredBusinessInfo;
+  businessReport?: BusinessReportDraft;
   confirmedProfile?: BusinessProfileDraft;
   connections?: SetupConnectionsData;
   modules?: SetupModulesData;
@@ -138,4 +144,6 @@ export interface SetupStateResponse {
 export interface AdvanceSetupInput {
   step: SetupStepId;
   data?: Partial<WorkspaceSetupData>;
+  /** Server-side action — does not advance the step index. */
+  action?: 'restart_discovery';
 }

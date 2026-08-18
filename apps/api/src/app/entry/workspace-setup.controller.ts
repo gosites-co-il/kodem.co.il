@@ -41,6 +41,18 @@ export class WorkspaceSetupController {
     }
   }
 
+  @Post('restart-discovery')
+  @UseGuards(JwtAuthGuard)
+  async restartDiscovery(@CurrentContext() context: PlatformContext) {
+    try {
+      return await this.setupService.restartDiscovery(context.workspace.id);
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Failed to restart discovery',
+      );
+    }
+  }
+
   @Post('discover')
   @UseGuards(JwtAuthGuard)
   async discover(

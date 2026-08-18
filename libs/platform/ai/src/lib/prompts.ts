@@ -14,7 +14,8 @@ export function renderTemplate(
   vars: Record<string, string>,
 ): string {
   return Object.entries(vars).reduce(
-    (text, [key, value]) => text.replaceAll(`{{${key}}}`, value),
+    (text, [key, value]) =>
+      text.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value),
     template,
   );
 }

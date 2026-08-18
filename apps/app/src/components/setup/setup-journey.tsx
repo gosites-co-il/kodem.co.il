@@ -10,7 +10,7 @@ import { useAuth } from '../../providers/auth-provider';
 import { SetupShell } from './setup-shell';
 import { WelcomeScreen } from './screens/welcome-screen';
 import { BusinessDiscoveryScreen } from './screens/business-discovery-screen';
-import { BusinessConfirmationScreen } from './screens/business-confirmation-screen';
+import { BusinessUnderstandingScreen } from './screens/business-understanding-screen';
 import { WorkspaceCreationScreen } from './screens/workspace-creation-screen';
 import { ConnectionsScreen } from './screens/connections-screen';
 import { ModulesScreen } from './screens/modules-screen';
@@ -62,6 +62,40 @@ export function SetupJourney() {
     }
   }
 
+  async function restartDiscovery() {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const next = await api.restartDiscovery();
+      setState(next);
+      return next;
+    } catch (err) {
+      setError(isApiError(err) ? err.message : 'לא ניתן לחזור לשלב הקודם.');
+      return null;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function retryDiscovery(websiteUrl: string) {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const next = await api.discoverWebsite(websiteUrl);
+      setState(next);
+      return next;
+    } catch (err) {
+      setError(
+        isApiError(err)
+          ? err.message
+          : 'הגילוי נכשל. ודאו שה-API פועל (localhost:3333).',
+      );
+      return null;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   async function handleComplete() {
     setIsSubmitting(true);
     try {
@@ -75,6 +109,7 @@ export function SetupJourney() {
       router.replace(ROUTES.dashboard);
     } catch (err) {
       setError(isApiError(err) ? err.message : 'לא ניתן להשלים.');
+    } finally {
       setIsSubmitting(false);
     }
   }
@@ -113,6 +148,8 @@ export function SetupJourney() {
     isSubmitting,
     advance,
     onRefresh: load,
+    restartDiscovery,
+    retryDiscovery,
   };
 
   switch (step) {
@@ -120,8 +157,8 @@ export function SetupJourney() {
       return <WelcomeScreen {...screenProps} />;
     case 'business_discovery':
       return <BusinessDiscoveryScreen {...screenProps} />;
-    case 'business_confirmation':
-      return <BusinessConfirmationScreen {...screenProps} />;
+    case 'business_understanding':
+      return <BusinessUnderstandingScreen {...screenProps} />;
     case 'workspace_creation':
       return <WorkspaceCreationScreen {...screenProps} />;
     case 'connections':
@@ -166,4 +203,6 @@ export type SetupScreenProps = {
     data?: SetupStateResponse['setup'],
   ) => Promise<SetupStateResponse | null>;
   onRefresh: () => Promise<void>;
+  restartDiscovery: () => Promise<SetupStateResponse | null>;
+  retryDiscovery: (websiteUrl: string) => Promise<SetupStateResponse | null>;
 };

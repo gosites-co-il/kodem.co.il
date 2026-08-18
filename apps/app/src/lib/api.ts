@@ -56,7 +56,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { message?: string };
-    throw createApiError(res.status, body.message ?? res.statusText);
+    const message =
+      body.message ??
+      (res.status === 500
+        ? 'השרת לא זמין. ודאו שה-API פועל (npm run dev:api).'
+        : res.statusText);
+    throw createApiError(res.status, message);
   }
 
   return res.json() as Promise<T>;
@@ -112,6 +117,16 @@ export const api = {
     return request<SetupStateResponse>('/workspace/setup/discover', {
       method: 'POST',
       body: JSON.stringify({ websiteUrl }),
+    });
+  },
+
+  restartDiscovery() {
+    return request<SetupStateResponse>('/workspace/setup/step', {
+      method: 'POST',
+      body: JSON.stringify({
+        step: 'business_discovery',
+        action: 'restart_discovery',
+      }),
     });
   },
 

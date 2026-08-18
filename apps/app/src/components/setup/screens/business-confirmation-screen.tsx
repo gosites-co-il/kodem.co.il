@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import { Badge } from '@kodem/design-system/components/ui/badge';
 import { Input } from '@kodem/design-system/components/ui/input';
 import { Label } from '@kodem/design-system/components/ui/label';
 import { Textarea } from '@kodem/design-system/components/ui/textarea';
-import { Card, CardContent } from '@kodem/design-system/components/ui/card';
 import type { BusinessProfileDraft, ProfileFieldStatus } from '@kodem/contracts';
 import {
   SetupHeadline,
@@ -46,6 +46,16 @@ function statusVariant(
   return 'outline';
 }
 
+const EDITABLE_FIELDS = [
+  'businessName',
+  'legalName',
+  'description',
+  'industry',
+  'subIndustry',
+  'website',
+  'language',
+] as const;
+
 function draftFromState(state: SetupScreenProps['state']): BusinessProfileDraft {
   return (
     state.setup.confirmedProfile ?? {
@@ -73,38 +83,31 @@ export function BusinessConfirmationScreen({
   const [draft, setDraft] = useState<BusinessProfileDraft>(() =>
     draftFromState(state),
   );
+  const snapshot = state.setup.confirmedProfile ?? state.setup.discovered;
+  const [prevSnapshot, setPrevSnapshot] = useState(snapshot);
+  if (snapshot !== prevSnapshot) {
+    setPrevSnapshot(snapshot);
+    setDraft(draftFromState(state));
+  }
 
   const isDiscovering = state.setup.discovered?.status === 'running';
+  const onRefreshRef = useRef(onRefresh);
 
   useEffect(() => {
-    void onRefresh();
+    onRefreshRef.current = onRefresh;
   }, [onRefresh]);
 
   useEffect(() => {
-    setDraft(draftFromState(state));
-  }, [state.setup.confirmedProfile, state.setup.business, state.setup.discovered]);
+    void onRefreshRef.current();
+  }, []);
 
   useEffect(() => {
     if (!isDiscovering) return;
     const timer = setInterval(() => {
-      void onRefresh();
+      void onRefreshRef.current();
     }, 2000);
     return () => clearInterval(timer);
-  }, [isDiscovering, onRefresh]);
-
-  const editableFields = useMemo(
-    () =>
-      [
-        'businessName',
-        'legalName',
-        'description',
-        'industry',
-        'subIndustry',
-        'website',
-        'language',
-      ] as const,
-    [],
-  );
+  }, [isDiscovering]);
 
   function updateField<K extends keyof BusinessProfileDraft>(
     key: K,
@@ -121,21 +124,21 @@ export function BusinessConfirmationScreen({
   }
 
   function acceptDetected() {
-    setDraft((current) => {
-      const next = { ...current, fieldStatus: { ...current.fieldStatus } };
-      for (const key of Object.keys(next.fieldStatus)) {
-        if (next.fieldStatus[key] === 'detected') {
-          next.fieldStatus[key] = 'verified';
-        }
-      }
-      return next;
-    });
+    setDraft((current) => ({
+      ...current,
+      fieldStatus: Object.fromEntries(
+        Object.entries(current.fieldStatus).map(([key, status]) => [
+          key,
+          status === 'detected' ? 'verified' : status,
+        ]),
+      ),
+    }));
   }
 
   function renderField(key: string) {
     const status = draft.fieldStatus[key];
     const label = FIELD_LABELS[key] ?? key;
-    const value = (draft as Record<string, unknown>)[key];
+    const value = (draft as unknown as Record<string, unknown>)[key];
 
     return (
       <div key={key} className="space-y-2 rounded-lg border bg-card p-4">
@@ -150,7 +153,7 @@ export function BusinessConfirmationScreen({
             onChange={(e) => updateField('description', e.target.value)}
             rows={3}
           />
-        ) : editableFields.includes(key as (typeof editableFields)[number]) ? (
+        ) : EDITABLE_FIELDS.includes(key as (typeof EDITABLE_FIELDS)[number]) ? (
           <Input
             dir={key === 'website' ? 'ltr' : undefined}
             className={key === 'website' ? 'text-start' : undefined}
@@ -177,8 +180,14 @@ export function BusinessConfirmationScreen({
           />
         ) : key === 'logo' && typeof value === 'string' && value ? (
           <div className="flex items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={value} alt="" className="size-10 rounded-md border" />
+            <Image
+              src={value}
+              alt=""
+              width={40}
+              height={40}
+              unoptimized
+              className="size-10 rounded-md border"
+            />
             <Input
               dir="ltr"
               className="text-start"
@@ -213,13 +222,13 @@ export function BusinessConfirmationScreen({
       {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
 
       <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-        <SetupSecondaryButton type="button" onClick={acceptDetected}>
+        <SetupSecondaryButton onClick={acceptDetected}>
           אשרו את כל מה שזוהה
         </SetupSecondaryButton>
         <SetupPrimaryButton
           disabled={isSubmitting || !draft.businessName.trim()}
           onClick={() =>
-            void advance('business_confirmation', { confirmedProfile: draft })
+            void advance('business_understanding', { confirmedProfile: draft })
           }
         >
           {isSubmitting ? 'שומר…' : 'אישור והמשך'}

@@ -1,9 +1,24 @@
 import type { SetupStepId, WorkspaceSetupData } from './workspace-setup';
 import { SETUP_STEPS } from './workspace-setup';
 
+const BUSINESS_DISCOVERY_INDEX = SETUP_STEPS.indexOf('business_discovery');
+const BUSINESS_UNDERSTANDING_INDEX = SETUP_STEPS.indexOf('business_understanding');
+
+function hasBusinessReport(setup: WorkspaceSetupData): boolean {
+  return Boolean(setup.businessReport);
+}
+
+function isDiscoveryRunning(setup: WorkspaceSetupData): boolean {
+  return (
+    setup.businessReport?.status === 'running' ||
+    setup.discovered?.status === 'running'
+  );
+}
+
 const LEGACY_STEP_ALIASES: Record<string, SetupStepId> = {
   business: 'business_discovery',
   discovery: 'ready',
+  business_confirmation: 'business_understanding',
 };
 
 /** Normalize API step id (handles legacy step names from older builds). */
@@ -27,7 +42,16 @@ export function migrateLegacyStepIndex(
 ): number {
   const raw = Math.max(0, index);
 
-  if (setup.confirmedProfile?.businessName) {
+  // Understanding requires a report — otherwise stay on (or return to) discovery.
+  if (
+    raw >= BUSINESS_UNDERSTANDING_INDEX &&
+    !hasBusinessReport(setup) &&
+    !isDiscoveryRunning(setup)
+  ) {
+    return BUSINESS_DISCOVERY_INDEX;
+  }
+
+  if (hasBusinessReport(setup) || setup.confirmedProfile?.businessName) {
     return Math.min(raw, SETUP_STEPS.length - 1);
   }
 
@@ -41,7 +65,7 @@ export function migrateLegacyStepIndex(
   if (hasOldBusiness || hasConnections) {
     const legacyToNew: Record<number, number> = {
       0: 0,
-      1: hasOldBusiness ? 2 : 1,
+      1: hasOldBusiness && hasBusinessReport(setup) ? 2 : 1,
       2: 4,
       3: 5,
       4: 6,

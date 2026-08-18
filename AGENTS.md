@@ -39,11 +39,44 @@ Module/API → Event → Worker → Engines → BKM artifacts → Module/UI
 
 - Lint: `CI=true npx nx run-many -t lint`
 - Build all: `npm run build`
-- DB: `npm run db:generate` / `npm run db:push`
+- DB: `npm run db:generate` / `npm run db:migrate` / `npm run db:migrate:deploy`
+
+### Database
+
+- PostgreSQL via `DATABASE_URL` (Docker Compose provides Postgres locally and on dev server).
+- Optional local SQLite fallback when `DATABASE_URL` starts with `file:`.
+
+### Docker (local smoke test)
+
+```bash
+cp .env.example .env   # edit POSTGRES_PASSWORD and JWT_SECRET
+docker compose up -d --build
+curl http://localhost:3000/api/health
+```
+
+### Deploy (CI/CD)
+
+| Trigger | Workflow | Environment |
+|---------|----------|-------------|
+| Push to `dev` | `deploy-dev.yml` | `development` |
+| Tag `v-*` on `main` | `deploy-prod.yml` | `production` |
+
+**GitHub Environment secrets** (per environment): `SSH_HOST`, `SSH_USER`, `SSH_KEY`, `GHCR_PULL_TOKEN`
+
+**Oracle bootstrap** (once): `bash deploy/bootstrap-oracle.sh` — creates `/opt/kodem/.env`, nginx, Docker.
+
+**Release to production:**
+
+```bash
+git checkout main && git pull
+git tag v-1.0.0
+git push origin v-1.0.0
+```
 
 ### Caveats
 
 - Prefix Nx with `CI=true` for non-interactive runs.
 - Within `libs/shared/ui`, use **relative** imports between files in the same project.
-- Prisma pinned to v6. DB: `libs/database/prisma/kodem.db`.
+- Prisma pinned to v6.
 - If `npx nx` fails (missing `.nx/nxw.js`), use `node node_modules/nx/dist/bin/nx.js`.
+- Next.js app image bakes `API_ORIGIN=http://api:3333` at Docker build time.
