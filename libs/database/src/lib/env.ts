@@ -1,6 +1,6 @@
 import { config } from 'dotenv';
 import { existsSync } from 'fs';
-import { dirname, join, resolve } from 'path';
+import { dirname, join } from 'path';
 
 function findWorkspaceRoot(startDir: string): string {
   let current = startDir;
@@ -20,35 +20,39 @@ function findWorkspaceRoot(startDir: string): string {
   return startDir;
 }
 
-function toFileUrl(filePath: string): string {
-  return `file:${filePath.replace(/\\/g, '/')}`;
+function loadRootEnv(startDir: string): string | undefined {
+  const workspaceRoot = findWorkspaceRoot(startDir);
+  const rootEnvPath = join(workspaceRoot, '.env');
+
+  if (existsSync(rootEnvPath)) {
+    // Root .env must win over libs/database/prisma/.env (file: SQLite leftovers).
+    config({ path: rootEnvPath, override: true });
+    return rootEnvPath;
+  }
+
+  return undefined;
 }
 
 export function configureDatabaseEnv(bundleDirname: string): void {
-  config();
+  const loadedFrom =
+    loadRootEnv(bundleDirname) ?? loadRootEnv(process.cwd());
 
-  const configured = process.env.DATABASE_URL;
+  if (!loadedFrom) {
+    config();
+  }
 
-  if (configured && !configured.startsWith('file:')) {
+  const configured = process.env.DATABASE_URL ?? '';
+
+  if (
+    configured.startsWith('postgresql://') ||
+    configured.startsWith('postgres://')
+  ) {
     return;
   }
 
-  const workspaceRoot = findWorkspaceRoot(bundleDirname);
-  const defaultDbPath = join(workspaceRoot, 'libs/database/prisma/kodem.db');
-
-  let resolvedPath = defaultDbPath;
-
-  if (configured?.startsWith('file:')) {
-    const filePath = configured.slice('file:'.length);
-    const candidate =
-      filePath.startsWith('./') || filePath.startsWith('../')
-        ? resolve(workspaceRoot, filePath)
-        : filePath;
-
-    if (existsSync(candidate)) {
-      resolvedPath = candidate;
-    }
-  }
-
-  process.env.DATABASE_URL = toFileUrl(resolvedPath);
+  const hint = loadedFrom ?? 'the monorepo root .env';
+  throw new Error(
+    `DATABASE_URL must be a Postgres URL (postgresql://...). Check ${hint}. ` +
+      `Current value starts with: ${configured ? configured.slice(0, 12) : '(empty)'}`,
+  );
 }

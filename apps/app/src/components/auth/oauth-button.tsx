@@ -25,12 +25,15 @@ const providerConfig: Record<
 export function OAuthButton({
   provider,
   className,
+  label: labelOverride,
 }: {
   provider: OAuthProvider;
   className?: string;
+  label?: string;
 }) {
   const [isLoading, setIsLoading] = useState(false);
-  const { label, Icon } = providerConfig[provider];
+  const { label: defaultLabel, Icon } = providerConfig[provider];
+  const label = labelOverride ?? defaultLabel;
 
   function handleClick() {
     setIsLoading(true);

@@ -13,6 +13,7 @@ import { Request, Response } from 'express';
 import { OAuthProfile } from '@kodem/contracts';
 import { ApiAuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { CurrentContext } from './decorators/current-context.decorator';
 import type { PlatformContext } from '@kodem/contracts';
 
@@ -58,13 +59,13 @@ export class AuthController {
   }
 
   @Get('google')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleAuthGuard)
   googleAuth() {
     // Passport redirects to Google
   }
 
   @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleAuthGuard)
   async googleCallback(@Req() req: Request, @Res() res: Response) {
     return this.handleOAuthRedirect(req, res);
   }
@@ -95,24 +96,23 @@ export class AuthController {
 
   private async handleOAuthRedirect(req: Request, res: Response) {
     const profile = req.user as OAuthProfile | undefined;
+    const appUrl = process.env['APP_URL'] ?? 'http://localhost:3000';
+
     if (!profile) {
-      return res.redirect(
-        `${process.env['APP_URL'] ?? 'http://localhost:3000'}/login?error=oauth_failed`,
-      );
+      return res.redirect(`${appUrl}/login?error=oauth_failed`);
     }
 
     try {
       const result = await this.authService.handleOAuth(profile);
       const redirectUrl = new URL(
-        process.env['AUTH_SUCCESS_URL'] ??
-          `${process.env['APP_URL'] ?? 'http://localhost:3000'}/auth/callback`,
+        process.env['AUTH_SUCCESS_URL'] ?? `${appUrl}/auth/callback`,
       );
       redirectUrl.searchParams.set('token', result.token);
       return res.redirect(redirectUrl.toString());
-    } catch {
-      return res.redirect(
-        `${process.env['APP_URL'] ?? 'http://localhost:3000'}/login?error=oauth_failed`,
-      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[oauth] handleOAuth failed:', message);
+      return res.redirect(`${appUrl}/login?error=oauth_failed`);
     }
   }
 }

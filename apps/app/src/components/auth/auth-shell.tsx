@@ -1,4 +1,8 @@
 import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
+import { Button } from '@kodem/design-system/components/ui/button';
+import { ROUTES } from '../../lib/constants';
+import { AuthSplitFrame } from './auth-split-frame';
 
 export function AuthShell({
   title,
@@ -12,24 +16,24 @@ export function AuthShell({
   footer?: React.ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center px-4 py-12">
-      <div aria-hidden className="auth-dot-grid pointer-events-none absolute inset-0" />
-      <div aria-hidden className="auth-top-glow pointer-events-none absolute inset-0" />
+    <AuthSplitFrame>
+      <div className="mx-auto w-full max-w-md space-y-8">
+        <div className="space-y-5">
+          <Button variant="ghost" size="sm" className="h-8 gap-1 px-0" asChild>
+            <Link href={ROUTES.login}>
+              <ArrowRight className="size-4" aria-hidden />
+              חזרה
+            </Link>
+          </Button>
 
-      <div className="relative z-10 w-full max-w-[420px] space-y-8">
-        <div className="space-y-2 text-center">
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-2 text-xl font-semibold tracking-tight transition-opacity hover:opacity-80"
-          >
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-              K
-            </span>
-            Kodem
-          </Link>
-          <div className="space-y-1 pt-4">
-            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-            <p className="text-sm text-muted-foreground">{description}</p>
+          <div className="space-y-3">
+            <p className="text-sm font-medium tracking-tight text-muted-foreground">
+              Kodem
+            </p>
+            <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+              {title}
+            </h1>
+            <p className="text-base text-muted-foreground">{description}</p>
           </div>
         </div>
 
@@ -39,6 +43,6 @@ export function AuthShell({
           <p className="text-center text-sm text-muted-foreground">{footer}</p>
         ) : null}
       </div>
-    </div>
+    </AuthSplitFrame>
   );
 }
