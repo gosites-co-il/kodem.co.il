@@ -13,7 +13,7 @@ model Workspace {
   name             String
   slug             String   @unique
   ownerId          String
-  status           String   @default("onboarding")
+  status           String   @default("active")
   onboardingStatus String   @default("NOT_STARTED")
   onboardingStep   Int      @default(0)
   websiteUrl       String?

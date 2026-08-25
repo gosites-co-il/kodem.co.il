@@ -10,6 +10,7 @@ import {
   getPrismaClient,
 } from '@kodem/database';
 import { runEnginePipeline } from '@kodem/engines/pipeline';
+import { WorkspaceSetupService } from '@kodem/platform/workspace';
 import {
   toInsight,
   toRecommendation,
@@ -24,6 +25,7 @@ export class EventProcessorService implements OnModuleInit {
   private readonly profileRepo = new BusinessProfileRepository();
   private readonly insightRepo = new InsightRepository();
   private readonly recommendationRepo = new RecommendationRepository();
+  private readonly setupService = new WorkspaceSetupService();
   private interval?: ReturnType<typeof setInterval>;
   private processing = false;
 
@@ -59,6 +61,15 @@ export class EventProcessorService implements OnModuleInit {
       const workspace = await this.workspaceRepo.findById(event.workspaceId);
       if (!workspace) {
         throw new Error(`Workspace ${event.workspaceId} not found`);
+      }
+
+      if (event.type === EVENT_TYPES.SETUP_PREPARATION_REQUESTED) {
+        await this.setupService.processPreparationJob(event.workspaceId);
+        await this.eventStore.markCompleted(event.id);
+        this.logger.log(
+          `Processed ${event.type} for workspace ${event.workspaceId}`,
+        );
+        return;
       }
 
       const db = getPrismaClient();

@@ -9,13 +9,21 @@ import type { SetupScreenProps } from '../setup-journey';
 export function PreparationScreen({ state, onRefresh }: SetupScreenProps) {
   const started = useRef(false);
   const tasks = state.setup.preparationTasks ?? [];
+  const step = state.step;
 
   useEffect(() => {
     if (started.current) return;
+    if (step !== 'preparation') return;
     started.current = true;
 
     void api.runSetupPreparation().then(() => onRefresh());
-  }, [onRefresh]);
+  }, [onRefresh, step]);
+
+  useEffect(() => {
+    if (step !== 'preparation') return;
+    const timer = setInterval(() => void onRefresh(), 800);
+    return () => clearInterval(timer);
+  }, [step, onRefresh]);
 
   return (
     <SetupShell>

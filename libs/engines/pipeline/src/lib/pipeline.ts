@@ -1,5 +1,4 @@
 import {
-  BusinessProfile,
   KodemEvent,
   PipelineContext,
   PipelineDraftResult,
@@ -22,19 +21,25 @@ export async function runEnginePipeline(
   const recommendationDrafts: PipelineDraftResult['recommendationDrafts'] = [];
 
   if (event.type === EVENT_TYPES.WORKSPACE_CREATED) {
-    const discovery = await discoveryEngine.run({
-      workspaceId,
-      businessName: context.workspaceName,
-      websiteUrl: context.websiteUrl,
-    });
+    // Setup already persisted BusinessProfile during business_understanding —
+    // do not overwrite with a second discovery pass.
+    if (context.existingProfile) {
+      profile = context.existingProfile;
+    } else {
+      const discovery = await discoveryEngine.run({
+        workspaceId,
+        businessName: context.workspaceName,
+        websiteUrl: context.websiteUrl,
+      });
 
-    if (discovery.success && discovery.data) {
-      const now = new Date();
-      profile = {
-        ...discovery.data.profile,
-        createdAt: now,
-        updatedAt: now,
-      };
+      if (discovery.success && discovery.data) {
+        const now = new Date();
+        profile = {
+          ...discovery.data.profile,
+          createdAt: now,
+          updatedAt: now,
+        };
+      }
     }
   }
 

@@ -3,7 +3,8 @@ import { UserId, WorkspaceId } from './ids';
 import type { OnboardingStatus } from './onboarding';
 import type { WorkspaceSetupData } from './workspace-setup';
 
-export type WorkspaceStatus = 'active' | 'onboarding' | 'suspended';
+/** Workspace lifecycle — independent of onboardingStatus. */
+export type WorkspaceStatus = 'active' | 'suspended' | 'onboarding';
 
 export interface Workspace extends Auditable {
   id: WorkspaceId;

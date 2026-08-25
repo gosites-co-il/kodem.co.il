@@ -1,47 +1,34 @@
 import type { Workspace } from '@kodem/contracts';
-import { ENTRY_ROUTES, requiresOnboarding } from '@kodem/contracts';
+import { ENTRY_ROUTES, resolveWorkspaceRoute } from '@kodem/contracts';
 
-export { ENTRY_ROUTES };
+export { ENTRY_ROUTES, requiresOnboarding } from '@kodem/contracts';
 
-/** Re-export from contracts for app convenience. */
-export { requiresOnboarding };
-
-export function isAppShellRoute(pathname: string): boolean {
+function isSetupPath(pathname: string): boolean {
   return (
-    pathname.startsWith(ENTRY_ROUTES.dashboard) ||
     pathname.startsWith(ENTRY_ROUTES.setup) ||
     pathname.startsWith(ENTRY_ROUTES.onboarding)
   );
 }
 
-export function isEntryPublicRoute(pathname: string): boolean {
-  return (
-    pathname === ENTRY_ROUTES.login ||
-    pathname.startsWith(`${ENTRY_ROUTES.login}/`) ||
-    pathname === ENTRY_ROUTES.register ||
-    pathname === ENTRY_ROUTES.callback ||
-    pathname === ENTRY_ROUTES.terms ||
-    pathname === ENTRY_ROUTES.privacy
-  );
-}
-
+/**
+ * Enforce setup ↔ dashboard using the same destination helper as EntryFlowService.
+ * Returns a redirect path, or null when the current route is allowed.
+ */
 export function guardRouteForWorkspace(
   pathname: string,
   workspace: Workspace | null,
 ): string | null {
   if (!workspace) return null;
 
-  const needsOnboarding = requiresOnboarding(workspace);
-  const onSetup =
-    pathname.startsWith(ENTRY_ROUTES.setup) ||
-    pathname.startsWith(ENTRY_ROUTES.onboarding);
+  const destination = resolveWorkspaceRoute(workspace);
+  const onSetup = isSetupPath(pathname);
   const onDashboard = pathname.startsWith(ENTRY_ROUTES.dashboard);
 
-  if (needsOnboarding && onDashboard) {
+  if (destination === ENTRY_ROUTES.setup && onDashboard) {
     return ENTRY_ROUTES.setup;
   }
 
-  if (!needsOnboarding && onSetup) {
+  if (destination === ENTRY_ROUTES.dashboard && onSetup) {
     return ENTRY_ROUTES.dashboard;
   }
 

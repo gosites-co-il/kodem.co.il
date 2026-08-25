@@ -6,7 +6,8 @@ export const ENTRY_ROUTES = {
   callback: '/auth/callback',
   entry: '/entry',
   workspaceSelect: '/workspace/select',
-  onboarding: '/setup',
+  /** Legacy path — app redirects to {@link ENTRY_ROUTES.setup}. */
+  onboarding: '/onboarding',
   setup: '/setup',
   dashboard: '/dashboard',
   terms: '/terms',

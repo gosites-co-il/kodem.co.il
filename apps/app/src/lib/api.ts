@@ -97,6 +97,13 @@ export const api = {
     });
   },
 
+  createWorkspace(body: { name?: string; websiteUrl?: string } = {}) {
+    return request<AuthResult>('/workspace/create', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
   resolveEntry(workspaceSelected?: boolean) {
     const query = workspaceSelected ? '?workspaceSelected=true' : '';
     return request<EntryResolution>(`/entry/resolve${query}`);

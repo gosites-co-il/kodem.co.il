@@ -65,22 +65,19 @@ export class PlatformWorkspaceController {
   @UseGuards(JwtAuthGuard)
   async create(
     @CurrentContext() context: PlatformContext,
-    @Body() body: { name: string; slug?: string; websiteUrl?: string },
+    @Body() body: { name?: string; slug?: string; websiteUrl?: string },
   ) {
-    if (!body.name) {
-      throw new BadRequestException('name is required');
-    }
+    const name = body.name?.trim() || 'לקוח חדש';
 
     try {
       const resolved = await this.workspaceService.createForOwner(
         context.user.id,
-        body,
+        { name, slug: body.slug, websiteUrl: body.websiteUrl },
       );
-      return {
-        workspace: resolved.workspace,
-        role: resolved.role,
-        membership: resolved.membership,
-      };
+      return this.authService.authService.issueAuthResult(
+        context.user,
+        resolved,
+      );
     } catch (error) {
       throw new BadRequestException(
         error instanceof Error ? error.message : 'Failed to create workspace',

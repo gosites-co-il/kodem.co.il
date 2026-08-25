@@ -12,7 +12,8 @@ export type EventType =
   | 'discovery.completed'
   | 'asset.discovered'
   | 'asset.processed'
-  | 'business.updated';
+  | 'business.updated'
+  | 'setup.preparation.requested';
 
 export type EventStatus = 'pending' | 'processing' | 'completed' | 'failed';
 

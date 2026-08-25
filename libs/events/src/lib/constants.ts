@@ -13,4 +13,5 @@ export const EVENT_TYPES = {
   ASSET_DISCOVERED: 'asset.discovered',
   ASSET_PROCESSED: 'asset.processed',
   BUSINESS_UPDATED: 'business.updated',
+  SETUP_PREPARATION_REQUESTED: 'setup.preparation.requested',
 } as const satisfies Record<string, EventType>;
