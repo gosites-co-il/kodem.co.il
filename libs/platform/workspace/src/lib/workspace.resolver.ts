@@ -10,6 +10,8 @@ import {
   MemberRepository,
   UserRepository,
 } from '@kodem/database';
+import { SubscriptionService } from '@kodem/platform/subscription';
+import { WorkspaceModuleService } from './workspace-module.service';
 
 export interface ResolvedWorkspace {
   workspace: Workspace;
@@ -32,6 +34,8 @@ export class WorkspaceResolver {
   private readonly workspaceRepo = new WorkspaceRepository();
   private readonly memberRepo = new MemberRepository();
   private readonly userRepo = new UserRepository();
+  private readonly subscriptions = new SubscriptionService();
+  private readonly modules = new WorkspaceModuleService();
 
   async resolveForUser(user: User): Promise<ResolvedWorkspace> {
     const memberships = await this.memberRepo.findByUserId(user.id);
@@ -46,6 +50,7 @@ export class WorkspaceResolver {
       if (!workspace) {
         throw new Error('Membership references missing workspace');
       }
+      await this.ensurePlatformState(workspace);
       await this.userRepo.setActiveWorkspace(user.id, workspace.id);
       return { workspace, membership, role: membership.role };
     }
@@ -63,12 +68,25 @@ export class WorkspaceResolver {
       throw new Error('Membership references missing workspace');
     }
 
+    await this.ensurePlatformState(workspace);
     await this.userRepo.setActiveWorkspace(user.id, workspace.id);
     return {
       workspace,
       membership: activeMembership,
       role: activeMembership.role,
     };
+  }
+
+  private async ensurePlatformState(workspace: Workspace): Promise<void> {
+    await this.subscriptions.ensureForWorkspace(workspace.id);
+    const existing = await this.modules.list(workspace.id);
+    if (existing.length === 0) {
+      await this.modules.migrateFromSetupData(workspace);
+      const after = await this.modules.list(workspace.id);
+      if (after.length === 0) {
+        await this.modules.enableDefaultFreeModules(workspace.id);
+      }
+    }
   }
 
   private async createDefaultWorkspace(
@@ -82,6 +100,8 @@ export class WorkspaceResolver {
 
     const { workspace, memberId } =
       await this.workspaceRepo.createForUser(input);
+
+    await this.ensurePlatformState(workspace);
 
     return {
       workspace,

@@ -1,0 +1,8 @@
+{
+  "name": "platform-audit",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/audit/src",
+  "projectType": "library",
+  "tags": ["scope:platform", "type:feature"],
+  "targets": {}
+}

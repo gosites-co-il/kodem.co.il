@@ -511,6 +511,14 @@ export class WorkspaceSetupService {
       setupData: serializeSetup(setup),
     });
 
+    const activated = setup.modules.activated ?? [];
+    if (activated.length > 0) {
+      const { WorkspaceModuleService } = await import(
+        './workspace-module.service'
+      );
+      await new WorkspaceModuleService().syncFromSetup(workspaceId, activated);
+    }
+
     await this.eventBus.emit({
       type: EVENT_TYPES.WORKSPACE_CREATED,
       workspaceId,

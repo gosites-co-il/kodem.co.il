@@ -160,6 +160,28 @@ export class WorkspaceRepository {
     });
     return mapWorkspaceRowToDomain(row);
   }
+
+  async updateStatus(
+    id: WorkspaceId,
+    status: Workspace['status'],
+  ): Promise<Workspace> {
+    const row = await this.db.workspace.update({
+      where: { id },
+      data: { status, updatedAt: new Date() },
+    });
+    return mapWorkspaceRowToDomain(row);
+  }
+
+  async updateOwner(
+    id: WorkspaceId,
+    ownerId: UserId,
+  ): Promise<Workspace> {
+    const row = await this.db.workspace.update({
+      where: { id },
+      data: { ownerId, updatedAt: new Date() },
+    });
+    return mapWorkspaceRowToDomain(row);
+  }
 }
 
 export class PrismaEventStore implements EventStore {

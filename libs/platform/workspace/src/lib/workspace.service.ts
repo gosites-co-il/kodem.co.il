@@ -8,17 +8,21 @@ import {
   MemberRepository,
   UserRepository,
 } from '@kodem/database';
+import { SubscriptionService } from '@kodem/platform/subscription';
 import {
   WorkspaceResolver,
   ResolvedWorkspace,
   slugify,
 } from './workspace.resolver';
+import { WorkspaceModuleService } from './workspace-module.service';
 
 export class WorkspaceService {
   private readonly workspaceRepo = new WorkspaceRepository();
   private readonly memberRepo = new MemberRepository();
   private readonly userRepo = new UserRepository();
   private readonly resolver = new WorkspaceResolver();
+  private readonly subscriptions = new SubscriptionService();
+  private readonly modules = new WorkspaceModuleService();
 
   async getCurrentForUser(userId: UserId): Promise<ResolvedWorkspace | null> {
     const user = await this.userRepo.findById(userId);
@@ -49,6 +53,8 @@ export class WorkspaceService {
     });
 
     await this.userRepo.setActiveWorkspace(userId, workspace.id);
+    await this.subscriptions.ensureForWorkspace(workspace.id);
+    await this.modules.enableDefaultFreeModules(workspace.id);
 
     return {
       workspace,

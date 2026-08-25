@@ -23,6 +23,7 @@ export function AuthCallbackHandler() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const token = searchParams.get('token');
     const oauthError = searchParams.get('error');
 
@@ -31,15 +32,21 @@ export function AuthCallbackHandler() {
       return;
     }
 
-    if (!token) {
-      setError('חסר אסימון אימות.');
-      return;
-    }
-
     async function handleCallback() {
       try {
-        setToken(token!);
+        if (token) {
+          setToken(token);
+        } else {
+          const refreshed = await api.refresh();
+          if (cancelled) return;
+          if (!refreshed) {
+            setError('חסר אסימון אימות.');
+            return;
+          }
+        }
+
         const me = await api.me();
+        if (cancelled) return;
         setSession({
           user: me.user,
           workspace: me.workspace,
@@ -47,11 +54,16 @@ export function AuthCallbackHandler() {
         });
         router.replace(ROUTES.entry);
       } catch {
-        setError('לא ניתן להשלים את ההתחברות. נסו שוב.');
+        if (!cancelled) {
+          setError('לא ניתן להשלים את ההתחברות. נסו שוב.');
+        }
       }
     }
 
     void handleCallback();
+    return () => {
+      cancelled = true;
+    };
   }, [router, searchParams, setSession]);
 
   if (error) {

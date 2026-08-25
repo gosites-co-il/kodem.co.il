@@ -1,0 +1,8 @@
+{
+  "name": "platform-billing",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/billing/src",
+  "projectType": "library",
+  "tags": ["scope:platform", "type:feature"],
+  "targets": {}
+}

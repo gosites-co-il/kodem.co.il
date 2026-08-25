@@ -78,6 +78,31 @@ export class UserRepository {
     });
     return (row?.activeWorkspaceId as WorkspaceId) ?? null;
   }
+
+  async setPasswordHash(userId: UserId, passwordHash: string): Promise<void> {
+    await this.db.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+  }
+
+  async setEmailVerifiedAt(
+    userId: UserId,
+    emailVerifiedAt: Date | null = new Date(),
+  ): Promise<User> {
+    const row = await this.db.user.update({
+      where: { id: userId },
+      data: { emailVerifiedAt },
+    });
+    return mapUserRowToDomain(row);
+  }
+
+  async updateEmailVerifiedAt(
+    userId: UserId,
+    emailVerifiedAt: Date | null,
+  ): Promise<User> {
+    return this.setEmailVerifiedAt(userId, emailVerifiedAt);
+  }
 }
 
 export class MemberRepository {
@@ -122,6 +147,46 @@ export class MemberRepository {
 
   async countByUserId(userId: UserId): Promise<number> {
     return this.db.member.count({ where: { userId } });
+  }
+
+  async listByWorkspace(workspaceId: WorkspaceId): Promise<Member[]> {
+    const rows = await this.db.member.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map(mapMemberRowToDomain);
+  }
+
+  async updateRole(
+    workspaceId: WorkspaceId,
+    userId: UserId,
+    role: RoleName,
+  ): Promise<Member> {
+    const row = await this.db.member.update({
+      where: {
+        workspaceId_userId: { workspaceId, userId },
+      },
+      data: { role },
+    });
+    return mapMemberRowToDomain(row);
+  }
+
+  async delete(workspaceId: WorkspaceId, userId: UserId): Promise<void> {
+    await this.db.member.delete({
+      where: {
+        workspaceId_userId: { workspaceId, userId },
+      },
+    });
+  }
+
+  async countByWorkspace(workspaceId: WorkspaceId): Promise<number> {
+    return this.db.member.count({ where: { workspaceId } });
+  }
+
+  async countOwners(workspaceId: WorkspaceId): Promise<number> {
+    return this.db.member.count({
+      where: { workspaceId, role: 'owner' },
+    });
   }
 }
 

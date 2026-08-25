@@ -1,5 +1,7 @@
 export * from './lib/workspace.service';
 export * from './lib/workspace.resolver';
+export * from './lib/member.service';
+export * from './lib/workspace-module.service';
 export * from './lib/entry-flow.service';
 export * from './lib/workspace-setup.service';
 export * from './lib/business-discovery.service';

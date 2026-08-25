@@ -7,42 +7,50 @@ export interface Role {
   permissions: Permission[];
 }
 
+const MEMBER_BASE: Permission[] = [
+  'workspace.settings.read',
+  'workspace.members.read',
+  'insights:read',
+  'recommendations:read',
+];
+
+const ADMIN_PERMS: Permission[] = [
+  ...MEMBER_BASE,
+  'workspace.settings.update',
+  'workspace.members.invite',
+  'workspace.members.update',
+  'workspace.members.remove',
+  'workspace.billing.read',
+  'integrations:manage',
+];
+
 export const ROLE_DEFINITIONS: Record<RoleName, Role> = {
   owner: {
     name: 'owner',
     permissions: [
-      'workspace:read',
-      'workspace:write',
-      'workspace:admin',
-      'members:read',
-      'members:write',
-      'insights:read',
-      'recommendations:read',
-      'integrations:manage',
+      ...ADMIN_PERMS,
+      'workspace.billing.manage',
+      'workspace.lifecycle.manage',
     ],
   },
   admin: {
     name: 'admin',
-    permissions: [
-      'workspace:read',
-      'workspace:write',
-      'members:read',
-      'members:write',
-      'insights:read',
-      'recommendations:read',
-      'integrations:manage',
-    ],
+    permissions: ADMIN_PERMS,
   },
   member: {
     name: 'member',
+    permissions: MEMBER_BASE,
+  },
+  viewer: {
+    name: 'viewer',
     permissions: [
-      'workspace:read',
+      'workspace.settings.read',
+      'workspace.members.read',
       'insights:read',
       'recommendations:read',
     ],
   },
-  viewer: {
-    name: 'viewer',
-    permissions: ['workspace:read', 'insights:read', 'recommendations:read'],
-  },
 };
+
+/** Roles offered when inviting members (viewer kept for backward compat only). */
+export const INVITABLE_ROLES: RoleName[] = ['admin', 'member'];

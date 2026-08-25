@@ -77,7 +77,15 @@ export function LoginForm() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">סיסמה</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="password">סיסמה</Label>
+            <Link
+              href={ROUTES.loginReset}
+              className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+            >
+              שכחתם סיסמה?
+            </Link>
+          </div>
           <Input
             id="password"
             type="password"

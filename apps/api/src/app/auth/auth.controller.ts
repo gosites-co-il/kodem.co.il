@@ -16,6 +16,14 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { CurrentContext } from './decorators/current-context.decorator';
 import type { PlatformContext } from '@kodem/contracts';
+import {
+  clearAccessCookie,
+  clearRefreshCookie,
+  readCookie,
+  REFRESH_COOKIE,
+  setAccessCookie,
+  setRefreshCookie,
+} from './auth-cookies';
 
 @Controller('auth')
 export class AuthController {
@@ -24,24 +32,128 @@ export class AuthController {
   @Post('register')
   async register(
     @Body() body: { email: string; name: string; password: string },
+    @Res({ passthrough: true }) res: Response,
   ) {
     if (!body.email || !body.name || !body.password) {
       throw new BadRequestException('email, name, and password are required');
     }
     try {
-      return await this.authService.register(body);
+      const result = await this.authService.register(body);
+      setRefreshCookie(res, result.refreshToken);
+      setAccessCookie(res, result.accessToken);
+      return this.authService.stripRefresh(result);
     } catch (error) {
       this.authService.wrapError(error);
     }
   }
 
   @Post('login')
-  async login(@Body() body: { email: string; password: string }) {
+  async login(
+    @Body() body: { email: string; password: string },
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     if (!body.email || !body.password) {
       throw new BadRequestException('email and password are required');
     }
     try {
-      return await this.authService.login(body);
+      const rateKey =
+        req.ip ?? req.headers['x-forwarded-for']?.toString() ?? body.email;
+      const result = await this.authService.login(body, rateKey);
+      setRefreshCookie(res, result.refreshToken);
+      setAccessCookie(res, result.accessToken);
+      return this.authService.stripRefresh(result);
+    } catch (error) {
+      this.authService.wrapError(error);
+    }
+  }
+
+  @Post('refresh')
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const token = readCookie(req, REFRESH_COOKIE);
+    if (!token) {
+      throw new BadRequestException('Missing refresh token');
+    }
+    try {
+      const result = await this.authService.refresh(token);
+      setRefreshCookie(res, result.refreshToken);
+      setAccessCookie(res, result.accessToken);
+      return this.authService.stripRefresh(result);
+    } catch (error) {
+      clearRefreshCookie(res);
+      clearAccessCookie(res);
+      this.authService.wrapError(error);
+    }
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  async logout(
+    @CurrentContext() context: PlatformContext,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.authService.logout(context.user.id);
+    clearRefreshCookie(res);
+    clearAccessCookie(res);
+    return { ok: true };
+  }
+
+  @Post('password-reset/request')
+  async requestPasswordReset(
+    @Body() body: { email: string },
+    @Req() req: Request,
+  ) {
+    if (!body.email) {
+      throw new BadRequestException('email is required');
+    }
+    const rateKey =
+      req.ip ?? req.headers['x-forwarded-for']?.toString() ?? body.email;
+    await this.authService.requestPasswordReset(body.email, rateKey);
+    return { ok: true };
+  }
+
+  @Post('password-reset/confirm')
+  async confirmPasswordReset(
+    @Body() body: { token: string; password: string },
+  ) {
+    if (!body.token || !body.password) {
+      throw new BadRequestException('token and password are required');
+    }
+    try {
+      await this.authService.confirmPasswordReset(body.token, body.password);
+      return { ok: true };
+    } catch (error) {
+      this.authService.wrapError(error);
+    }
+  }
+
+  @Post('verify-email')
+  async verifyEmail(@Body() body: { token: string }) {
+    if (!body.token) {
+      throw new BadRequestException('token is required');
+    }
+    try {
+      const user = await this.authService.verifyEmail(body.token);
+      return { ok: true, emailVerified: Boolean(user.emailVerifiedAt) };
+    } catch (error) {
+      this.authService.wrapError(error);
+    }
+  }
+
+  @Post('verify-email/resend')
+  @UseGuards(JwtAuthGuard)
+  async resendVerifyEmail(
+    @CurrentContext() context: PlatformContext,
+    @Req() req: Request,
+  ) {
+    try {
+      const rateKey =
+        req.ip ?? req.headers['x-forwarded-for']?.toString() ?? context.user.email;
+      await this.authService.sendEmailVerification(context.user, rateKey);
+      return { ok: true };
     } catch (error) {
       this.authService.wrapError(error);
     }
@@ -55,6 +167,7 @@ export class AuthController {
       workspace: context.workspace,
       role: context.role,
       membership: context.membership,
+      emailVerified: Boolean(context.user.emailVerifiedAt),
     };
   }
 
@@ -104,11 +217,11 @@ export class AuthController {
 
     try {
       const result = await this.authService.handleOAuth(profile);
-      const redirectUrl = new URL(
-        process.env['AUTH_SUCCESS_URL'] ?? `${appUrl}/auth/callback`,
-      );
-      redirectUrl.searchParams.set('token', result.token);
-      return res.redirect(redirectUrl.toString());
+      setRefreshCookie(res, result.refreshToken);
+      setAccessCookie(res, result.accessToken);
+      const redirectUrl =
+        process.env['AUTH_SUCCESS_URL'] ?? `${appUrl}/auth/callback`;
+      return res.redirect(redirectUrl);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error('[oauth] handleOAuth failed:', message);

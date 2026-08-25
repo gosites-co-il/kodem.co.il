@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   ChevronLeft,
   ChevronRight,
+  Building2,
   LogOut,
   Menu,
   Moon,
@@ -209,6 +210,11 @@ function MobileNav({
                 החלפת סביבה
               </Link>
             </Button>
+            <Button variant="outline" className="w-full" asChild>
+              <Link href={ROUTES.workspaceSettings} onClick={closeMenu}>
+                הגדרות סביבה
+              </Link>
+            </Button>
             <Button
               variant="ghost"
               className="w-full justify-start gap-2 text-destructive"
@@ -354,6 +360,12 @@ export function AppNavbar() {
                   <Link href={ROUTES.workspaceSelect} className="flex items-center gap-2">
                     <UserRound className="size-4" />
                     החלפת סביבה
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={ROUTES.workspaceSettings} className="flex items-center gap-2">
+                    <Building2 className="size-4" />
+                    הגדרות סביבה
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

@@ -7,6 +7,7 @@ type UserRow = {
   name: string;
   passwordHash: string | null;
   activeWorkspaceId: string | null;
+  emailVerifiedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -16,6 +17,7 @@ export function mapUserRowToDomain(row: UserRow): User {
     id: row.id as UserId,
     email: row.email,
     name: row.name,
+    emailVerifiedAt: row.emailVerifiedAt ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

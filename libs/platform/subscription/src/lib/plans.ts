@@ -1,61 +1,78 @@
-export type PlanId = 'free' | 'starter' | 'growth' | 'enterprise';
+import type {
+  ModuleId,
+  PlanDefinition,
+  PlanId,
+  UsageMetric,
+} from '@kodem/contracts';
 
-export interface Plan {
-  id: PlanId;
-  name: string;
-  monthlyPrice: number;
-  modules: string[];
-}
+export type { PlanId, PlanDefinition, UsageMetric };
 
-export const PLANS: Record<PlanId, Plan> = {
+const FREE_MODULES: ModuleId[] = [
+  'crm',
+  'knowledge',
+  'insights',
+  'digital_card',
+];
+
+const STARTER_MODULES: ModuleId[] = [...FREE_MODULES, 'campaign_manager'];
+const GROWTH_MODULES: ModuleId[] = [...STARTER_MODULES, 'automation'];
+const ENTERPRISE_MODULES: ModuleId[] = [...GROWTH_MODULES, 'external_ai'];
+
+export const PLANS: Record<PlanId, PlanDefinition> = {
   free: {
     id: 'free',
     name: 'Free',
     monthlyPrice: 0,
-    modules: ['discovery', 'insights'],
+    modules: FREE_MODULES,
+    limits: {
+      members: 2,
+      events: 500,
+      ai_requests: 100,
+      workspaces: 1,
+    },
   },
   starter: {
     id: 'starter',
     name: 'Starter',
     monthlyPrice: 49,
-    modules: ['discovery', 'insights', 'recommendations'],
+    modules: STARTER_MODULES,
+    limits: {
+      members: 5,
+      events: 5000,
+      ai_requests: 1000,
+      workspaces: 1,
+    },
   },
   growth: {
     id: 'growth',
     name: 'Growth',
     monthlyPrice: 149,
-    modules: ['discovery', 'insights', 'recommendations', 'integrations'],
+    modules: GROWTH_MODULES,
+    limits: {
+      members: 15,
+      events: 50000,
+      ai_requests: 10000,
+      workspaces: 3,
+    },
   },
   enterprise: {
     id: 'enterprise',
     name: 'Enterprise',
     monthlyPrice: 0,
-    modules: ['discovery', 'insights', 'recommendations', 'integrations', 'learning'],
+    modules: ENTERPRISE_MODULES,
+    limits: {
+      members: null,
+      events: null,
+      ai_requests: null,
+      workspaces: null,
+    },
   },
 };
 
-export interface Entitlements {
-  planId: PlanId;
-  modules: string[];
-  limits: {
-    workspaces: number;
-    members: number;
-    eventsPerMonth: number;
-  };
+export function getPlan(planId: PlanId): PlanDefinition {
+  return PLANS[planId];
 }
 
-export function getEntitlements(planId: PlanId): Entitlements {
-  const plan = PLANS[planId];
-  const limits = {
-    free: { workspaces: 1, members: 2, eventsPerMonth: 500 },
-    starter: { workspaces: 1, members: 5, eventsPerMonth: 5000 },
-    growth: { workspaces: 3, members: 15, eventsPerMonth: 50000 },
-    enterprise: { workspaces: 999, members: 999, eventsPerMonth: 999999 },
-  }[planId];
-
-  return { planId, modules: plan.modules, limits };
-}
-
-export function hasModule(entitlements: Entitlements, module: string): boolean {
-  return entitlements.modules.includes(module);
+export function listPlans(): PlanDefinition[] {
+  return Object.values(PLANS);
 }

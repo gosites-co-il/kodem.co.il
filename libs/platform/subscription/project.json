@@ -4,5 +4,13 @@
   "sourceRoot": "libs/platform/subscription/src",
   "projectType": "library",
   "tags": ["scope:platform", "type:feature"],
-  "targets": {}
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/platform/subscription"],
+      "options": {
+        "jestConfig": "libs/platform/subscription/jest.config.cts"
+      }
+    }
+  }
 }

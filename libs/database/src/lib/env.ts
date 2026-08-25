@@ -41,7 +41,7 @@ export function configureDatabaseEnv(bundleDirname: string): void {
     config();
   }
 
-  const configured = process.env.DATABASE_URL ?? '';
+  const configured = process.env['DATABASE_URL'] ?? '';
 
   if (
     configured.startsWith('postgresql://') ||
