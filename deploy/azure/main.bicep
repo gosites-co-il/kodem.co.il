@@ -56,6 +56,12 @@ param facebookClientId string = ''
 @description('Facebook OAuth client secret. Leave empty to boot with a placeholder.')
 param facebookClientSecret string = ''
 
+@description('Region for the PostgreSQL flexible server. Defaults to the region of everything else; override it when the subscription is not allowed to provision flexible servers there. See "PostgreSQL is not available in this region" in deploy/azure/README.md.')
+param postgresLocation string = location
+
+@description('PostgreSQL major version.')
+param postgresVersion string = '16'
+
 @description('Compute tier for the PostgreSQL flexible server.')
 param postgresSkuName string = 'Standard_B1ms'
 
@@ -114,13 +120,13 @@ resource registry 'Microsoft.ContainerRegistry/registries@2023-07-01' existing =
 // unique rather than just unique inside the resource group.
 resource postgres 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
   name: '${prefix}-pg-${uniqueString(resourceGroup().id)}'
-  location: location
+  location: postgresLocation
   sku: {
     name: postgresSkuName
     tier: postgresSkuTier
   }
   properties: {
-    version: '16'
+    version: postgresVersion
     administratorLogin: postgresAdminUser
     administratorLoginPassword: postgresAdminPassword
     storage: {

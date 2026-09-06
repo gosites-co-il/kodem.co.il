@@ -113,6 +113,8 @@ Variables:
 | `AZURE_RESOURCE_GROUP` | Deployment target |
 | `AZURE_CONTAINER_REGISTRY` | Registry name, without `.azurecr.io` |
 | `APP_CUSTOM_DOMAIN`, `API_CUSTOM_DOMAIN` | Optional, override the hostnames in the parameter file |
+| `POSTGRES_LOCATION` | Optional, puts the database in another region than the rest — see below |
+| `POSTGRES_VERSION` | Optional, overrides the PostgreSQL major version (`16`) |
 | `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GITHUB_CLIENT_ID`, `OAUTH_FACEBOOK_CLIENT_ID` | Optional |
 
 Secrets:
@@ -172,6 +174,36 @@ the matching certificate once it exists.
 
 The template owns the ingress configuration, so deploying with `custom_domains=false`
 after the domains are live unbinds them.
+
+## PostgreSQL is not available in this region
+
+Subscriptions are not allowed to provision flexible servers in every region, and the one
+they are pointed at can also run out of capacity for a compute tier. The deployment then
+fails with
+
+```
+ParameterOutOfRange: The value of the 'Version' should be in: []
+```
+
+which is Azure saying it has no server versions to offer for that subscription, region and
+SKU, not that the version is wrong. The deploy job recognises that message and says so,
+because nothing in the template can be corrected to fix it. Confirm it from an account
+that can read the subscription — the CI principal is only a Contributor on the resource
+group, so it cannot ask this itself:
+
+```bash
+az postgres flexible-server list-skus --location westeurope -o table
+```
+
+An empty answer means the region is unavailable. Either ask Azure support to enable
+flexible servers for the subscription there, or set the `POSTGRES_LOCATION` variable on
+the GitHub Environment to a region that does answer. The container apps reach the database
+over its public endpoint, so a different region costs latency per query rather than
+connectivity — keep it in the same geography.
+
+A non-empty answer that does not include `Standard_B1ms` means the tier is the problem
+rather than the region; pick a SKU from that output and change `postgresSkuName` in
+`main.parameters.<env>.json`.
 
 ## Operations
 

@@ -65,7 +65,9 @@ Target is **Azure Container Apps**, images in **Azure Container Registry**, data
 
 Both call `deploy.yml`: lint → build/push three images to ACR → `az deployment group create` with `deploy/azure/main.bicep` → health check. `dev` / `prod` name the Azure resource suffix and the Bicep parameter file; the GitHub Environment holding the credentials is passed separately as `github_environment`, since GitHub Environments cannot be renamed. The hostnames live in `deploy/azure/main.parameters.<env>.json`.
 
-**GitHub Environment variables**: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_CONTAINER_REGISTRY`, optional `APP_CUSTOM_DOMAIN`, `API_CUSTOM_DOMAIN` and `OAUTH_*_CLIENT_ID`.
+**GitHub Environment variables**: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_CONTAINER_REGISTRY`, optional `APP_CUSTOM_DOMAIN`, `API_CUSTOM_DOMAIN`, `POSTGRES_LOCATION`, `POSTGRES_VERSION` and `OAUTH_*_CLIENT_ID`.
+
+`POSTGRES_LOCATION` exists because a subscription is not allowed to provision flexible servers in every region; when it cannot, ARM reports `The value of the 'Version' should be in: []`. The deploy job recognises that message and prints what to do about it.
 
 **GitHub Environment secrets**: `POSTGRES_ADMIN_PASSWORD`, `JWT_SECRET`, optional `OAUTH_*_CLIENT_SECRET`.
 

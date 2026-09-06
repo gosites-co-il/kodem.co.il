@@ -169,11 +169,14 @@ jobs:
         env:
           RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           AZURE_ENV: ${{ inputs.environment }}
+          GITHUB_ENV_NAME: ${{ inputs.github_environment }}
           IMAGE_TAG: ${{ inputs.image_tag }}
           CONTAINER_REGISTRY: ${{ vars.AZURE_CONTAINER_REGISTRY }}
           CUSTOM_DOMAINS: ${{ inputs.custom_domains }}
           APP_CUSTOM_DOMAIN: ${{ vars.APP_CUSTOM_DOMAIN }}
           API_CUSTOM_DOMAIN: ${{ vars.API_CUSTOM_DOMAIN }}
+          POSTGRES_LOCATION: ${{ vars.POSTGRES_LOCATION }}
+          POSTGRES_VERSION: ${{ vars.POSTGRES_VERSION }}
           POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           OAUTH_GOOGLE_CLIENT_ID: ${{ vars.OAUTH_GOOGLE_CLIENT_ID }}
@@ -200,7 +203,18 @@ jobs:
             DOMAIN_PARAMS+=("appCustomDomain=" "apiCustomDomain=")
           fi
 
-          OUTPUTS=$(az deployment group create \
+          # Only set when a GitHub Environment variable overrides the template, so the
+          # region and version stay whatever main.bicep says by default.
+          POSTGRES_PARAMS=()
+          if [ -n "$POSTGRES_LOCATION" ]; then
+            POSTGRES_PARAMS+=("postgresLocation=$POSTGRES_LOCATION")
+          fi
+          if [ -n "$POSTGRES_VERSION" ]; then
+            POSTGRES_PARAMS+=("postgresVersion=$POSTGRES_VERSION")
+          fi
+
+          ERRORS=$(mktemp)
+          if ! OUTPUTS=$(az deployment group create \
             --resource-group "$RESOURCE_GROUP" \
             --name "kodem-$AZURE_ENV-$GITHUB_RUN_ID" \
             --template-file deploy/azure/main.bicep \
@@ -217,7 +231,33 @@ jobs:
               facebookClientId="$OAUTH_FACEBOOK_CLIENT_ID" \
               facebookClientSecret="$OAUTH_FACEBOOK_CLIENT_SECRET" \
               "${DOMAIN_PARAMS[@]}" \
-            --query properties.outputs -o json)
+              "${POSTGRES_PARAMS[@]}" \
+            --query properties.outputs -o json 2>"$ERRORS"); then
+            cat "$ERRORS"
+
+            # Azure answers a subscription that may not provision flexible servers in a
+            # region with an empty list of server versions, which ARM then reports as a
+            # bad 'Version' parameter. Nothing about the template is wrong in that case.
+            if grep -q "'Version' should be in: \[\]" "$ERRORS"; then
+              PARAMS="deploy/azure/main.parameters.$AZURE_ENV.json"
+              PG_LOCATION="${POSTGRES_LOCATION:-$(az group show --name "$RESOURCE_GROUP" --query location -o tsv)}"
+              PG_SKU=$(jq -r '.parameters.postgresSkuName.value // "Standard_B1ms"' "$PARAMS")
+              echo ""
+              echo "PostgreSQL flexible servers look unavailable to this subscription in $PG_LOCATION."
+              echo "Confirm with an account that can read the subscription:"
+              echo ""
+              echo "  az postgres flexible-server list-skus --location $PG_LOCATION -o table"
+              echo ""
+              echo "An empty answer means the region is the problem, not the parameters. Set the"
+              echo "POSTGRES_LOCATION variable on the $GITHUB_ENV_NAME environment to a region that"
+              echo "does answer, or ask Azure support to enable flexible servers in $PG_LOCATION."
+              echo "An answer without $PG_SKU means the compute tier is the problem instead:"
+              echo "change postgresSkuName in $PARAMS to one it lists."
+              echo ""
+              echo "deploy/azure/README.md covers both."
+            fi
+            exit 1
+          fi
 
           {
             echo "app_fqdn=$(echo "$OUTPUTS" | jq -r '.appFqdn.value')"
