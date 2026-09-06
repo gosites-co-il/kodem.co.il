@@ -4,6 +4,11 @@ on:
   push:
     branches: [dev]
   workflow_dispatch:
+    inputs:
+      custom_domains:
+        description: Bind app.dev.kodem.co.il and api.dev.kodem.co.il. Uncheck for the very first deploy of the environment, before the DNS records can exist.
+        type: boolean
+        default: true
 
 concurrency:
   group: deploy-dev
@@ -18,7 +23,7 @@ jobs:
     uses: ./.github/workflows/deploy.yml
     secrets: inherit
     with:
-      environment: development
-      azure_environment: dev
+      environment: dev
       image_tag: dev
       extra_tags: dev
+      custom_domains: ${{ inputs.custom_domains != false }}

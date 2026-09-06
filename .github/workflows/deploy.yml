@@ -4,11 +4,7 @@ on:
   workflow_call:
     inputs:
       environment:
-        description: GitHub Environment holding the Azure credentials and app secrets.
-        required: true
-        type: string
-      azure_environment:
-        description: Short environment name used for Azure resource naming (dev or prod).
+        description: Environment to deploy. Names the GitHub Environment holding the Azure credentials and app secrets, and suffixes the Azure resource names.
         required: true
         type: string
       image_tag:
@@ -28,6 +24,11 @@ on:
         required: false
         type: string
         default: http://kodem-api
+      custom_domains:
+        description: Bind app.<env-domain> and api.<env-domain>. Set false for the very first deploy of an environment, before the DNS records can exist.
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -132,6 +133,7 @@ jobs:
     environment: ${{ inputs.environment }}
     outputs:
       app_url: ${{ steps.infra.outputs.app_url }}
+      api_url: ${{ steps.infra.outputs.api_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -162,10 +164,12 @@ jobs:
         id: infra
         env:
           RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-          AZURE_ENV: ${{ inputs.azure_environment }}
+          AZURE_ENV: ${{ inputs.environment }}
           IMAGE_TAG: ${{ inputs.image_tag }}
           CONTAINER_REGISTRY: ${{ vars.AZURE_CONTAINER_REGISTRY }}
+          CUSTOM_DOMAINS: ${{ inputs.custom_domains }}
           APP_CUSTOM_DOMAIN: ${{ vars.APP_CUSTOM_DOMAIN }}
+          API_CUSTOM_DOMAIN: ${{ vars.API_CUSTOM_DOMAIN }}
           POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           OAUTH_GOOGLE_CLIENT_ID: ${{ vars.OAUTH_GOOGLE_CLIENT_ID }}
@@ -176,6 +180,22 @@ jobs:
           OAUTH_FACEBOOK_CLIENT_SECRET: ${{ secrets.OAUTH_FACEBOOK_CLIENT_SECRET }}
         run: |
           set -euo pipefail
+
+          # The domains live in main.parameters.<env>.json. A GitHub Environment
+          # variable overrides one when set, and custom_domains=false drops both so a
+          # brand new environment can be created before its DNS records exist.
+          DOMAIN_PARAMS=()
+          if [ "$CUSTOM_DOMAINS" = "true" ]; then
+            if [ -n "$APP_CUSTOM_DOMAIN" ]; then
+              DOMAIN_PARAMS+=("appCustomDomain=$APP_CUSTOM_DOMAIN")
+            fi
+            if [ -n "$API_CUSTOM_DOMAIN" ]; then
+              DOMAIN_PARAMS+=("apiCustomDomain=$API_CUSTOM_DOMAIN")
+            fi
+          else
+            DOMAIN_PARAMS+=("appCustomDomain=" "apiCustomDomain=")
+          fi
+
           OUTPUTS=$(az deployment group create \
             --resource-group "$RESOURCE_GROUP" \
             --name "kodem-$AZURE_ENV-$GITHUB_RUN_ID" \
@@ -184,7 +204,6 @@ jobs:
             --parameters \
               containerRegistryName="$CONTAINER_REGISTRY" \
               imageTag="$IMAGE_TAG" \
-              appCustomDomain="$APP_CUSTOM_DOMAIN" \
               postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
               jwtSecret="$JWT_SECRET" \
               googleClientId="$OAUTH_GOOGLE_CLIENT_ID" \
@@ -193,31 +212,93 @@ jobs:
               githubClientSecret="$OAUTH_GITHUB_CLIENT_SECRET" \
               facebookClientId="$OAUTH_FACEBOOK_CLIENT_ID" \
               facebookClientSecret="$OAUTH_FACEBOOK_CLIENT_SECRET" \
+              "${DOMAIN_PARAMS[@]}" \
             --query properties.outputs -o json)
 
-          APP_FQDN=$(echo "$OUTPUTS" | jq -r '.appFqdn.value')
-          RESOLVED_APP_URL=$(echo "$OUTPUTS" | jq -r '.appUrlResolved.value')
-          echo "app_fqdn=$APP_FQDN" >> "$GITHUB_OUTPUT"
-          echo "app_url=$RESOLVED_APP_URL" >> "$GITHUB_OUTPUT"
-          echo "Deployed to https://$APP_FQDN (public URL $RESOLVED_APP_URL)"
+          {
+            echo "app_fqdn=$(echo "$OUTPUTS" | jq -r '.appFqdn.value')"
+            echo "api_fqdn=$(echo "$OUTPUTS" | jq -r '.apiFqdn.value')"
+            echo "app_url=$(echo "$OUTPUTS" | jq -r '.appUrlResolved.value')"
+            echo "api_url=$(echo "$OUTPUTS" | jq -r '.apiUrlResolved.value')"
+            echo "app_domain=$(echo "$OUTPUTS" | jq -r '.appCustomDomainConfigured.value')"
+            echo "api_domain=$(echo "$OUTPUTS" | jq -r '.apiCustomDomainConfigured.value')"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Smoke test API health
+      - name: Smoke test
         env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           APP_FQDN: ${{ steps.infra.outputs.app_fqdn }}
+          API_FQDN: ${{ steps.infra.outputs.api_fqdn }}
+          APP_URL: ${{ steps.infra.outputs.app_url }}
+          API_URL: ${{ steps.infra.outputs.api_url }}
         run: |
           set -euo pipefail
-          for i in $(seq 1 30); do
-            if curl -fsS "https://$APP_FQDN/api/health" >/dev/null; then
-              echo "Health check passed"
-              exit 0
-            fi
-            echo "Attempt $i failed, retrying in 10s..."
-            sleep 10
+
+          wait_for() {
+            local url="$1" attempts="$2" i
+            for i in $(seq 1 "$attempts"); do
+              if curl -fsS --max-time 15 "$url" >/dev/null; then
+                echo "OK  $url"
+                return 0
+              fi
+              echo "  attempt $i/$attempts failed for $url, retrying in 10s..."
+              sleep 10
+            done
+            echo "FAIL $url"
+            return 1
+          }
+
+          # The generated FQDNs answer regardless of how DNS or certificates are set
+          # up, so a failure here is the rollout itself being unhealthy.
+          if ! wait_for "https://$APP_FQDN/api/health" 30 || ! wait_for "https://$API_FQDN/api/health" 6; then
+            az containerapp logs show --name kodem-api --resource-group "$RESOURCE_GROUP" --tail 100 || true
+            az containerapp logs show --name kodem-app --resource-group "$RESOURCE_GROUP" --tail 100 || true
+            exit 1
+          fi
+
+          # A custom domain that does not answer means DNS or the managed certificate
+          # is still settling, which does not make the deployed revision bad.
+          for url in "$APP_URL/api/health" "$API_URL/api/health"; do
+            case "$url" in
+              "https://$APP_FQDN"*|"https://$API_FQDN"*) continue ;;
+            esac
+            wait_for "$url" 6 || echo "::warning::$url did not answer yet. Check the DNS records and the managed certificate."
           done
-          echo "Health check failed"
-          az containerapp logs show --name kodem-api --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" --tail 100 || true
-          az containerapp logs show --name kodem-app --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" --tail 100 || true
-          exit 1
+
+      # Printed on every run, including the first one where the domains are not bound
+      # yet: these are exactly the records the managed certificates validate against.
+      - name: Custom domain DNS records
+        if: always() && steps.infra.outputs.app_fqdn != ''
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_ENV: ${{ inputs.environment }}
+          APP_FQDN: ${{ steps.infra.outputs.app_fqdn }}
+          API_FQDN: ${{ steps.infra.outputs.api_fqdn }}
+          APP_CUSTOM_DOMAIN: ${{ vars.APP_CUSTOM_DOMAIN }}
+          API_CUSTOM_DOMAIN: ${{ vars.API_CUSTOM_DOMAIN }}
+        run: |
+          set -euo pipefail
+          PARAMS="deploy/azure/main.parameters.$AZURE_ENV.json"
+          APP_DOMAIN="${APP_CUSTOM_DOMAIN:-$(jq -r '.parameters.appCustomDomain.value // ""' "$PARAMS")}"
+          API_DOMAIN="${API_CUSTOM_DOMAIN:-$(jq -r '.parameters.apiCustomDomain.value // ""' "$PARAMS")}"
+
+          record_rows() {
+            local domain="$1" fqdn="$2"
+            [ -n "$domain" ] || return 0
+            echo "| CNAME | \`${domain%%.*}\` in the \`${domain#*.}\` zone | \`$fqdn\` |"
+            echo "| TXT | \`asuid.${domain%%.*}\` in the \`${domain#*.}\` zone | \`$VERIFICATION_ID\` |"
+          }
+
+          VERIFICATION_ID=$(az containerapp show --name kodem-app --resource-group "$RESOURCE_GROUP" \
+            --query properties.customDomainVerificationId -o tsv)
+          {
+            echo "### DNS records for the custom domains"
+            echo ""
+            echo "| Type | Name | Value |"
+            echo "|------|------|-------|"
+            record_rows "$APP_DOMAIN" "$APP_FQDN"
+            record_rows "$API_DOMAIN" "$API_FQDN"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Summary
         run: |
@@ -226,5 +307,6 @@ jobs:
             echo ""
             echo "- Environment: \`${{ inputs.environment }}\`"
             echo "- Image tag: \`${{ inputs.image_tag }}\`"
-            echo "- URL: ${{ steps.infra.outputs.app_url }}"
+            echo "- App: ${{ steps.infra.outputs.app_url }}"
+            echo "- API: ${{ steps.infra.outputs.api_url }}"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -4,6 +4,16 @@ on:
   push:
     tags:
       - 'v-*'
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Tag to build and deploy the images under, e.g. v-1.0.0.
+        required: true
+        type: string
+      custom_domains:
+        description: Bind app.kodem.co.il and api.kodem.co.il. Uncheck for the very first deploy of the environment, before the DNS records can exist.
+        type: boolean
+        default: true
 
 concurrency:
   group: deploy-prod
@@ -35,7 +45,7 @@ jobs:
     uses: ./.github/workflows/deploy.yml
     secrets: inherit
     with:
-      environment: production
-      azure_environment: prod
-      image_tag: ${{ github.ref_name }}
+      environment: prod
+      image_tag: ${{ inputs.image_tag || github.ref_name }}
       extra_tags: prod
+      custom_domains: ${{ inputs.custom_domains != false }}
