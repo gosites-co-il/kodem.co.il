@@ -4,6 +4,11 @@ on:
   workflow_call:
     inputs:
       environment:
+        description: GitHub Environment holding the Azure credentials and app secrets.
+        required: true
+        type: string
+      azure_environment:
+        description: Short environment name used for Azure resource naming (dev or prod).
         required: true
         type: string
       image_tag:
@@ -14,14 +19,19 @@ on:
         type: string
         default: ''
       platforms:
-        description: Docker platforms. Native amd64 on GitHub-hosted runners is much faster than QEMU arm64.
+        description: Docker platforms. Container Apps runs amd64, which is also native on GitHub-hosted runners.
         required: false
         type: string
         default: linux/amd64
+      api_origin:
+        description: Origin the Next.js app proxies /api to. Baked into the app image at build time; must match the api container app name.
+        required: false
+        type: string
+        default: http://kodem-api
 
 permissions:
   contents: read
-  packages: write
+  id-token: write
 
 jobs:
   validate:
@@ -40,6 +50,7 @@ jobs:
 
   build-and-push:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
     strategy:
       fail-fast: false
       matrix:
@@ -53,26 +64,54 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check environment configuration
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          AZURE_CONTAINER_REGISTRY: ${{ vars.AZURE_CONTAINER_REGISTRY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_CONTAINER_REGISTRY; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Missing GitHub Environment variables: ${missing[*]}"
+            echo "Run deploy/azure/bootstrap-azure.sh and apply the configuration it prints."
+            exit 1
+          fi
+
       - uses: docker/setup-qemu-action@v3
         if: contains(inputs.platforms, 'arm64')
 
       - uses: docker/setup-buildx-action@v3
 
-      - uses: docker/login-action@v3
+      - uses: azure/login@v2
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to Azure Container Registry
+        run: az acr login --name "${{ vars.AZURE_CONTAINER_REGISTRY }}"
 
       - name: Build image tags
         id: meta
+        env:
+          REGISTRY: ${{ vars.AZURE_CONTAINER_REGISTRY }}.azurecr.io
+          REPO: kodem-${{ matrix.service }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          EXTRA_TAGS: ${{ inputs.extra_tags }}
         run: |
-          TAGS="ghcr.io/gosites-co-il/kodem-${{ matrix.service }}:${{ inputs.image_tag }}"
-          TAGS="$TAGS,ghcr.io/gosites-co-il/kodem-${{ matrix.service }}:${{ github.sha }}"
-          if [ -n "${{ inputs.extra_tags }}" ]; then
-            TAGS="$TAGS,ghcr.io/gosites-co-il/kodem-${{ matrix.service }}:${{ inputs.extra_tags }}"
+          set -euo pipefail
+          TAGS="$REGISTRY/$REPO:$IMAGE_TAG"
+          TAGS="$TAGS,$REGISTRY/$REPO:$GITHUB_SHA"
+          if [ -n "$EXTRA_TAGS" ]; then
+            TAGS="$TAGS,$REGISTRY/$REPO:$EXTRA_TAGS"
           fi
           echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+          echo "cache=$REGISTRY/$REPO:buildcache" >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@v6
         with:
@@ -83,57 +122,109 @@ jobs:
           provenance: false
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
-            API_ORIGIN=http://api:3333
-          cache-from: type=registry,ref=ghcr.io/gosites-co-il/kodem-${{ matrix.service }}:buildcache
-          cache-to: type=registry,ref=ghcr.io/gosites-co-il/kodem-${{ matrix.service }}:buildcache,mode=max
+            API_ORIGIN=${{ inputs.api_origin }}
+          cache-from: type=registry,ref=${{ steps.meta.outputs.cache }}
+          cache-to: type=registry,ref=${{ steps.meta.outputs.cache }},mode=max,image-manifest=true,oci-mediatypes=true
 
   deploy:
     needs: [validate, build-and-push]
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    outputs:
+      app_url: ${{ steps.infra.outputs.app_url }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Copy docker-compose to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          source: docker-compose.yml
-          target: /opt/kodem/
+      - name: Check environment configuration
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in AZURE_RESOURCE_GROUP POSTGRES_ADMIN_PASSWORD JWT_SECRET; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Missing GitHub Environment configuration: ${missing[*]}"
+            echo "Run deploy/azure/bootstrap-azure.sh and apply the configuration it prints."
+            exit 1
+          fi
 
-      - name: Deploy stack
-        uses: appleboy/ssh-action@v1.2.0
+      - uses: azure/login@v2
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            set -euo pipefail
-            cd /opt/kodem
-            export IMAGE_TAG=${{ inputs.image_tag }}
-            echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker compose pull
-            docker compose up -d --remove-orphans
-            docker compose ps
-            docker image prune -f
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy infrastructure and container apps
+        id: infra
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_ENV: ${{ inputs.azure_environment }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          CONTAINER_REGISTRY: ${{ vars.AZURE_CONTAINER_REGISTRY }}
+          APP_CUSTOM_DOMAIN: ${{ vars.APP_CUSTOM_DOMAIN }}
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          OAUTH_GOOGLE_CLIENT_ID: ${{ vars.OAUTH_GOOGLE_CLIENT_ID }}
+          OAUTH_GOOGLE_CLIENT_SECRET: ${{ secrets.OAUTH_GOOGLE_CLIENT_SECRET }}
+          OAUTH_GITHUB_CLIENT_ID: ${{ vars.OAUTH_GITHUB_CLIENT_ID }}
+          OAUTH_GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
+          OAUTH_FACEBOOK_CLIENT_ID: ${{ vars.OAUTH_FACEBOOK_CLIENT_ID }}
+          OAUTH_FACEBOOK_CLIENT_SECRET: ${{ secrets.OAUTH_FACEBOOK_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          OUTPUTS=$(az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "kodem-$AZURE_ENV-$GITHUB_RUN_ID" \
+            --template-file deploy/azure/main.bicep \
+            --parameters "deploy/azure/main.parameters.$AZURE_ENV.json" \
+            --parameters \
+              containerRegistryName="$CONTAINER_REGISTRY" \
+              imageTag="$IMAGE_TAG" \
+              appCustomDomain="$APP_CUSTOM_DOMAIN" \
+              postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
+              jwtSecret="$JWT_SECRET" \
+              googleClientId="$OAUTH_GOOGLE_CLIENT_ID" \
+              googleClientSecret="$OAUTH_GOOGLE_CLIENT_SECRET" \
+              githubClientId="$OAUTH_GITHUB_CLIENT_ID" \
+              githubClientSecret="$OAUTH_GITHUB_CLIENT_SECRET" \
+              facebookClientId="$OAUTH_FACEBOOK_CLIENT_ID" \
+              facebookClientSecret="$OAUTH_FACEBOOK_CLIENT_SECRET" \
+            --query properties.outputs -o json)
+
+          APP_FQDN=$(echo "$OUTPUTS" | jq -r '.appFqdn.value')
+          RESOLVED_APP_URL=$(echo "$OUTPUTS" | jq -r '.appUrlResolved.value')
+          echo "app_fqdn=$APP_FQDN" >> "$GITHUB_OUTPUT"
+          echo "app_url=$RESOLVED_APP_URL" >> "$GITHUB_OUTPUT"
+          echo "Deployed to https://$APP_FQDN (public URL $RESOLVED_APP_URL)"
 
       - name: Smoke test API health
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            set -euo pipefail
-            for i in $(seq 1 30); do
-              if curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then
-                echo "Health check passed"
-                exit 0
-              fi
-              sleep 5
-            done
-            echo "Health check failed"
-            docker compose -f /opt/kodem/docker-compose.yml logs --tail=100
-            exit 1
+        env:
+          APP_FQDN: ${{ steps.infra.outputs.app_fqdn }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -fsS "https://$APP_FQDN/api/health" >/dev/null; then
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "Health check failed"
+          az containerapp logs show --name kodem-api --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" --tail 100 || true
+          az containerapp logs show --name kodem-app --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" --tail 100 || true
+          exit 1
+
+      - name: Summary
+        run: |
+          {
+            echo "### Deployed to Azure Container Apps"
+            echo ""
+            echo "- Environment: \`${{ inputs.environment }}\`"
+            echo "- Image tag: \`${{ inputs.image_tag }}\`"
+            echo "- URL: ${{ steps.infra.outputs.app_url }}"
+          } >> "$GITHUB_STEP_SUMMARY"

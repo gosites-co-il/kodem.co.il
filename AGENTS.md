@@ -43,7 +43,7 @@ Module/API → Event → Worker → Engines → BKM artifacts → Module/UI
 
 ### Database
 
-- PostgreSQL via `DATABASE_URL` (Docker Compose provides Postgres locally and on dev server).
+- PostgreSQL via `DATABASE_URL` (Docker Compose provides Postgres locally; Azure Database for PostgreSQL Flexible Server in deployed environments).
 - Optional local SQLite fallback when `DATABASE_URL` starts with `file:`.
 
 ### Docker (local smoke test)
@@ -56,16 +56,22 @@ curl http://localhost:3000/api/health
 
 ### Deploy (CI/CD)
 
+Target is **Azure Container Apps**, images in **Azure Container Registry**, data in **Azure Database for PostgreSQL Flexible Server**. Full runbook: [`deploy/azure/README.md`](deploy/azure/README.md).
+
 | Trigger | Workflow | Environment |
 |---------|----------|-------------|
 | Push to `dev` | `deploy-dev.yml` | `development` |
 | Tag `v-*` on `main` | `deploy-prod.yml` | `production` |
 
-**GitHub Environment secrets** (per environment): `SSH_HOST`, `SSH_USER`, `SSH_KEY`, `GHCR_PULL_TOKEN`
+Both call `deploy.yml`: lint → build/push three images to ACR → `az deployment group create` with `deploy/azure/main.bicep` → health check.
 
-Images are built as **linux/amd64** (native on GitHub-hosted runners). If the Oracle VM is Ampere (ARM), pass `platforms: linux/arm64` in the workflow or use an ARM runner — multi-arch QEMU builds are very slow.
+**GitHub Environment variables**: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_CONTAINER_REGISTRY`, optional `APP_CUSTOM_DOMAIN` and `OAUTH_*_CLIENT_ID`.
 
-**Oracle bootstrap** (once): `bash deploy/bootstrap-oracle.sh` — creates `/opt/kodem/.env`, nginx, Docker.
+**GitHub Environment secrets**: `POSTGRES_ADMIN_PASSWORD`, `JWT_SECRET`, optional `OAUTH_*_CLIENT_SECRET`.
+
+Authentication is OIDC federated credentials — no Azure passwords in GitHub. Images are built as **linux/amd64**, which Container Apps runs natively.
+
+**Azure bootstrap** (once per environment): `ENVIRONMENT=dev GITHUB_REPO=<owner>/<repo> bash deploy/azure/bootstrap-azure.sh` — creates the resource group, registry, and OIDC app registration, then prints the GitHub configuration to apply.
 
 **Release to production:**
 
@@ -81,4 +87,4 @@ git push origin v-1.0.0
 - Within `libs/shared/ui`, use **relative** imports between files in the same project.
 - Prisma pinned to v6.
 - If `npx nx` fails (missing `.nx/nxw.js`), use `node node_modules/nx/dist/bin/nx.js`.
-- Next.js app image bakes `API_ORIGIN=http://api:3333` at Docker build time.
+- Next.js app image bakes `API_ORIGIN` at Docker build time: `http://api:3333` for Compose, `http://kodem-api` for Container Apps (the api container app name is its internal DNS name).

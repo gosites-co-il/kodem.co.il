@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": { "value": "prod" },
+    "postgresSkuName": { "value": "Standard_B2s" },
+    "postgresSkuTier": { "value": "Burstable" },
+    "postgresStorageGb": { "value": 64 },
+    "logRetentionDays": { "value": 90 },
+    "apiMinReplicas": { "value": 2 },
+    "apiMaxReplicas": { "value": 6 },
+    "appMinReplicas": { "value": 2 },
+    "appMaxReplicas": { "value": 6 }
+  }
+}
