@@ -64,7 +64,9 @@ on every start. Prisma takes an advisory lock, so concurrent replicas are safe.
 
 ## One-time bootstrap
 
-Run once per environment, with the Azure CLI logged in to the target subscription:
+Run once per environment, with the Azure CLI logged in to the target subscription. There
+are two equivalent scripts, `bootstrap-azure.sh` for bash and `bootstrap-azure.ps1` for
+PowerShell; both derive the same registry name, so switching between them is safe.
 
 ```bash
 az login
@@ -78,17 +80,17 @@ Override `LOCATION`, `RESOURCE_GROUP` or `ACR_NAME` as environment variables if 
 defaults (`westeurope`, `kodem-<env>-rg`, a derived globally unique registry name) don't
 suit. The script is idempotent.
 
-On Windows, run it from WSL, or from PowerShell through Git Bash:
+On Windows, use the PowerShell port instead — it needs no bash and creates exactly the
+same resources under the same names, so the two scripts are interchangeable:
 
 ```powershell
-$env:MSYS_NO_PATHCONV = "1"
-$env:GITHUB_REPO = "<owner>/<repo>"
-$env:ENVIRONMENT = "dev"
-bash deploy/azure/bootstrap-azure.sh
+./deploy/azure/bootstrap-azure.ps1 -Environment dev  -GithubRepo <owner>/<repo>
+./deploy/azure/bootstrap-azure.ps1 -Environment prod -GithubRepo <owner>/<repo>
 ```
 
-`MSYS_NO_PATHCONV` stops Git Bash rewriting the `/subscriptions/...` role scopes and the
-`repo:...:environment:...` OIDC subject into Windows paths.
+Its optional parameters mirror the shell script's environment variables: `-Location`,
+`-ResourceGroup`, `-AcrName`, `-GithubEnvironment`, `-AppRegistrationName`,
+`-ManagedIdentityName`.
 
 It creates the resource group, the registry, the pull identity, and an Entra ID
 application with a federated credential so GitHub Actions authenticates over OIDC — there

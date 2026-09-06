@@ -71,7 +71,7 @@ Both call `deploy.yml`: lint → build/push three images to ACR → `az deployme
 
 Authentication is OIDC federated credentials — no Azure passwords in GitHub. Images are built as **linux/amd64**, which Container Apps runs natively.
 
-**Azure bootstrap** (once per environment): `ENVIRONMENT=dev GITHUB_REPO=<owner>/<repo> bash deploy/azure/bootstrap-azure.sh` — creates the resource group, registry, and OIDC app registration, then prints the GitHub configuration to apply.
+**Azure bootstrap** (once per environment): `ENVIRONMENT=dev GITHUB_REPO=<owner>/<repo> bash deploy/azure/bootstrap-azure.sh`, or `./deploy/azure/bootstrap-azure.ps1 -Environment dev -GithubRepo <owner>/<repo>` on Windows — creates the resource group, registry, pull identity and OIDC app registration, then prints the GitHub configuration to apply. Keep the two scripts in sync.
 
 **Release to production:**
 
