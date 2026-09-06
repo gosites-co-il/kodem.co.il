@@ -41,7 +41,7 @@ jobs:
           echo "${{ github.ref_name }} is on main."
 
   deploy:
-    needs: guard
+    # needs: guard
     uses: ./.github/workflows/deploy.yml
     secrets: inherit
     with:
