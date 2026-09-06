@@ -243,11 +243,18 @@ SUGGESTED_PG_PASSWORD="$(openssl rand -base64 24 | tr -d '/+=' )Aa1"
 if [[ "$ENVIRONMENT" == "prod" ]]; then
   DEFAULT_APP_DOMAIN="app.kodem.co.il"
   DEFAULT_API_DOMAIN="api.kodem.co.il"
-  FIRST_DEPLOY_COMMAND="gh workflow run deploy-prod.yml -f image_tag=v-0.1.0 -f custom_domains=false"
+  FIRST_DEPLOY_DESCRIPTION="tag a commit on main:
+
+  git checkout main && git pull
+  git tag v-0.1.0
+  git push origin v-0.1.0
+
+or start 'Deploy Production' from the Actions tab and give it an image tag."
 else
   DEFAULT_APP_DOMAIN="app.dev.kodem.co.il"
   DEFAULT_API_DOMAIN="api.dev.kodem.co.il"
-  FIRST_DEPLOY_COMMAND="gh workflow run deploy-dev.yml -f custom_domains=false"
+  FIRST_DEPLOY_DESCRIPTION="push to the dev branch, or start 'Deploy Dev' from the
+Actions tab."
 fi
 
 cat <<EOF
@@ -281,13 +288,12 @@ Secrets:
 The two suggested values above are freshly generated; store them somewhere safe.
 Changing POSTGRES_ADMIN_PASSWORD later resets the database administrator password.
 
-Then run the deploy workflow with custom domains turned off, since the DNS records
-have to point at container apps that do not exist yet:
+Then deploy: ${FIRST_DEPLOY_DESCRIPTION}
 
-  ${FIRST_DEPLOY_COMMAND}
-
-It provisions Container Apps, PostgreSQL and logging, rolls out the first images, and
+That provisions Container Apps, PostgreSQL and logging and rolls out the first images.
+The custom domains are skipped on this first pass, because the DNS records they are
+validated against have to point at container apps that do not exist yet. The job summary
 prints the CNAME and asuid TXT records for ${DEFAULT_APP_DOMAIN} and
-${DEFAULT_API_DOMAIN} in the job summary. Create those records, then deploy again
-normally to bind the domains and their managed certificates.
+${DEFAULT_API_DOMAIN}; create those records, then deploy again to bind the domains and
+their managed certificates.
 EOF

@@ -90,4 +90,4 @@ git push origin v-1.0.0
 - Prisma pinned to v6.
 - If `npx nx` fails (missing `.nx/nxw.js`), use `node node_modules/nx/dist/bin/nx.js`.
 - Next.js app image bakes `API_ORIGIN` at Docker build time: `http://api:3333` for Compose, `http://kodem-api` for Container Apps (the api container app name is its internal DNS name). The public api domain is for direct callers; the web app keeps proxying `/api/*` internally.
-- A new Azure environment needs one deploy with `custom_domains=false` before the DNS records for its hostnames can exist. See [`deploy/azure/README.md`](deploy/azure/README.md).
+- A new Azure environment reaches its custom domains on the second deploy: the first one skips a hostname whose `asuid` DNS record does not resolve yet, since those records have to name a container app that does not exist before it. See [`deploy/azure/README.md`](deploy/azure/README.md).

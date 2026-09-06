@@ -29,7 +29,7 @@ on:
         type: string
         default: http://kodem-api
       custom_domains:
-        description: Bind app.<env-domain> and api.<env-domain>. Set false for the very first deploy of an environment, before the DNS records can exist.
+        description: Bind the custom domains once their DNS records resolve. Set false to serve on the generated Container Apps FQDNs instead, which unbinds any domain already on the apps.
         required: false
         type: boolean
         default: true
@@ -188,19 +188,56 @@ jobs:
         run: |
           set -euo pipefail
 
-          # The domains live in main.parameters.<env>.json. A GitHub Environment
-          # variable overrides one when set, and custom_domains=false drops both so a
-          # brand new environment can be created before its DNS records exist.
-          DOMAIN_PARAMS=()
-          if [ "$CUSTOM_DOMAINS" = "true" ]; then
-            if [ -n "$APP_CUSTOM_DOMAIN" ]; then
-              DOMAIN_PARAMS+=("appCustomDomain=$APP_CUSTOM_DOMAIN")
+          # The domains live in main.parameters.<env>.json; a GitHub Environment
+          # variable overrides one when set.
+          PARAMS="deploy/azure/main.parameters.$AZURE_ENV.json"
+          APP_DOMAIN="${APP_CUSTOM_DOMAIN:-$(jq -r '.parameters.appCustomDomain.value // ""' "$PARAMS")}"
+          API_DOMAIN="${API_CUSTOM_DOMAIN:-$(jq -r '.parameters.apiCustomDomain.value // ""' "$PARAMS")}"
+
+          txt_record_exists() {
+            # dig is on the GitHub-hosted images, but the fallback keeps this working
+            # on a self-hosted runner without dnsutils.
+            if command -v dig >/dev/null 2>&1; then
+              [ -n "$(dig +short TXT "$1" 2>/dev/null)" ]
+            else
+              [ -n "$(curl -fsS -H 'accept: application/dns-json' \
+                "https://cloudflare-dns.com/dns-query?name=$1&type=TXT" | jq -r '.Answer[]?.data')" ]
             fi
-            if [ -n "$API_CUSTOM_DOMAIN" ]; then
-              DOMAIN_PARAMS+=("apiCustomDomain=$API_CUSTOM_DOMAIN")
+          }
+
+          is_bound() {
+            az containerapp show --name "$1" --resource-group "$RESOURCE_GROUP" \
+              --query "properties.configuration.ingress.customDomains[?name=='$2'] | length(@)" \
+              -o tsv 2>/dev/null | grep -qv '^0$'
+          }
+
+          # A managed certificate is validated against DNS records that name the
+          # container app, so they cannot exist before the app does: a new environment
+          # has to come up without its domains and bind them on a later run. Asking for
+          # a hostname whose asuid record is missing fails the whole deployment, so
+          # each one is checked rather than assumed.
+          #
+          # A hostname already on the app stays on it whatever the lookup says. A
+          # resolver hiccup must not take a live domain off a running environment.
+          domain_is_ready() {
+            local domain="$1" app="$2"
+            if is_bound "$app" "$domain" || txt_record_exists "asuid.$domain"; then
+              return 0
             fi
+            echo "::notice::Deploying without $domain because asuid.$domain does not resolve yet. Create the DNS records from the job summary, then deploy again to bind it."
+            return 1
+          }
+
+          if [ "$CUSTOM_DOMAINS" != "true" ]; then
+            APP_DOMAIN=""
+            API_DOMAIN=""
           else
-            DOMAIN_PARAMS+=("appCustomDomain=" "apiCustomDomain=")
+            if [ -n "$APP_DOMAIN" ] && ! domain_is_ready "$APP_DOMAIN" kodem-app; then
+              APP_DOMAIN=""
+            fi
+            if [ -n "$API_DOMAIN" ] && ! domain_is_ready "$API_DOMAIN" kodem-api; then
+              API_DOMAIN=""
+            fi
           fi
 
           # Only set when a GitHub Environment variable overrides the template, so the
@@ -230,7 +267,8 @@ jobs:
               githubClientSecret="$OAUTH_GITHUB_CLIENT_SECRET" \
               facebookClientId="$OAUTH_FACEBOOK_CLIENT_ID" \
               facebookClientSecret="$OAUTH_FACEBOOK_CLIENT_SECRET" \
-              "${DOMAIN_PARAMS[@]}" \
+              appCustomDomain="$APP_DOMAIN" \
+              apiCustomDomain="$API_DOMAIN" \
               "${POSTGRES_PARAMS[@]}" \
             --query properties.outputs -o json 2>"$ERRORS"); then
             cat "$ERRORS"
@@ -239,7 +277,6 @@ jobs:
             # region with an empty list of server versions, which ARM then reports as a
             # bad 'Version' parameter. Nothing about the template is wrong in that case.
             if grep -q "'Version' should be in: \[\]" "$ERRORS"; then
-              PARAMS="deploy/azure/main.parameters.$AZURE_ENV.json"
               PG_LOCATION="${POSTGRES_LOCATION:-$(az group show --name "$RESOURCE_GROUP" --query location -o tsv)}"
               PG_SKU=$(jq -r '.parameters.postgresSkuName.value // "Standard_B1ms"' "$PARAMS")
               echo ""
@@ -320,6 +357,8 @@ jobs:
           API_FQDN: ${{ steps.infra.outputs.api_fqdn }}
           APP_CUSTOM_DOMAIN: ${{ vars.APP_CUSTOM_DOMAIN }}
           API_CUSTOM_DOMAIN: ${{ vars.API_CUSTOM_DOMAIN }}
+          APP_DOMAIN_BOUND: ${{ steps.infra.outputs.app_domain }}
+          API_DOMAIN_BOUND: ${{ steps.infra.outputs.api_domain }}
         run: |
           set -euo pipefail
           PARAMS="deploy/azure/main.parameters.$AZURE_ENV.json"
@@ -344,6 +383,12 @@ jobs:
             record_rows "$API_DOMAIN" "$API_FQDN"
             echo ""
             echo "Names are full hostnames; most DNS providers want them relative to the zone."
+            if { [ -n "$APP_DOMAIN" ] && [ -z "$APP_DOMAIN_BOUND" ]; } ||
+              { [ -n "$API_DOMAIN" ] && [ -z "$API_DOMAIN_BOUND" ]; }; then
+              echo ""
+              echo "Some of these are not bound yet, because a hostname is only bound once its"
+              echo "\`asuid\` record resolves. Create the records above and deploy again."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Summary

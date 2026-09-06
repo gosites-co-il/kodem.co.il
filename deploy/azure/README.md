@@ -147,8 +147,18 @@ be named with a `GITHUB_` prefix, which is why the OAuth ones use `OAUTH_`.
 | Tag `v-*` on `main` | `deploy-prod.yml` | `prod`, image tag `v-x.y.z` |
 | Manual run | either, from the Actions tab | as above |
 
-Both can also be started from the Actions tab; the production one then asks for the image
-tag to build. Both call `deploy.yml`, which lints, builds and pushes the three images to
+A production release is a tag on `main`, which needs nothing but git:
+
+```bash
+git checkout main && git pull
+git tag v-1.0.0
+git push origin v-1.0.0
+```
+
+Both workflows can also be started by hand from **Actions → Deploy Dev / Deploy
+Production → Run workflow**, picking the branch or tag to deploy; the production one then
+asks for the image tag to build. The button only appears once the workflow file is on the
+default branch. Both call `deploy.yml`, which lints, builds and pushes the three images to
 ACR, applies the Bicep template, and then polls `/api/health` on the app and on the api
 until they pass. A custom domain that does not answer yet is reported as a warning rather
 than a failed deploy, since the revision itself is fine.
@@ -159,32 +169,33 @@ and every later run is an in-place update.
 ## Custom domains
 
 Container Apps issues a free managed certificate per hostname and validates ownership
-against DNS. The records have to point at container apps that do not exist before the
-first deploy, so bringing up a new environment takes two passes.
+against DNS records that name the container app. Those records cannot exist before the
+app does, so a new environment reaches its domains on the second deploy:
 
-1. Deploy with custom domains turned off:
-
-   ```bash
-   gh workflow run deploy-dev.yml -f custom_domains=false
-   gh workflow run deploy-prod.yml -f image_tag=v-0.1.0 -f custom_domains=false
-   ```
-
-   The job summary prints the CNAME and `asuid` TXT records for both hostnames.
+1. Deploy. The domains are skipped, because their `asuid` records do not resolve yet, and
+   the job summary prints the CNAME and `asuid` TXT records to create for both hostnames.
+   The environment is live on the generated `*.azurecontainerapps.io` FQDNs meanwhile.
 2. Create those records at the DNS provider. Point the CNAME straight at the Container
    Apps FQDN — an intermediate CNAME (Cloudflare proxying, a traffic manager) blocks
    certificate issuance and every later renewal. The TXT record has to stay in place for
    as long as the domain is bound, not just at issuance.
-3. Deploy normally. The apps register the hostnames, the certificates are issued, and
+3. Deploy again. The apps register the hostnames, the certificates are issued, and
    Container Apps binds each one to the matching hostname.
 
-The hostnames are bound with `bindingType: 'Auto'`, which is what makes a single pass
-work at all: Azure will not issue a certificate for a hostname that is not registered on
-an app yet, and the older `SniEnabled` binding will not register a hostname without being
-handed a certificate id. `Auto` registers the hostname with no certificate and picks up
-the matching certificate once it exists.
+Nothing has to be passed for that first pass: the deploy looks up `asuid.<hostname>` and
+leaves a domain off when it does not resolve, because asking for a hostname that cannot
+be validated fails the whole deployment. A hostname already bound to an app stays bound
+whatever the lookup says, so a resolver hiccup cannot take a live domain down.
 
-The template owns the ingress configuration, so deploying with `custom_domains=false`
-after the domains are live unbinds them.
+The hostnames are bound with `bindingType: 'Auto'`, which is what lets one deploy both
+register a hostname and issue its certificate: Azure will not issue a certificate for a
+hostname that is not registered on an app yet, and the older `SniEnabled` binding will
+not register a hostname without being handed a certificate id. `Auto` registers the
+hostname with no certificate and picks up the matching certificate once it exists.
+
+The `custom_domains` input on a manual run turns the domains off outright, which is a way
+back to the generated FQDNs if a certificate goes wrong. The template owns the ingress
+configuration, so running with it unchecked unbinds domains that are already live.
 
 ## PostgreSQL is not available in this region
 

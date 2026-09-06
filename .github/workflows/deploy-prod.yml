@@ -11,7 +11,7 @@ on:
         required: true
         type: string
       custom_domains:
-        description: Bind app.kodem.co.il and api.kodem.co.il. Uncheck for the very first deploy of the environment, before the DNS records can exist.
+        description: Bind app.kodem.co.il and api.kodem.co.il once their DNS records resolve. Uncheck to serve on the generated Container Apps FQDNs instead.
         type: boolean
         default: true
 
