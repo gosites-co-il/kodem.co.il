@@ -43,7 +43,10 @@ are not the web app — integrations, webhooks, and anything talking to it direc
 Container app names deliberately have no environment suffix. They double as internal DNS
 names, and the app image bakes `API_ORIGIN=http://kodem-api` at build time, so the same
 image has to work in every environment. That internal hop is plain HTTP, which is why
-`kodem-api` keeps `allowInsecure` on even though it is externally reachable.
+`kodem-api` keeps `allowInsecure` on: turning it off makes the environment's proxy answer
+that hop with a redirect to a hostname no certificate covers. The cost is that the api
+domain answers on plain HTTP too instead of redirecting, so point clients at `https://`
+explicitly.
 
 OAuth callbacks stay on the app domain (`https://app.kodem.co.il/api/auth/...`). The
 session cookies are host-only, so moving the callbacks to the api domain would leave the
