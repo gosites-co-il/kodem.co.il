@@ -77,8 +77,19 @@ ENVIRONMENT=prod GITHUB_REPO=<owner>/<repo> bash deploy/azure/bootstrap-azure.sh
 ```
 
 Override `LOCATION`, `RESOURCE_GROUP` or `ACR_NAME` as environment variables if the
-defaults (`westeurope`, `kodem-<env>-rg`, a derived globally unique registry name) don't
+defaults (`northeurope`, `kodem-<env>-rg`, a derived globally unique registry name) don't
 suit. The script is idempotent.
+
+Before creating anything it checks that the region can host all three components for this
+subscription — Container Apps, the container registry and a PostgreSQL flexible server —
+and stops with the regions nearby that can if it cannot. `SKIP_REGION_CHECK=1`
+(`-SkipRegionCheck`) bypasses it. The default is North Europe rather than West Europe
+because West Europe has been capacity constrained for years and subscriptions are
+routinely barred from creating flexible servers there.
+
+Changing `LOCATION` for an environment that already exists means recreating it, since a
+resource group cannot move; the script stops and prints the `az group delete` command
+rather than half-moving anything.
 
 On Windows, use the PowerShell port instead — it needs no bash and creates exactly the
 same resources under the same names, so the two scripts are interchangeable:
@@ -90,7 +101,7 @@ same resources under the same names, so the two scripts are interchangeable:
 
 Its optional parameters mirror the shell script's environment variables: `-Location`,
 `-ResourceGroup`, `-AcrName`, `-GithubEnvironment`, `-AppRegistrationName`,
-`-ManagedIdentityName`.
+`-ManagedIdentityName`, `-SkipRegionCheck`.
 
 It creates the resource group, the registry, the pull identity, and an Entra ID
 application with a federated credential so GitHub Actions authenticates over OIDC — there
@@ -195,7 +206,7 @@ scope. It settles for recognising the ARM message and saying what it means. Eith
 question is the same one command:
 
 ```bash
-az postgres flexible-server list-skus --location westeurope -o table
+az postgres flexible-server list-skus --location <region> -o table
 ```
 
 An empty answer means the region is unavailable. Either ask Azure support to enable

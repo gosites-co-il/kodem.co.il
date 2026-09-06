@@ -25,7 +25,13 @@ param(
     [ValidatePattern('^[^/]+/[^/]+$')]
     [string]$GithubRepo,
 
-    [string]$Location = 'westeurope',
+    # North Europe rather than West Europe: West Europe has been capacity constrained
+    # for years and subscriptions are routinely barred from provisioning PostgreSQL
+    # flexible servers there, which fails the deployment rather than this script. The
+    # check below confirms whichever region is chosen can host all three components.
+    [string]$Location = 'northeurope',
+
+    [switch]$SkipRegionCheck,
 
     # GitHub Environments cannot be renamed, so the deploy environments stay 'dev' and
     # 'prod' everywhere except in GitHub, where they keep the names they were created
@@ -116,9 +122,27 @@ foreach ($provider in @(
     Invoke-Az provider register --namespace $provider --only-show-errors | Out-Null
 }
 
-# A subscription is not allowed to provision PostgreSQL flexible servers in every
-# region. A deployment only finds that out a minute and a half in, and reports it as
-# "The value of the 'Version' should be in: []", so ask the capability API here.
+# A resource group cannot move, so a different -Location means starting the environment
+# over rather than updating it. Say so before anything else acts on the new region.
+$existingRgLocation = Invoke-AzOrNull group show --name $ResourceGroup --query location -o tsv
+if ($existingRgLocation -and $existingRgLocation -ne $Location) {
+    Write-Host @"
+$ResourceGroup already exists in $existingRgLocation and resource groups cannot move.
+
+To keep it where it is:
+  ./deploy/azure/bootstrap-azure.ps1 -Environment $Environment -GithubRepo $GithubRepo -Location $existingRgLocation
+
+To move the environment to $Location, delete it first and re-run. This destroys the
+registry, the container apps and the database, so only do it to an environment whose
+data you are willing to lose:
+  az group delete --name $ResourceGroup --yes
+"@
+    exit 1
+}
+
+# Subscriptions are not offered every service in every region, and a deployment only
+# finds out a minute and a half in — for PostgreSQL, as the unhelpful
+# "The value of the 'Version' should be in: []". Ask before creating anything.
 function Test-PostgresAvailable {
     param([string]$Region)
 
@@ -127,32 +151,68 @@ function Test-PostgresAvailable {
     return ($skus -replace '\s', '') -ne '[]'
 }
 
-Write-Host "==> Checking PostgreSQL availability in $Location..."
-$postgresLocationHint = "(optional override, defaults to $Location)"
-if (-not (Test-PostgresAvailable $Location)) {
-    Write-Host "!!  This subscription cannot provision PostgreSQL flexible servers in $Location."
-    $geography = Invoke-AzOrNull account list-locations `
-        --query "[?name=='$Location'].metadata.geographyGroup | [0]" -o tsv
-    $alternatives = @()
-    if ($geography) {
-        Write-Host "!!  Looking for regions in $geography that it can use..."
-        $candidates = (Invoke-AzOrNull account list-locations `
-                --query "[?metadata.geographyGroup=='$geography' && metadata.regionType=='Physical'].name" `
-                -o tsv) -split '\r?\n'
-        foreach ($candidate in $candidates) {
-            if (-not $candidate -or $candidate -eq $Location) { continue }
-            if (Test-PostgresAvailable $candidate) {
-                Write-Host "!!    $candidate"
-                $alternatives += $candidate
-            }
-            if ($alternatives.Count -ge 5) { break }
-        }
-        if ($alternatives.Count -eq 0) { Write-Host '!!    none found' }
+# Provider metadata lists regions as display names ("North Europe"), so compare them
+# the way ARM does: case-insensitively and ignoring spaces.
+function Test-ProviderServesRegion {
+    param([string]$Namespace, [string]$ResourceType, [string]$Region)
+
+    $locations = Invoke-AzOrNull provider show --namespace $Namespace `
+        --query "resourceTypes[?resourceType=='$ResourceType'].locations[]" -o tsv
+    # An unreadable provider list is not evidence of anything; do not block on it.
+    if (-not $locations) { return $true }
+    $wanted = ($Region -replace '\s', '').ToLowerInvariant()
+    foreach ($location in ($locations -split '\r?\n')) {
+        if (($location -replace '\s', '').ToLowerInvariant() -eq $wanted) { return $true }
     }
-    $suggestion = if ($alternatives.Count -gt 0) { $alternatives[0] } else { '<a region this subscription can use>' }
-    $postgresLocationHint = "$suggestion  <- required, $Location cannot host the database"
-    Write-Host '!!  Set POSTGRES_LOCATION as printed below to keep the rest of the stack in'
-    Write-Host "!!  $Location, or re-run with -Location <region> to move everything."
+    return $false
+}
+
+function Get-MissingComponents {
+    param([string]$Region)
+
+    $missing = @()
+    if (-not (Test-ProviderServesRegion Microsoft.App managedEnvironments $Region)) { $missing += 'Container Apps' }
+    if (-not (Test-ProviderServesRegion Microsoft.ContainerRegistry registries $Region)) { $missing += 'container registry' }
+    if (-not (Test-PostgresAvailable $Region)) { $missing += 'PostgreSQL' }
+    return ($missing -join ', ')
+}
+
+if ($env:SKIP_REGION_CHECK) { $SkipRegionCheck = $true }
+if (-not $SkipRegionCheck) {
+    Write-Host "==> Checking that $Location can host Container Apps, the registry and PostgreSQL..."
+    $missing = Get-MissingComponents $Location
+    if ($missing) {
+        Write-Host "!!  This subscription cannot provision $missing in $Location."
+        $geography = Invoke-AzOrNull account list-locations `
+            --query "[?name=='$Location'].metadata.geographyGroup | [0]" -o tsv
+        $alternatives = @()
+        if ($geography) {
+            Write-Host "!!  Looking for regions in $geography that can host all three..."
+            $candidates = (Invoke-AzOrNull account list-locations `
+                    --query "[?metadata.geographyGroup=='$geography' && metadata.regionType=='Physical'].name" `
+                    -o tsv) -split '\r?\n'
+            foreach ($candidate in $candidates) {
+                if (-not $candidate -or $candidate -eq $Location) { continue }
+                if (-not (Get-MissingComponents $candidate)) {
+                    Write-Host "!!    $candidate"
+                    $alternatives += $candidate
+                }
+                if ($alternatives.Count -ge 5) { break }
+            }
+            if ($alternatives.Count -eq 0) { Write-Host '!!    none found' }
+        }
+        $suggestion = if ($alternatives.Count -gt 0) { $alternatives[0] } else { '<region>' }
+        Write-Host ''
+        Write-Host 'Nothing has been created. Re-run in a region that works:'
+        Write-Host "  ./deploy/azure/bootstrap-azure.ps1 -Environment $Environment -GithubRepo $GithubRepo -Location $suggestion"
+        if ($missing -eq 'PostgreSQL') {
+            Write-Host ''
+            Write-Host "Or keep $Location and put only the database elsewhere: re-run with"
+            Write-Host "-SkipRegionCheck and set POSTGRES_LOCATION=$suggestion on the"
+            Write-Host 'GitHub Environment.'
+        }
+        exit 1
+    }
 }
 
 Write-Host "==> Creating resource group $ResourceGroup in $Location..."
@@ -268,7 +328,7 @@ Variables:
   AZURE_CONTAINER_REGISTRY   $AcrName
   APP_CUSTOM_DOMAIN          (optional override, defaults to $defaultAppDomain from main.parameters.$Environment.json)
   API_CUSTOM_DOMAIN          (optional override, defaults to $defaultApiDomain from main.parameters.$Environment.json)
-  POSTGRES_LOCATION          $postgresLocationHint
+  POSTGRES_LOCATION          (optional override, defaults to $Location)
   POSTGRES_VERSION           (optional override, defaults to 16)
   OAUTH_GOOGLE_CLIENT_ID     (optional)
   OAUTH_GITHUB_CLIENT_ID     (optional)

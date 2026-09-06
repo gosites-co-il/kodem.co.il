@@ -14,8 +14,13 @@
 set -euo pipefail
 
 ENVIRONMENT="${ENVIRONMENT:-dev}"
-LOCATION="${LOCATION:-westeurope}"
+# North Europe rather than West Europe: West Europe has been capacity constrained for
+# years and subscriptions are routinely barred from provisioning PostgreSQL flexible
+# servers there, which fails the deployment rather than this script. The check below
+# confirms whichever region is chosen can host all three components.
+LOCATION="${LOCATION:-northeurope}"
 GITHUB_REPO="${GITHUB_REPO:-}"
+SKIP_REGION_CHECK="${SKIP_REGION_CHECK:-}"
 
 if [[ "$ENVIRONMENT" != "dev" && "$ENVIRONMENT" != "prod" ]]; then
   echo "ENVIRONMENT must be 'dev' or 'prod' (got '$ENVIRONMENT')." >&2
@@ -57,9 +62,27 @@ for provider in Microsoft.App Microsoft.ContainerRegistry Microsoft.DBforPostgre
   az provider register --namespace "$provider" --only-show-errors >/dev/null
 done
 
-# A subscription is not allowed to provision PostgreSQL flexible servers in every
-# region. A deployment only finds that out a minute and a half in, and reports it as
-# "The value of the 'Version' should be in: []", so ask the capability API here.
+# A resource group cannot move, so a different LOCATION means starting the environment
+# over rather than updating it. Say so before anything else acts on the new region.
+EXISTING_RG_LOCATION="$(az group show --name "$RESOURCE_GROUP" --query location -o tsv 2>/dev/null || true)"
+if [[ -n "$EXISTING_RG_LOCATION" && "$EXISTING_RG_LOCATION" != "$LOCATION" ]]; then
+  cat >&2 <<EOF
+$RESOURCE_GROUP already exists in $EXISTING_RG_LOCATION and resource groups cannot move.
+
+To keep it where it is:
+  LOCATION=$EXISTING_RG_LOCATION ENVIRONMENT=$ENVIRONMENT GITHUB_REPO=$GITHUB_REPO bash deploy/azure/bootstrap-azure.sh
+
+To move the environment to $LOCATION, delete it first and re-run. This destroys the
+registry, the container apps and the database, so only do it to an environment whose
+data you are willing to lose:
+  az group delete --name $RESOURCE_GROUP --yes
+EOF
+  exit 1
+fi
+
+# Subscriptions are not offered every service in every region, and a deployment only
+# finds out a minute and a half in — for PostgreSQL, as the unhelpful
+# "The value of the 'Version' should be in: []". Ask before creating anything.
 postgres_available() {
   local skus
   skus="$(az postgres flexible-server list-skus --location "$1" -o json --only-show-errors 2>/dev/null || true)"
@@ -67,37 +90,75 @@ postgres_available() {
   [[ -n "$skus" && "$skus" != "[]" ]]
 }
 
-echo "==> Checking PostgreSQL availability in $LOCATION..."
-POSTGRES_LOCATION_HINT="(optional override, defaults to $LOCATION)"
-if ! postgres_available "$LOCATION"; then
-  echo "!!  This subscription cannot provision PostgreSQL flexible servers in $LOCATION."
-  GEOGRAPHY="$(az account list-locations --query "[?name=='$LOCATION'].metadata.geographyGroup | [0]" -o tsv 2>/dev/null || true)"
-  ALTERNATIVES=""
-  ALTERNATIVE_COUNT=0
-  if [[ -n "$GEOGRAPHY" ]]; then
-    echo "!!  Looking for regions in $GEOGRAPHY that it can use..."
-    while read -r candidate; do
-      if [[ -z "$candidate" || "$candidate" == "$LOCATION" ]]; then
-        continue
-      fi
-      if postgres_available "$candidate"; then
-        echo "!!    $candidate"
-        ALTERNATIVES="${ALTERNATIVES:-$candidate}"
-        ALTERNATIVE_COUNT=$((ALTERNATIVE_COUNT + 1))
-      fi
-      if [[ "$ALTERNATIVE_COUNT" -ge 5 ]]; then
-        break
-      fi
-    done < <(az account list-locations \
-      --query "[?metadata.geographyGroup=='$GEOGRAPHY' && metadata.regionType=='Physical'].name" \
-      -o tsv 2>/dev/null || true)
-    if [[ "$ALTERNATIVE_COUNT" -eq 0 ]]; then
-      echo "!!    none found"
+# Provider metadata lists regions as display names ("North Europe"), so compare them
+# the way ARM does: case-insensitively and ignoring spaces.
+normalize_region() {
+  echo "$1" | tr '[:upper:]' '[:lower:]' | tr -d ' '
+}
+
+provider_serves_region() {
+  local namespace="$1" resource_type="$2" region locations loc
+  region="$(normalize_region "$3")"
+  locations="$(az provider show --namespace "$namespace" \
+    --query "resourceTypes[?resourceType=='$resource_type'].locations[]" -o tsv 2>/dev/null || true)"
+  # An unreadable provider list is not evidence of anything; do not block on it.
+  [[ -n "$locations" ]] || return 0
+  while read -r loc; do
+    if [[ "$(normalize_region "$loc")" == "$region" ]]; then
+      return 0
     fi
+  done <<<"$locations"
+  return 1
+}
+
+missing_components() {
+  local region="$1" missing=""
+  provider_serves_region Microsoft.App managedEnvironments "$region" || missing="Container Apps"
+  provider_serves_region Microsoft.ContainerRegistry registries "$region" || missing="${missing:+$missing, }container registry"
+  postgres_available "$region" || missing="${missing:+$missing, }PostgreSQL"
+  echo "$missing"
+}
+
+if [[ -z "$SKIP_REGION_CHECK" ]]; then
+  echo "==> Checking that $LOCATION can host Container Apps, the registry and PostgreSQL..."
+  MISSING="$(missing_components "$LOCATION")"
+  if [[ -n "$MISSING" ]]; then
+    echo "!!  This subscription cannot provision $MISSING in $LOCATION."
+    GEOGRAPHY="$(az account list-locations --query "[?name=='$LOCATION'].metadata.geographyGroup | [0]" -o tsv 2>/dev/null || true)"
+    ALTERNATIVES=""
+    ALTERNATIVE_COUNT=0
+    if [[ -n "$GEOGRAPHY" ]]; then
+      echo "!!  Looking for regions in $GEOGRAPHY that can host all three..."
+      while read -r candidate; do
+        if [[ -z "$candidate" || "$candidate" == "$LOCATION" ]]; then
+          continue
+        fi
+        if [[ -z "$(missing_components "$candidate")" ]]; then
+          echo "!!    $candidate"
+          ALTERNATIVES="${ALTERNATIVES:-$candidate}"
+          ALTERNATIVE_COUNT=$((ALTERNATIVE_COUNT + 1))
+        fi
+        if [[ "$ALTERNATIVE_COUNT" -ge 5 ]]; then
+          break
+        fi
+      done < <(az account list-locations \
+        --query "[?metadata.geographyGroup=='$GEOGRAPHY' && metadata.regionType=='Physical'].name" \
+        -o tsv 2>/dev/null || true)
+      if [[ "$ALTERNATIVE_COUNT" -eq 0 ]]; then
+        echo "!!    none found"
+      fi
+    fi
+    echo "" >&2
+    echo "Nothing has been created. Re-run in a region that works:" >&2
+    echo "  LOCATION=${ALTERNATIVES:-<region>} ENVIRONMENT=$ENVIRONMENT GITHUB_REPO=$GITHUB_REPO bash deploy/azure/bootstrap-azure.sh" >&2
+    if [[ "$MISSING" == "PostgreSQL" ]]; then
+      echo "" >&2
+      echo "Or keep $LOCATION and put only the database elsewhere: re-run with" >&2
+      echo "SKIP_REGION_CHECK=1 and set POSTGRES_LOCATION=${ALTERNATIVES:-<region>} on the" >&2
+      echo "GitHub Environment." >&2
+    fi
+    exit 1
   fi
-  POSTGRES_LOCATION_HINT="${ALTERNATIVES:-<a region this subscription can use>}  <- required, $LOCATION cannot host the database"
-  echo "!!  Set POSTGRES_LOCATION as printed below to keep the rest of the stack in"
-  echo "!!  $LOCATION, or re-run with LOCATION=<region> to move everything."
 fi
 
 echo "==> Creating resource group $RESOURCE_GROUP in $LOCATION..."
@@ -204,7 +265,7 @@ Variables:
   AZURE_CONTAINER_REGISTRY   ${ACR_NAME}
   APP_CUSTOM_DOMAIN          (optional override, defaults to ${DEFAULT_APP_DOMAIN} from main.parameters.${ENVIRONMENT}.json)
   API_CUSTOM_DOMAIN          (optional override, defaults to ${DEFAULT_API_DOMAIN} from main.parameters.${ENVIRONMENT}.json)
-  POSTGRES_LOCATION          ${POSTGRES_LOCATION_HINT}
+  POSTGRES_LOCATION          (optional override, defaults to ${LOCATION})
   POSTGRES_VERSION           (optional override, defaults to 16)
   OAUTH_GOOGLE_CLIENT_ID     (optional)
   OAUTH_GITHUB_CLIENT_ID     (optional)
