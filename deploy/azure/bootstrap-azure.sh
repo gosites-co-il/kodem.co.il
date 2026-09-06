@@ -27,9 +27,15 @@ if [[ -z "$GITHUB_REPO" ]]; then
   exit 1
 fi
 
-# The GitHub Environment is named after the deploy environment, so 'dev' and 'prod'
-# mean the same thing in GitHub, in Azure resource names, and in the Bicep parameters.
-GITHUB_ENVIRONMENT="${GITHUB_ENVIRONMENT:-$ENVIRONMENT}"
+# GitHub Environments cannot be renamed, so the deploy environments stay 'dev' and
+# 'prod' everywhere except in GitHub, where they keep the names they were created with.
+# The federated credential is scoped to the GitHub name, so both have to agree with
+# what deploy-dev.yml and deploy-prod.yml pass as github_environment.
+if [[ "$ENVIRONMENT" == "prod" ]]; then
+  GITHUB_ENVIRONMENT="${GITHUB_ENVIRONMENT:-production}"
+else
+  GITHUB_ENVIRONMENT="${GITHUB_ENVIRONMENT:-development}"
+fi
 
 RESOURCE_GROUP="${RESOURCE_GROUP:-kodem-${ENVIRONMENT}-rg}"
 APP_REGISTRATION_NAME="${APP_REGISTRATION_NAME:-kodem-${ENVIRONMENT}-github-actions}"
@@ -133,9 +139,11 @@ SUGGESTED_PG_PASSWORD="$(openssl rand -base64 24 | tr -d '/+=' )Aa1"
 if [[ "$ENVIRONMENT" == "prod" ]]; then
   DEFAULT_APP_DOMAIN="app.kodem.co.il"
   DEFAULT_API_DOMAIN="api.kodem.co.il"
+  FIRST_DEPLOY_COMMAND="gh workflow run deploy-prod.yml -f image_tag=v-0.1.0 -f custom_domains=false"
 else
   DEFAULT_APP_DOMAIN="app.dev.kodem.co.il"
   DEFAULT_API_DOMAIN="api.dev.kodem.co.il"
+  FIRST_DEPLOY_COMMAND="gh workflow run deploy-dev.yml -f custom_domains=false"
 fi
 
 cat <<EOF
@@ -170,7 +178,7 @@ Changing POSTGRES_ADMIN_PASSWORD later resets the database administrator passwor
 Then run the deploy workflow with custom domains turned off, since the DNS records
 have to point at container apps that do not exist yet:
 
-  gh workflow run deploy-${ENVIRONMENT}.yml -f custom_domains=false
+  ${FIRST_DEPLOY_COMMAND}
 
 It provisions Container Apps, PostgreSQL and logging, rolls out the first images, and
 prints the CNAME and asuid TXT records for ${DEFAULT_APP_DOMAIN} and

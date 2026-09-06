@@ -24,6 +24,7 @@ jobs:
     secrets: inherit
     with:
       environment: dev
+      github_environment: development
       image_tag: dev
       extra_tags: dev
       # inputs is empty on push, and an unset input compares equal to false, so the

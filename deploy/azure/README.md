@@ -7,12 +7,19 @@ no nginx, and no certbot: Container Apps terminates TLS and handles ingress.
 ## Environments and domains
 
 There are two environments. Each one is a separate resource group with its own registry,
-database and container apps, and each maps to a GitHub Environment of the same name.
+database and container apps.
 
 | Environment | GitHub Environment | Resource group | App | API |
 |-------------|--------------------|----------------|-----|-----|
-| `dev` | `dev` | `kodem-dev-rg` | `app.dev.kodem.co.il` | `api.dev.kodem.co.il` |
-| `prod` | `prod` | `kodem-prod-rg` | `app.kodem.co.il` | `api.kodem.co.il` |
+| `dev` | `development` | `kodem-dev-rg` | `app.dev.kodem.co.il` | `api.dev.kodem.co.il` |
+| `prod` | `production` | `kodem-prod-rg` | `app.kodem.co.il` | `api.kodem.co.il` |
+
+`dev` and `prod` name the environment everywhere it matters — Azure resources, parameter
+files, image tags. The GitHub Environments keep the names they were created with, because
+GitHub has no way to rename one, and `deploy-dev.yml` and `deploy-prod.yml` map between
+the two with the `github_environment` input. Creating GitHub Environments called `dev`
+and `prod` instead is a matter of changing that input and re-running the bootstrap script
+so the federated credential matches.
 
 The hostnames live in `main.parameters.dev.json` and `main.parameters.prod.json`. Setting
 the `APP_CUSTOM_DOMAIN` or `API_CUSTOM_DOMAIN` variable on a GitHub Environment overrides
@@ -74,13 +81,13 @@ suit. The script is idempotent.
 It creates the resource group, the registry, the pull identity, and an Entra ID
 application with a federated credential so GitHub Actions authenticates over OIDC — there
 are no Azure passwords or publish profiles stored in GitHub. It then prints the exact
-variables and secrets to add to the GitHub Environment of the same name (`dev` or
-`prod`).
+variables and secrets to add to the matching GitHub Environment (`development` for dev,
+`production` for prod).
 
-If GitHub Environments named `development` and `production` already exist, rename them to
-`dev` and `prod` (Settings > Environments — renaming keeps the variables and secrets) and
-re-run the bootstrap script. The federated credential is scoped to the environment name,
-so OIDC login fails until a credential for the new subject exists.
+The federated credential is scoped to the GitHub Environment name. Set
+`GITHUB_ENVIRONMENT` when running the script if that name ever changes, and pass the same
+value as `github_environment` in the caller workflow — OIDC login fails until the subject
+on both sides agrees.
 
 ### GitHub Environment configuration
 
@@ -111,6 +118,7 @@ be named with a `GITHUB_` prefix, which is why the OAuth ones use `OAUTH_`.
 |---------|----------|-------------|
 | Push to `dev` | `deploy-dev.yml` | `dev`, image tag `dev` |
 | Tag `v-*` on `main` | `deploy-prod.yml` | `prod`, image tag `v-x.y.z` |
+| Manual run | either, from the Actions tab | as above |
 
 Both can also be started from the Actions tab; the production one then asks for the image
 tag to build. Both call `deploy.yml`, which lints, builds and pushes the three images to
@@ -131,6 +139,7 @@ first deploy, so bringing up a new environment takes two passes.
 
    ```bash
    gh workflow run deploy-dev.yml -f custom_domains=false
+   gh workflow run deploy-prod.yml -f image_tag=v-0.1.0 -f custom_domains=false
    ```
 
    The job summary prints the CNAME and `asuid` TXT records for both hostnames.

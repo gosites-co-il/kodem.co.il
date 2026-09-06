@@ -58,12 +58,12 @@ curl http://localhost:3000/api/health
 
 Target is **Azure Container Apps**, images in **Azure Container Registry**, data in **Azure Database for PostgreSQL Flexible Server**. Full runbook: [`deploy/azure/README.md`](deploy/azure/README.md).
 
-| Trigger | Workflow | Environment | App | API |
-|---------|----------|-------------|-----|-----|
-| Push to `dev` | `deploy-dev.yml` | `dev` | `app.dev.kodem.co.il` | `api.dev.kodem.co.il` |
-| Tag `v-*` on `main` | `deploy-prod.yml` | `prod` | `app.kodem.co.il` | `api.kodem.co.il` |
+| Trigger | Workflow | Environment | GitHub Environment | App | API |
+|---------|----------|-------------|--------------------|-----|-----|
+| Push to `dev` | `deploy-dev.yml` | `dev` | `development` | `app.dev.kodem.co.il` | `api.dev.kodem.co.il` |
+| Tag `v-*` on `main` | `deploy-prod.yml` | `prod` | `production` | `app.kodem.co.il` | `api.kodem.co.il` |
 
-Both call `deploy.yml`: lint → build/push three images to ACR → `az deployment group create` with `deploy/azure/main.bicep` → health check. The GitHub Environment, the Azure resource suffix and the Bicep parameter file all use the same name (`dev` / `prod`); the hostnames live in `deploy/azure/main.parameters.<env>.json`.
+Both call `deploy.yml`: lint → build/push three images to ACR → `az deployment group create` with `deploy/azure/main.bicep` → health check. `dev` / `prod` name the Azure resource suffix and the Bicep parameter file; the GitHub Environment holding the credentials is passed separately as `github_environment`, since GitHub Environments cannot be renamed. The hostnames live in `deploy/azure/main.parameters.<env>.json`.
 
 **GitHub Environment variables**: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_CONTAINER_REGISTRY`, optional `APP_CUSTOM_DOMAIN`, `API_CUSTOM_DOMAIN` and `OAUTH_*_CLIENT_ID`.
 
