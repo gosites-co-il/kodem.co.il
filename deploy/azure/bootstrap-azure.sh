@@ -27,14 +27,13 @@ if [[ -z "$GITHUB_REPO" ]]; then
   exit 1
 fi
 
-if [[ "$ENVIRONMENT" == "prod" ]]; then
-  GITHUB_ENVIRONMENT="${GITHUB_ENVIRONMENT:-production}"
-else
-  GITHUB_ENVIRONMENT="${GITHUB_ENVIRONMENT:-development}"
-fi
+# The GitHub Environment is named after the deploy environment, so 'dev' and 'prod'
+# mean the same thing in GitHub, in Azure resource names, and in the Bicep parameters.
+GITHUB_ENVIRONMENT="${GITHUB_ENVIRONMENT:-$ENVIRONMENT}"
 
 RESOURCE_GROUP="${RESOURCE_GROUP:-kodem-${ENVIRONMENT}-rg}"
 APP_REGISTRATION_NAME="${APP_REGISTRATION_NAME:-kodem-${ENVIRONMENT}-github-actions}"
+MANAGED_IDENTITY_NAME="${MANAGED_IDENTITY_NAME:-kodem-${ENVIRONMENT}-identity}"
 
 command -v az >/dev/null || { echo "Azure CLI is required: https://aka.ms/azure-cli" >&2; exit 1; }
 
@@ -66,6 +65,18 @@ if ! az acr show --name "$ACR_NAME" --only-show-errors >/dev/null 2>&1; then
 fi
 ACR_ID="$(az acr show --name "$ACR_NAME" --query id -o tsv)"
 
+# The container apps pull images as this identity. It is created here rather than in
+# the Bicep template so that the deploy principal never needs permission to hand out
+# role assignments, and so the AcrPull grant has long since propagated by the time the
+# first revision tries to pull.
+echo "==> Creating user-assigned identity $MANAGED_IDENTITY_NAME..."
+az identity create \
+  --name "$MANAGED_IDENTITY_NAME" \
+  --resource-group "$RESOURCE_GROUP" \
+  --location "$LOCATION" \
+  --only-show-errors >/dev/null
+IDENTITY_PRINCIPAL_ID="$(az identity show --name "$MANAGED_IDENTITY_NAME" --resource-group "$RESOURCE_GROUP" --query principalId -o tsv)"
+
 echo "==> Creating Entra ID application $APP_REGISTRATION_NAME..."
 CLIENT_ID="$(az ad app list --display-name "$APP_REGISTRATION_NAME" --query '[0].appId' -o tsv)"
 if [[ -z "$CLIENT_ID" ]]; then
@@ -93,13 +104,13 @@ fi
 # A freshly created service principal takes a little while to become visible to ARM,
 # so the first assignment after `az ad sp create` can fail with "principal not found".
 assign_role() {
-  local role="$1" scope="$2" attempt
-  if [[ -n "$(az role assignment list --assignee "$PRINCIPAL_ID" --role "$role" --scope "$scope" --query '[0].id' -o tsv)" ]]; then
+  local principal="$1" role="$2" scope="$3" attempt
+  if [[ -n "$(az role assignment list --assignee "$principal" --role "$role" --scope "$scope" --query '[0].id' -o tsv)" ]]; then
     echo "    $role on $scope (already assigned)"
     return
   fi
   for attempt in 1 2 3 4 5; do
-    if az role assignment create --assignee-object-id "$PRINCIPAL_ID" --assignee-principal-type ServicePrincipal \
+    if az role assignment create --assignee-object-id "$principal" --assignee-principal-type ServicePrincipal \
       --role "$role" --scope "$scope" --only-show-errors >/dev/null 2>&1; then
       echo "    $role on $scope"
       return
@@ -112,14 +123,20 @@ assign_role() {
 
 RESOURCE_GROUP_ID="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}"
 echo "==> Assigning roles..."
-assign_role Contributor "$RESOURCE_GROUP_ID"
-# The Bicep template grants AcrPull to the container apps' managed identity, and
-# creating role assignments is not something Contributor is allowed to do.
-assign_role "User Access Administrator" "$RESOURCE_GROUP_ID"
-assign_role AcrPush "$ACR_ID"
+assign_role "$PRINCIPAL_ID" Contributor "$RESOURCE_GROUP_ID"
+assign_role "$PRINCIPAL_ID" AcrPush "$ACR_ID"
+assign_role "$IDENTITY_PRINCIPAL_ID" AcrPull "$ACR_ID"
 
 SUGGESTED_JWT_SECRET="$(openssl rand -hex 32)"
 SUGGESTED_PG_PASSWORD="$(openssl rand -base64 24 | tr -d '/+=' )Aa1"
+
+if [[ "$ENVIRONMENT" == "prod" ]]; then
+  DEFAULT_APP_DOMAIN="app.kodem.co.il"
+  DEFAULT_API_DOMAIN="api.kodem.co.il"
+else
+  DEFAULT_APP_DOMAIN="app.dev.kodem.co.il"
+  DEFAULT_API_DOMAIN="api.dev.kodem.co.il"
+fi
 
 cat <<EOF
 
@@ -134,7 +151,8 @@ Variables:
   AZURE_SUBSCRIPTION_ID      ${SUBSCRIPTION_ID}
   AZURE_RESOURCE_GROUP       ${RESOURCE_GROUP}
   AZURE_CONTAINER_REGISTRY   ${ACR_NAME}
-  APP_CUSTOM_DOMAIN          (optional, e.g. dev.kodem.co.il — leave empty to use the generated Container Apps FQDN)
+  APP_CUSTOM_DOMAIN          (optional override, defaults to ${DEFAULT_APP_DOMAIN} from main.parameters.${ENVIRONMENT}.json)
+  API_CUSTOM_DOMAIN          (optional override, defaults to ${DEFAULT_API_DOMAIN} from main.parameters.${ENVIRONMENT}.json)
   OAUTH_GOOGLE_CLIENT_ID     (optional)
   OAUTH_GITHUB_CLIENT_ID     (optional)
   OAUTH_FACEBOOK_CLIENT_ID   (optional)
@@ -149,6 +167,13 @@ Secrets:
 The two suggested values above are freshly generated; store them somewhere safe.
 Changing POSTGRES_ADMIN_PASSWORD later resets the database administrator password.
 
-Then push to the deploy branch (or run the workflow manually) to provision
-Container Apps, PostgreSQL and logging, and to roll out the first images.
+Then run the deploy workflow with custom domains turned off, since the DNS records
+have to point at container apps that do not exist yet:
+
+  gh workflow run deploy-${ENVIRONMENT}.yml -f custom_domains=false
+
+It provisions Container Apps, PostgreSQL and logging, rolls out the first images, and
+prints the CNAME and asuid TXT records for ${DEFAULT_APP_DOMAIN} and
+${DEFAULT_API_DOMAIN} in the job summary. Create those records, then deploy again
+normally to bind the domains and their managed certificates.
 EOF
