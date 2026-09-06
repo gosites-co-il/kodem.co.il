@@ -285,8 +285,8 @@ jobs:
           record_rows() {
             local domain="$1" fqdn="$2"
             [ -n "$domain" ] || return 0
-            echo "| CNAME | \`${domain%%.*}\` in the \`${domain#*.}\` zone | \`$fqdn\` |"
-            echo "| TXT | \`asuid.${domain%%.*}\` in the \`${domain#*.}\` zone | \`$VERIFICATION_ID\` |"
+            echo "| CNAME | \`$domain\` | \`$fqdn\` |"
+            echo "| TXT | \`asuid.$domain\` | \`$VERIFICATION_ID\` |"
           }
 
           VERIFICATION_ID=$(az containerapp show --name kodem-app --resource-group "$RESOURCE_GROUP" \
@@ -298,6 +298,8 @@ jobs:
             echo "|------|------|-------|"
             record_rows "$APP_DOMAIN" "$APP_FQDN"
             record_rows "$API_DOMAIN" "$API_FQDN"
+            echo ""
+            echo "Names are full hostnames; most DNS providers want them relative to the zone."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Summary

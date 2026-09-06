@@ -26,4 +26,6 @@ jobs:
       environment: dev
       image_tag: dev
       extra_tags: dev
-      custom_domains: ${{ inputs.custom_domains != false }}
+      # inputs is empty on push, and an unset input compares equal to false, so the
+      # event has to be checked before the input can be trusted.
+      custom_domains: ${{ github.event_name != 'workflow_dispatch' || inputs.custom_domains }}
