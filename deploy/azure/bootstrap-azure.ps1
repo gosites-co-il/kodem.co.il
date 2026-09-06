@@ -116,6 +116,45 @@ foreach ($provider in @(
     Invoke-Az provider register --namespace $provider --only-show-errors | Out-Null
 }
 
+# A subscription is not allowed to provision PostgreSQL flexible servers in every
+# region. A deployment only finds that out a minute and a half in, and reports it as
+# "The value of the 'Version' should be in: []", so ask the capability API here.
+function Test-PostgresAvailable {
+    param([string]$Region)
+
+    $skus = Invoke-AzOrNull postgres flexible-server list-skus --location $Region -o json --only-show-errors
+    if (-not $skus) { return $false }
+    return ($skus -replace '\s', '') -ne '[]'
+}
+
+Write-Host "==> Checking PostgreSQL availability in $Location..."
+$postgresLocationHint = "(optional override, defaults to $Location)"
+if (-not (Test-PostgresAvailable $Location)) {
+    Write-Host "!!  This subscription cannot provision PostgreSQL flexible servers in $Location."
+    $geography = Invoke-AzOrNull account list-locations `
+        --query "[?name=='$Location'].metadata.geographyGroup | [0]" -o tsv
+    $alternatives = @()
+    if ($geography) {
+        Write-Host "!!  Looking for regions in $geography that it can use..."
+        $candidates = (Invoke-AzOrNull account list-locations `
+                --query "[?metadata.geographyGroup=='$geography' && metadata.regionType=='Physical'].name" `
+                -o tsv) -split '\r?\n'
+        foreach ($candidate in $candidates) {
+            if (-not $candidate -or $candidate -eq $Location) { continue }
+            if (Test-PostgresAvailable $candidate) {
+                Write-Host "!!    $candidate"
+                $alternatives += $candidate
+            }
+            if ($alternatives.Count -ge 5) { break }
+        }
+        if ($alternatives.Count -eq 0) { Write-Host '!!    none found' }
+    }
+    $suggestion = if ($alternatives.Count -gt 0) { $alternatives[0] } else { '<a region this subscription can use>' }
+    $postgresLocationHint = "$suggestion  <- required, $Location cannot host the database"
+    Write-Host '!!  Set POSTGRES_LOCATION as printed below to keep the rest of the stack in'
+    Write-Host "!!  $Location, or re-run with -Location <region> to move everything."
+}
+
 Write-Host "==> Creating resource group $ResourceGroup in $Location..."
 Invoke-Az group create --name $ResourceGroup --location $Location --only-show-errors | Out-Null
 
@@ -229,6 +268,8 @@ Variables:
   AZURE_CONTAINER_REGISTRY   $AcrName
   APP_CUSTOM_DOMAIN          (optional override, defaults to $defaultAppDomain from main.parameters.$Environment.json)
   API_CUSTOM_DOMAIN          (optional override, defaults to $defaultApiDomain from main.parameters.$Environment.json)
+  POSTGRES_LOCATION          $postgresLocationHint
+  POSTGRES_VERSION           (optional override, defaults to 16)
   OAUTH_GOOGLE_CLIENT_ID     (optional)
   OAUTH_GITHUB_CLIENT_ID     (optional)
   OAUTH_FACEBOOK_CLIENT_ID   (optional)

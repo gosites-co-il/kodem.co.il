@@ -57,6 +57,49 @@ for provider in Microsoft.App Microsoft.ContainerRegistry Microsoft.DBforPostgre
   az provider register --namespace "$provider" --only-show-errors >/dev/null
 done
 
+# A subscription is not allowed to provision PostgreSQL flexible servers in every
+# region. A deployment only finds that out a minute and a half in, and reports it as
+# "The value of the 'Version' should be in: []", so ask the capability API here.
+postgres_available() {
+  local skus
+  skus="$(az postgres flexible-server list-skus --location "$1" -o json --only-show-errors 2>/dev/null || true)"
+  skus="${skus//[[:space:]]/}"
+  [[ -n "$skus" && "$skus" != "[]" ]]
+}
+
+echo "==> Checking PostgreSQL availability in $LOCATION..."
+POSTGRES_LOCATION_HINT="(optional override, defaults to $LOCATION)"
+if ! postgres_available "$LOCATION"; then
+  echo "!!  This subscription cannot provision PostgreSQL flexible servers in $LOCATION."
+  GEOGRAPHY="$(az account list-locations --query "[?name=='$LOCATION'].metadata.geographyGroup | [0]" -o tsv 2>/dev/null || true)"
+  ALTERNATIVES=""
+  ALTERNATIVE_COUNT=0
+  if [[ -n "$GEOGRAPHY" ]]; then
+    echo "!!  Looking for regions in $GEOGRAPHY that it can use..."
+    while read -r candidate; do
+      if [[ -z "$candidate" || "$candidate" == "$LOCATION" ]]; then
+        continue
+      fi
+      if postgres_available "$candidate"; then
+        echo "!!    $candidate"
+        ALTERNATIVES="${ALTERNATIVES:-$candidate}"
+        ALTERNATIVE_COUNT=$((ALTERNATIVE_COUNT + 1))
+      fi
+      if [[ "$ALTERNATIVE_COUNT" -ge 5 ]]; then
+        break
+      fi
+    done < <(az account list-locations \
+      --query "[?metadata.geographyGroup=='$GEOGRAPHY' && metadata.regionType=='Physical'].name" \
+      -o tsv 2>/dev/null || true)
+    if [[ "$ALTERNATIVE_COUNT" -eq 0 ]]; then
+      echo "!!    none found"
+    fi
+  fi
+  POSTGRES_LOCATION_HINT="${ALTERNATIVES:-<a region this subscription can use>}  <- required, $LOCATION cannot host the database"
+  echo "!!  Set POSTGRES_LOCATION as printed below to keep the rest of the stack in"
+  echo "!!  $LOCATION, or re-run with LOCATION=<region> to move everything."
+fi
+
 echo "==> Creating resource group $RESOURCE_GROUP in $LOCATION..."
 az group create --name "$RESOURCE_GROUP" --location "$LOCATION" --only-show-errors >/dev/null
 
@@ -161,6 +204,8 @@ Variables:
   AZURE_CONTAINER_REGISTRY   ${ACR_NAME}
   APP_CUSTOM_DOMAIN          (optional override, defaults to ${DEFAULT_APP_DOMAIN} from main.parameters.${ENVIRONMENT}.json)
   API_CUSTOM_DOMAIN          (optional override, defaults to ${DEFAULT_API_DOMAIN} from main.parameters.${ENVIRONMENT}.json)
+  POSTGRES_LOCATION          ${POSTGRES_LOCATION_HINT}
+  POSTGRES_VERSION           (optional override, defaults to 16)
   OAUTH_GOOGLE_CLIENT_ID     (optional)
   OAUTH_GITHUB_CLIENT_ID     (optional)
   OAUTH_FACEBOOK_CLIENT_ID   (optional)

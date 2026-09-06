@@ -186,10 +186,13 @@ ParameterOutOfRange: The value of the 'Version' should be in: []
 ```
 
 which is Azure saying it has no server versions to offer for that subscription, region and
-SKU, not that the version is wrong. The deploy job recognises that message and says so,
-because nothing in the template can be corrected to fix it. Confirm it from an account
-that can read the subscription — the CI principal is only a Contributor on the resource
-group, so it cannot ask this itself:
+SKU, not that the version is wrong. Nothing in the template can be corrected to fix it.
+
+The bootstrap script asks this before it creates anything and prints the regions that do
+work, because it runs under your credentials. The deploy job cannot: the CI principal is
+only a Contributor on the resource group, and the capability API answers at subscription
+scope. It settles for recognising the ARM message and saying what it means. Either way the
+question is the same one command:
 
 ```bash
 az postgres flexible-server list-skus --location westeurope -o table
