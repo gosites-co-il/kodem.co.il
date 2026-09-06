@@ -3,6 +3,8 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "environmentName": { "value": "dev" },
+    "appCustomDomain": { "value": "app.dev.kodem.co.il" },
+    "apiCustomDomain": { "value": "api.dev.kodem.co.il" },
     "postgresSkuName": { "value": "Standard_B1ms" },
     "postgresSkuTier": { "value": "Burstable" },
     "postgresStorageGb": { "value": 32 },

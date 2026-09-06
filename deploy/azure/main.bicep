@@ -12,11 +12,17 @@ param location string = resourceGroup().location
 @description('Name of the existing Azure Container Registry holding the kodem images. Created by deploy/azure/bootstrap-azure.sh.')
 param containerRegistryName string
 
+@description('Name of the existing user-assigned identity the container apps run as. Created by deploy/azure/bootstrap-azure.sh, which also grants it AcrPull on the registry.')
+param managedIdentityName string = ''
+
 @description('Image tag to deploy for all three services.')
 param imageTag string
 
-@description('Custom domain for the app, e.g. dev.kodem.co.il. Requires the CNAME and asuid TXT records to exist first; see deploy/azure/README.md. Leave empty to serve on the generated Container Apps FQDN.')
+@description('Custom domain for the web app, e.g. app.kodem.co.il (prod) or app.dev.kodem.co.il (dev). Requires the CNAME and asuid TXT records to exist first; see deploy/azure/README.md. Leave empty to serve on the generated Container Apps FQDN.')
 param appCustomDomain string = ''
+
+@description('Custom domain for the api, e.g. api.kodem.co.il (prod) or api.dev.kodem.co.il (dev). Same DNS prerequisites as appCustomDomain. Leave empty to serve on the generated Container Apps FQDN.')
+param apiCustomDomain string = ''
 
 @description('PostgreSQL administrator login.')
 param postgresAdminUser string = 'kodem'
@@ -79,10 +85,7 @@ var webAppName = 'kodem-app'
 
 var prefix = 'kodem-${environmentName}'
 var databaseName = 'kodem'
-var acrPullRoleId = subscriptionResourceId(
-  'Microsoft.Authorization/roleDefinitions',
-  '7f951dda-4ed3-4680-a7ca-43fe172d538d'
-)
+var resolvedIdentityName = empty(managedIdentityName) ? '${prefix}-identity' : managedIdentityName
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: '${prefix}-logs'
@@ -95,23 +98,16 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   }
 }
 
-resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: '${prefix}-identity'
-  location: location
+// The identity and its AcrPull grant are created by the bootstrap script rather than
+// here: it keeps the CI principal down to Contributor (creating role assignments needs
+// more than that), and it means the grant has long since propagated by the time the
+// first revision tries to pull an image.
+resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
+  name: resolvedIdentityName
 }
 
 resource registry 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
   name: containerRegistryName
-}
-
-resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  scope: registry
-  name: guid(registry.id, identity.id, acrPullRoleId)
-  properties: {
-    roleDefinitionId: acrPullRoleId
-    principalId: identity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
 }
 
 // The flexible server name becomes a public DNS label, so it needs to be globally
@@ -164,7 +160,7 @@ resource postgresAllowAzure 'Microsoft.DBforPostgreSQL/flexibleServers/firewallR
   }
 }
 
-resource containerEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
+resource containerEnv 'Microsoft.App/managedEnvironments@2025-07-01' = {
   name: '${prefix}-env'
   location: location
   properties: {
@@ -178,23 +174,13 @@ resource containerEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
-// Managed certificates validate ownership against DNS, which can only be pointed at
-// the app once it exists. First deploy without a custom domain, add the records, then
-// redeploy with appCustomDomain set.
-resource appCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2024-03-01' = if (!empty(appCustomDomain)) {
-  parent: containerEnv
-  name: replace(appCustomDomain, '.', '-')
-  location: location
-  properties: {
-    subjectName: appCustomDomain
-    domainControlValidation: 'CNAME'
-  }
-}
-
 var loginServer = registry.properties.loginServer
 var resolvedAppUrl = empty(appCustomDomain)
   ? 'https://${webAppName}.${containerEnv.properties.defaultDomain}'
   : 'https://${appCustomDomain}'
+var resolvedApiUrl = empty(apiCustomDomain)
+  ? 'https://${apiAppName}.${containerEnv.properties.defaultDomain}'
+  : 'https://${apiCustomDomain}'
 var databaseUrl = 'postgresql://${postgresAdminUser}:${uriComponent(postgresAdminPassword)}@${postgres.properties.fullyQualifiedDomainName}:5432/${databaseName}?sslmode=require'
 
 var registryConfig = [
@@ -211,12 +197,11 @@ var managedIdentity = {
   }
 }
 
-resource api 'Microsoft.App/containerApps@2024-03-01' = {
+resource api 'Microsoft.App/containerApps@2025-07-01' = {
   name: apiAppName
   location: location
   identity: managedIdentity
   dependsOn: [
-    acrPull
     postgresDatabase
     postgresAllowAzure
   ]
@@ -225,10 +210,22 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       activeRevisionsMode: 'Single'
       ingress: {
-        external: false
+        external: true
         targetPort: 3333
         transport: 'auto'
+        // The web tier proxies /api/* to http://kodem-api over the environment's
+        // internal network, so plain HTTP has to keep working inside the environment.
+        // Turning this off makes Envoy answer those hops with a redirect to a
+        // hostname that only resolves inside Azure.
         allowInsecure: true
+        customDomains: empty(apiCustomDomain)
+          ? []
+          : [
+              {
+                name: apiCustomDomain
+                bindingType: 'Auto'
+              }
+            ]
       }
       registries: registryConfig
       secrets: [
@@ -315,12 +312,11 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
 
 // The worker polls the event queue, so it stays pinned to a single replica to avoid
 // two runners picking up the same pending events.
-resource worker 'Microsoft.App/containerApps@2024-03-01' = {
+resource worker 'Microsoft.App/containerApps@2025-07-01' = {
   name: workerAppName
   location: location
   identity: managedIdentity
   dependsOn: [
-    acrPull
     api
   ]
   properties: {
@@ -372,12 +368,11 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
   }
 }
 
-resource web 'Microsoft.App/containerApps@2024-03-01' = {
+resource web 'Microsoft.App/containerApps@2025-07-01' = {
   name: webAppName
   location: location
   identity: managedIdentity
   dependsOn: [
-    acrPull
     api
   ]
   properties: {
@@ -394,8 +389,7 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
           : [
               {
                 name: appCustomDomain
-                bindingType: 'SniEnabled'
-                certificateId: appCertificate!.id
+                bindingType: 'Auto'
               }
             ]
       }
@@ -441,8 +435,43 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
   }
 }
 
+// Managed certificates are issued against DNS, and Azure refuses to issue one for a
+// hostname that is not registered on an app yet — while 'SniEnabled' refuses to
+// register a hostname without naming a certificate. 'Auto' breaks that cycle: the app
+// registers the hostname with no certificate, the certificate is created afterwards,
+// and Container Apps binds it to the matching hostname on its own.
+resource appCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2025-07-01' = if (!empty(appCustomDomain)) {
+  parent: containerEnv
+  name: replace(appCustomDomain, '.', '-')
+  location: location
+  properties: {
+    subjectName: appCustomDomain
+    domainControlValidation: 'CNAME'
+  }
+  dependsOn: [
+    web
+  ]
+}
+
+resource apiCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2025-07-01' = if (!empty(apiCustomDomain)) {
+  parent: containerEnv
+  name: replace(apiCustomDomain, '.', '-')
+  location: location
+  properties: {
+    subjectName: apiCustomDomain
+    domainControlValidation: 'CNAME'
+  }
+  dependsOn: [
+    api
+  ]
+}
+
 output appFqdn string = web.properties.configuration.ingress.fqdn
 output appUrlResolved string = resolvedAppUrl
+output apiFqdn string = api.properties.configuration.ingress.fqdn
+output apiUrlResolved string = resolvedApiUrl
+output appCustomDomainConfigured string = appCustomDomain
+output apiCustomDomainConfigured string = apiCustomDomain
 output containerRegistryLoginServer string = loginServer
 output postgresFqdn string = postgres.properties.fullyQualifiedDomainName
 output apiInternalOrigin string = 'http://${apiAppName}'
