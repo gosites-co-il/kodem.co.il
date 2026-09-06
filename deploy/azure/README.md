@@ -78,6 +78,18 @@ Override `LOCATION`, `RESOURCE_GROUP` or `ACR_NAME` as environment variables if 
 defaults (`westeurope`, `kodem-<env>-rg`, a derived globally unique registry name) don't
 suit. The script is idempotent.
 
+On Windows, run it from WSL, or from PowerShell through Git Bash:
+
+```powershell
+$env:MSYS_NO_PATHCONV = "1"
+$env:GITHUB_REPO = "<owner>/<repo>"
+$env:ENVIRONMENT = "dev"
+bash deploy/azure/bootstrap-azure.sh
+```
+
+`MSYS_NO_PATHCONV` stops Git Bash rewriting the `/subscriptions/...` role scopes and the
+`repo:...:environment:...` OIDC subject into Windows paths.
+
 It creates the resource group, the registry, the pull identity, and an Entra ID
 application with a federated credential so GitHub Actions authenticates over OIDC — there
 are no Azure passwords or publish profiles stored in GitHub. It then prints the exact
