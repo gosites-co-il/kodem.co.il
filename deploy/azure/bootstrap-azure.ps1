@@ -40,14 +40,18 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-# az writes progress to stderr, which PowerShell 7.3+ can otherwise turn into a
-# terminating error even when the command succeeded.
 $PSNativeCommandUseErrorActionPreference = $false
 
-# Both helpers read their arguments from the automatic $args rather than a param
-# block, so that az switches like -o are passed through instead of being bound as
-# PowerShell parameters.
+# Both helpers read their arguments from the automatic $args rather than a param block,
+# so that az switches like -o are passed through instead of being bound as PowerShell
+# parameters.
+#
+# They also drop $ErrorActionPreference to 'Continue' for the duration of the call and
+# judge the result by the exit code alone. az reports ordinary answers like "resource
+# not found" on stderr, and Windows PowerShell turns anything a native command writes
+# to stderr into a terminating error while the preference is 'Stop'.
 function Invoke-Az {
+    $ErrorActionPreference = 'Continue'
     $output = & az @args 2>&1
     if ($LASTEXITCODE -ne 0) {
         throw "az $($args -join ' ') failed:`n$($output | Out-String)"
@@ -57,6 +61,7 @@ function Invoke-Az {
 
 # For the existence checks, where a non-zero exit is the answer rather than a failure.
 function Invoke-AzOrNull {
+    $ErrorActionPreference = 'Continue'
     $output = & az @args 2>&1
     if ($LASTEXITCODE -ne 0) { return $null }
     return ($output | Out-String).Trim()
