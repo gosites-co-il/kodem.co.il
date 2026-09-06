@@ -94,7 +94,7 @@ export function BusinessUnderstandingScreen({
   }
 
   async function continueManually() {
-    const confirmed: BusinessProfileDraft = profileDraft ?? {
+    const base: BusinessProfileDraft = profileDraft ?? {
       businessName,
       emails: [],
       phones: [],
@@ -107,9 +107,9 @@ export function BusinessUnderstandingScreen({
       industry: state.setup.business?.industry,
     };
 
-    if (!confirmed.businessName.trim()) {
-      confirmed.businessName = businessName;
-    }
+    const confirmed: BusinessProfileDraft = base.businessName.trim()
+      ? base
+      : { ...base, businessName };
 
     await advance('business_understanding', {
       confirmedProfile: confirmed,
