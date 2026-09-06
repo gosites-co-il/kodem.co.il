@@ -58,14 +58,14 @@ curl http://localhost:3000/api/health
 
 Target is **Azure Container Apps**, images in **Azure Container Registry**, data in **Azure Database for PostgreSQL Flexible Server**. Full runbook: [`deploy/azure/README.md`](deploy/azure/README.md).
 
-| Trigger | Workflow | Environment |
-|---------|----------|-------------|
-| Push to `dev` | `deploy-dev.yml` | `development` |
-| Tag `v-*` on `main` | `deploy-prod.yml` | `production` |
+| Trigger | Workflow | Environment | App | API |
+|---------|----------|-------------|-----|-----|
+| Push to `dev` | `deploy-dev.yml` | `dev` | `app.dev.kodem.co.il` | `api.dev.kodem.co.il` |
+| Tag `v-*` on `main` | `deploy-prod.yml` | `prod` | `app.kodem.co.il` | `api.kodem.co.il` |
 
-Both call `deploy.yml`: lint → build/push three images to ACR → `az deployment group create` with `deploy/azure/main.bicep` → health check.
+Both call `deploy.yml`: lint → build/push three images to ACR → `az deployment group create` with `deploy/azure/main.bicep` → health check. The GitHub Environment, the Azure resource suffix and the Bicep parameter file all use the same name (`dev` / `prod`); the hostnames live in `deploy/azure/main.parameters.<env>.json`.
 
-**GitHub Environment variables**: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_CONTAINER_REGISTRY`, optional `APP_CUSTOM_DOMAIN` and `OAUTH_*_CLIENT_ID`.
+**GitHub Environment variables**: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_CONTAINER_REGISTRY`, optional `APP_CUSTOM_DOMAIN`, `API_CUSTOM_DOMAIN` and `OAUTH_*_CLIENT_ID`.
 
 **GitHub Environment secrets**: `POSTGRES_ADMIN_PASSWORD`, `JWT_SECRET`, optional `OAUTH_*_CLIENT_SECRET`.
 
@@ -87,4 +87,5 @@ git push origin v-1.0.0
 - Within `libs/shared/ui`, use **relative** imports between files in the same project.
 - Prisma pinned to v6.
 - If `npx nx` fails (missing `.nx/nxw.js`), use `node node_modules/nx/dist/bin/nx.js`.
-- Next.js app image bakes `API_ORIGIN` at Docker build time: `http://api:3333` for Compose, `http://kodem-api` for Container Apps (the api container app name is its internal DNS name).
+- Next.js app image bakes `API_ORIGIN` at Docker build time: `http://api:3333` for Compose, `http://kodem-api` for Container Apps (the api container app name is its internal DNS name). The public api domain is for direct callers; the web app keeps proxying `/api/*` internally.
+- A new Azure environment needs one deploy with `custom_domains=false` before the DNS records for its hostnames can exist. See [`deploy/azure/README.md`](deploy/azure/README.md).
