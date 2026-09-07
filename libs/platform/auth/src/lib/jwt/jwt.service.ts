@@ -14,14 +14,17 @@ export interface JwtServiceConfig {
 export class JwtService {
   constructor(private readonly config: JwtServiceConfig) {}
 
-  sign(payload: {
-    sub: UserId;
-    email: string;
-    workspaceId: WorkspaceId;
-    role: RoleName;
-  }): string {
+  sign(
+    payload: {
+      sub: UserId;
+      email: string;
+      workspaceId: WorkspaceId;
+      role: RoleName;
+    },
+    expiresIn?: string | number,
+  ): string {
     return jwt.sign(payload, this.config.secret, {
-      expiresIn: this.config.expiresIn ?? '7d',
+      expiresIn: expiresIn ?? this.config.expiresIn ?? '15m',
     } as jwt.SignOptions);
   }
 

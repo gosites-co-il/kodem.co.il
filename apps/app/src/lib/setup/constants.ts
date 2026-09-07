@@ -3,35 +3,47 @@ import type {
   IntegrationId,
   ModuleId,
 } from '@kodem/contracts';
+import {
+  PLATFORM_INTEGRATIONS,
+  PLATFORM_MODULES,
+} from '@kodem/platform/catalog';
 
+/** Setup UI catalogs — sourced from platform catalog (single source of truth). */
 export const INTEGRATIONS: {
   id: IntegrationId;
   name: string;
   description: string;
-}[] = [
-  { id: 'google_workspace', name: 'Google Workspace', description: 'אימייל, לוח שנה ומסמכים' },
-  { id: 'microsoft_365', name: 'Microsoft 365', description: 'Outlook, Teams ו-Office' },
-  { id: 'google_analytics', name: 'Google Analytics', description: 'נתוני תנועה ומדידה' },
-  { id: 'google_business', name: 'Google Business Profile', description: 'נוכחות מקומית בגוגל' },
-  { id: 'meta', name: 'Meta', description: 'פייסבוק ואינסטגרם' },
-  { id: 'google_ads', name: 'Google Ads', description: 'קמפיינים ממומנים' },
-  { id: 'whatsapp', name: 'WhatsApp Business', description: 'תקשורת עם לקוחות' },
-  { id: 'shopify', name: 'Shopify', description: 'חנות אונליין' },
-  { id: 'woocommerce', name: 'WooCommerce', description: 'מסחר אלקטרוני' },
-];
+}[] = PLATFORM_INTEGRATIONS.map((i) => ({
+  id: i.id,
+  name: i.name,
+  description: i.description ?? '',
+}));
 
-export const INCLUDED_MODULES: { id: ModuleId; name: string; description: string }[] = [
-  { id: 'crm', name: 'CRM', description: 'ניהול לקוחות ומכירות' },
-  { id: 'knowledge', name: 'Knowledge', description: 'בסיס ידע עסקי' },
-  { id: 'insights', name: 'Insights', description: 'תובנות חכמות' },
-  { id: 'digital_card', name: 'Digital Card', description: 'כרטיס ביקור דיגיטלי' },
-];
+const FREE_IDS = new Set(
+  PLATFORM_MODULES.filter((m) => m.commercial.includedIn.includes('free')).map(
+    (m) => m.id,
+  ),
+);
 
-export const PREMIUM_MODULES: { id: ModuleId; name: string; description: string }[] = [
-  { id: 'campaign_manager', name: 'Campaign Manager', description: 'ניהול קמפיינים' },
-  { id: 'automation', name: 'Automation', description: 'אוטומציות עסקיות' },
-  { id: 'external_ai', name: 'External AI Providers', description: 'חיבור לספקי AI חיצוניים' },
-];
+export const INCLUDED_MODULES: {
+  id: ModuleId;
+  name: string;
+  description: string;
+}[] = PLATFORM_MODULES.filter((m) => FREE_IDS.has(m.id)).map((m) => ({
+  id: m.id,
+  name: m.name,
+  description: m.description ?? '',
+}));
+
+export const PREMIUM_MODULES: {
+  id: ModuleId;
+  name: string;
+  description: string;
+}[] = PLATFORM_MODULES.filter((m) => !FREE_IDS.has(m.id)).map((m) => ({
+  id: m.id,
+  name: m.name,
+  description: m.description ?? '',
+}));
 
 export const AI_PROVIDERS: {
   id: AiProviderId;

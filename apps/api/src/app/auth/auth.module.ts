@@ -6,6 +6,8 @@ import { GoogleStrategy } from './strategies/google.strategy';
 import { GitHubStrategy } from './strategies/github.strategy';
 import { FacebookStrategy } from './strategies/facebook.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { PermissionsGuard } from './guards/permissions.guard';
+import { ModuleGuard } from './guards/module.guard';
 
 @Module({
   imports: [PassportModule.register({ session: false })],
@@ -16,7 +18,9 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
     GitHubStrategy,
     FacebookStrategy,
     JwtAuthGuard,
+    PermissionsGuard,
+    ModuleGuard,
   ],
-  exports: [ApiAuthService, JwtAuthGuard],
+  exports: [ApiAuthService, JwtAuthGuard, PermissionsGuard, ModuleGuard],
 })
 export class AuthModule {}

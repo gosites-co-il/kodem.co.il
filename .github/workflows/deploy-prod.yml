@@ -4,10 +4,24 @@ on:
   push:
     tags:
       - 'v-*'
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Tag to build and deploy the images under, e.g. v-1.0.0.
+        required: true
+        type: string
+      custom_domains:
+        description: Bind app.kodem.co.il and api.kodem.co.il once their DNS records resolve. Uncheck to serve on the generated Container Apps FQDNs instead.
+        type: boolean
+        default: true
 
 concurrency:
   group: deploy-prod
   cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   guard:
@@ -17,21 +31,29 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Require tag to point at main
+      - name: Require the ref to point at main
+        # Only the automated path is held to this. Starting the workflow by hand is a
+        # deliberate act by someone who already has access to the production
+        # environment, and it is how an environment is brought up before its code has
+        # reached main.
+        if: github.event_name == 'push'
         run: |
           git fetch origin main
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "Tag ${{ github.ref_name }} is not on main. Refusing production deploy."
+            echo "${{ github.ref_name }} is not on main. Refusing production deploy."
             exit 1
           fi
-          echo "Tag ${{ github.ref_name }} is on main."
+          echo "${{ github.ref_name }} is on main."
 
   deploy:
     needs: guard
-    environment: production
     uses: ./.github/workflows/deploy.yml
-    with:
-      environment: production
-      image_tag: ${{ github.ref_name }}
-      extra_tags: prod
     secrets: inherit
+    with:
+      environment: prod
+      github_environment: production
+      image_tag: ${{ inputs.image_tag || github.ref_name }}
+      extra_tags: prod
+      # inputs is empty on a tag push, and an unset input compares equal to false, so
+      # the event has to be checked before the input can be trusted.
+      custom_domains: ${{ github.event_name != 'workflow_dispatch' || inputs.custom_domains }}

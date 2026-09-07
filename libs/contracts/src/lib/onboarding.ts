@@ -13,6 +13,10 @@ export const ONBOARDING_STATUSES = [
   'COMPLETED',
 ] as const satisfies readonly OnboardingStatus[];
 
+/**
+ * @deprecated Legacy step IDs — use SetupStepId / SETUP_STEPS from workspace-setup.ts.
+ * Kept for migrateLegacyStepIndex compatibility only.
+ */
 export type OnboardingStepId =
   | 'business_name'
   | 'website'
@@ -20,6 +24,7 @@ export type OnboardingStepId =
   | 'business_size'
   | 'finish';
 
+/** @deprecated Use SETUP_STEPS instead. */
 export const ONBOARDING_STEPS: readonly OnboardingStepId[] = [
   'business_name',
   'website',
@@ -28,6 +33,7 @@ export const ONBOARDING_STEPS: readonly OnboardingStepId[] = [
   'finish',
 ] as const;
 
+/** @deprecated */
 export interface OnboardingData {
   name?: string;
   websiteUrl?: string;
@@ -35,6 +41,7 @@ export interface OnboardingData {
   businessSize?: string;
 }
 
+/** @deprecated */
 export interface UpdateOnboardingInput {
   step: OnboardingStepId;
   data: OnboardingData;

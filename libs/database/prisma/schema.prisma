@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  output   = "../src/generated/prisma-saas"
 }
 
 datasource db {
@@ -13,7 +13,7 @@ model Workspace {
   name             String
   slug             String   @unique
   ownerId          String
-  status           String   @default("onboarding")
+  status           String   @default("active")
   onboardingStatus String   @default("NOT_STARTED")
   onboardingStep   Int      @default(0)
   websiteUrl       String?
@@ -23,27 +23,38 @@ model Workspace {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  owner      User     @relation("WorkspaceOwner", fields: [ownerId], references: [id])
-  members    Member[]
-  events     Event[]
-  profiles   BusinessProfile[]
-  businessReports BusinessReport[]
-  insights   InsightRecord[]
-  recommendations RecommendationRecord[]
+  owner             User                   @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  members           Member[]
+  events            Event[]
+  profiles          BusinessProfile[]
+  businessReports   BusinessReport[]
+  insights          InsightRecord[]
+  recommendations   RecommendationRecord[]
+  subscription      Subscription?
+  invites           WorkspaceInvite[]
+  modules           WorkspaceModule[]
+  usageEvents       UsageEvent[]
+  auditEvents       AuditEvent[]
+  featureOverrides  FeatureFlagOverride[]
+  notificationOutbox NotificationOutbox[]
 }
 
 model User {
-  id                String   @id
-  email             String   @unique
+  id                String    @id
+  email             String    @unique
   name              String
   passwordHash      String?
   activeWorkspaceId String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  emailVerifiedAt   DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  ownedWorkspaces   Workspace[]    @relation("WorkspaceOwner")
-  members           Member[]
-  oauthAccounts     OAuthAccount[]
+  ownedWorkspaces Workspace[]     @relation("WorkspaceOwner")
+  members         Member[]
+  oauthAccounts   OAuthAccount[]
+  authTokens      AuthToken[]
+  invitesSent     WorkspaceInvite[] @relation("InviteSender")
+  auditEvents     AuditEvent[]      @relation("AuditActor")
 }
 
 model Member {
@@ -54,10 +65,12 @@ model Member {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  user        User      @relation(fields: [userId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
 
   @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
 }
 
 model OAuthAccount {
@@ -69,23 +82,158 @@ model OAuthAccount {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  user           User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@unique([provider, providerUserId])
   @@index([userId])
 }
 
-model Event {
+model AuthToken {
+  id        String    @id
+  userId    String
+  type      String
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, type])
+  @@index([tokenHash])
+  @@index([expiresAt])
+}
+
+model WorkspaceInvite {
+  id          String    @id
+  workspaceId String
+  email       String
+  role        String
+  tokenHash   String
+  invitedById String
+  status      String    @default("pending")
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  invitedBy User      @relation("InviteSender", fields: [invitedById], references: [id])
+
+  @@index([workspaceId, status])
+  @@index([email, status])
+  @@index([tokenHash])
+}
+
+model Subscription {
+  id                   String   @id
+  workspaceId          String   @unique
+  planId               String   @default("free")
+  status               String   @default("active")
+  currentPeriodStart   DateTime @default(now())
+  currentPeriodEnd     DateTime
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([planId, status])
+}
+
+model WorkspaceModule {
+  id          String    @id
+  workspaceId String
+  moduleId    String
+  status      String    @default("ENABLED")
+  enabledAt   DateTime?
+  disabledAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, moduleId])
+  @@index([workspaceId, status])
+}
+
+model UsageEvent {
   id          String   @id
+  workspaceId String
+  metric      String
+  quantity    Int      @default(1)
+  metadata    String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId, metric, createdAt])
+}
+
+model FeatureFlagOverride {
+  id          String   @id
+  key         String
+  scope       String
+  enabled     Boolean
+  planId      String?
+  workspaceId String?
+  environment String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id])
+
+  @@index([key, scope])
+  @@index([workspaceId])
+}
+
+model NotificationOutbox {
+  id          String    @id
+  type        String
+  channel     String    @default("email")
+  payload     String
+  status      String    @default("pending")
+  error       String?
+  workspaceId String?
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([workspaceId])
+}
+
+model AuditEvent {
+  id          String   @id
+  workspaceId String?
+  actorId     String?
+  targetId    String?
+  action      String
+  metadata    String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id])
+  actor     User?      @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([workspaceId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+}
+
+model Event {
+  id          String    @id
   type        String
   workspaceId String
   payload     String
-  status      String   @default("pending")
+  status      String    @default("pending")
   error       String?
-  occurredAt  DateTime @default(now())
+  occurredAt  DateTime  @default(now())
   processedAt DateTime?
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
 
   @@index([status, occurredAt])
 }
@@ -118,23 +266,23 @@ model BusinessProfile {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  workspace             Workspace @relation(fields: [workspaceId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
 }
 
 model BusinessReport {
-  id              String   @id @default(cuid())
-  workspaceId     String   @unique
-  facts           String   @default("[]")
+  id              String    @id @default(cuid())
+  workspaceId     String    @unique
+  facts           String    @default("[]")
   understanding   String
-  recommendations String   @default("[]")
-  questions       String   @default("[]")
+  recommendations String    @default("[]")
+  questions       String    @default("[]")
   confidence      Float?
-  generatedAt     DateTime @default(now())
+  generatedAt     DateTime  @default(now())
   approvedAt      DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  workspace       Workspace @relation(fields: [workspaceId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
 }
 
 model InsightRecord {
@@ -147,7 +295,7 @@ model InsightRecord {
   supportingData String
   createdAt      DateTime @default(now())
 
-  workspace      Workspace @relation(fields: [workspaceId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
 }
 
 model RecommendationRecord {
@@ -160,5 +308,5 @@ model RecommendationRecord {
   isPrimary      Boolean  @default(false)
   createdAt      DateTime @default(now())
 
-  workspace      Workspace @relation(fields: [workspaceId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
 }

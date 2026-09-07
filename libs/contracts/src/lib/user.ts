@@ -5,4 +5,5 @@ export interface User extends Auditable {
   id: UserId;
   email: string;
   name: string;
+  emailVerifiedAt?: Date | null;
 }

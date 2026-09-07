@@ -36,7 +36,7 @@ export class WorkspaceRepository {
           name: input.name,
           slug: input.slug,
           ownerId: userId,
-          status: 'onboarding',
+          status: 'active',
           onboardingStatus: 'NOT_STARTED',
           onboardingStep: 0,
           websiteUrl: input.websiteUrl,
@@ -62,7 +62,7 @@ export class WorkspaceRepository {
         name: input.name,
         slug: input.slug,
         ownerId: userId,
-        status: 'onboarding',
+        status: 'active',
         onboardingStatus: 'NOT_STARTED',
         onboardingStep: 0,
         websiteUrl: input.websiteUrl,
@@ -89,7 +89,7 @@ export class WorkspaceRepository {
           name: input.name,
           slug: input.slug,
           ownerId: input.ownerId,
-          status: 'onboarding',
+          status: 'active',
           onboardingStatus: 'NOT_STARTED',
           onboardingStep: 0,
           websiteUrl: input.websiteUrl,
@@ -115,7 +115,7 @@ export class WorkspaceRepository {
         name: input.name,
         slug: input.slug,
         ownerId: input.ownerId,
-        status: 'onboarding',
+        status: 'active',
         onboardingStatus: 'NOT_STARTED',
         onboardingStep: 0,
         websiteUrl: input.websiteUrl,
@@ -157,6 +157,28 @@ export class WorkspaceRepository {
         ...data,
         updatedAt: new Date(),
       },
+    });
+    return mapWorkspaceRowToDomain(row);
+  }
+
+  async updateStatus(
+    id: WorkspaceId,
+    status: Workspace['status'],
+  ): Promise<Workspace> {
+    const row = await this.db.workspace.update({
+      where: { id },
+      data: { status, updatedAt: new Date() },
+    });
+    return mapWorkspaceRowToDomain(row);
+  }
+
+  async updateOwner(
+    id: WorkspaceId,
+    ownerId: UserId,
+  ): Promise<Workspace> {
+    const row = await this.db.workspace.update({
+      where: { id },
+      data: { ownerId, updatedAt: new Date() },
     });
     return mapWorkspaceRowToDomain(row);
   }

@@ -49,6 +49,27 @@ export class WorkspaceSetupService {
     const workspace = await this.requireWorkspace(workspaceId);
     const setup = this.mergeSetupData(workspace);
 
+    // Recover workspaces that lost businessReport after slim without the flag.
+    if (!setup.businessApproved) {
+      const profile = await this.profileRepo.findByWorkspace(workspaceId);
+      if (profile?.name) {
+        setup.businessApproved = true;
+        setup.confirmedProfile ??= {
+          businessName: profile.name,
+          description: profile.description,
+          industry: profile.industry,
+          website: profile.website,
+          emails: profile.emails ?? [],
+          phones: profile.phones ?? [],
+          addresses: profile.addresses ?? [],
+          socialProfiles: profile.socialProfiles ?? [],
+          services: profile.services ?? [],
+          products: profile.products ?? [],
+          fieldStatus: {},
+        };
+      }
+    }
+
     const freshDraft = setup.businessReport
       ? buildProfileDraftFromReport(setup.businessReport, setup.discovered)
       : buildProfileDraftFromSetup(setup);
@@ -57,9 +78,13 @@ export class WorkspaceSetupService {
       : freshDraft;
 
     const stepIndex = migrateLegacyStepIndex(workspace.onboardingStep, setup);
-    if (stepIndex !== workspace.onboardingStep) {
+    if (
+      stepIndex !== workspace.onboardingStep ||
+      setup.businessApproved !== workspace.setupData?.businessApproved
+    ) {
       await this.workspaceRepo.updateOnboarding(workspaceId, {
         onboardingStep: stepIndex,
+        setupData: serializeSetup(setup),
       });
     }
 
@@ -67,7 +92,7 @@ export class WorkspaceSetupService {
       step: this.getStepId({ ...workspace, onboardingStep: stepIndex }),
       stepIndex,
       totalSteps: SETUP_STEPS.length,
-      workspace: { ...workspace, setupData: setup },
+      workspace: { ...workspace, setupData: setup, onboardingStep: stepIndex },
       setup,
     };
   }
@@ -110,6 +135,7 @@ export class WorkspaceSetupService {
             : buildProfileDraftFromSetup(nextSetup)),
       );
       await this.finalizeBusinessFromApproval(workspaceId, nextSetup);
+      this.slimAfterBusinessApproval(nextSetup);
     }
 
     const patch = this.buildWorkspacePatch(input.step, nextSetup);
@@ -162,9 +188,79 @@ export class WorkspaceSetupService {
     return this.getState(workspaceId);
   }
 
+  /**
+   * Starts preparation asynchronously via the event bus.
+   * Returns immediately; UI should poll GET /workspace/setup.
+   */
   async runPreparation(workspaceId: WorkspaceId): Promise<SetupStateResponse> {
     const workspace = await this.requireWorkspace(workspaceId);
     const setup = this.mergeSetupData(workspace);
+
+    if (workspace.onboardingStep >= STEP_INDEX.ready) {
+      return this.getState(workspaceId);
+    }
+
+    const tasks = setup.preparationTasks ?? [];
+    const isRunning = tasks.some((task) => task.status === 'running');
+    const allDone =
+      tasks.length > 0 && tasks.every((task) => task.status === 'completed');
+
+    if (allDone) {
+      setup.discoveryFindings =
+        setup.discoveryFindings ??
+        this.progressService.buildDiscoveryFindings(setup);
+      await this.workspaceRepo.updateOnboarding(workspaceId, {
+        onboardingStep: STEP_INDEX.ready,
+        setupData: serializeSetup(setup),
+      });
+      return this.getState(workspaceId);
+    }
+
+    if (isRunning) {
+      return this.getState(workspaceId);
+    }
+
+    setup.preparationTasks = this.progressService.buildPreparationTasks(0);
+    await this.workspaceRepo.updateOnboarding(workspaceId, {
+      onboardingStep: STEP_INDEX.preparation,
+      onboardingStatus: 'IN_PROGRESS',
+      setupData: serializeSetup(setup),
+    });
+
+    await this.eventBus.emit({
+      type: EVENT_TYPES.SETUP_PREPARATION_REQUESTED,
+      workspaceId,
+      payload: { requestedAt: new Date().toISOString() },
+    });
+
+    // Fire-and-forget so local/dev works without waiting on the worker.
+    // Worker also handles the event; processPreparationJob is idempotent.
+    void this.processPreparationJob(workspaceId).catch(() => {
+      /* logged via failed preparation state if needed */
+    });
+
+    return this.getState(workspaceId);
+  }
+
+  /** Worker/API entry — advances preparation tasks and moves to ready. */
+  async processPreparationJob(workspaceId: WorkspaceId): Promise<void> {
+    const workspace = await this.requireWorkspace(workspaceId);
+    if (workspace.onboardingStatus === 'COMPLETED') {
+      return;
+    }
+    if (workspace.onboardingStep >= STEP_INDEX.ready) {
+      return;
+    }
+
+    const setup = this.mergeSetupData(workspace);
+    const completedCount =
+      setup.preparationTasks?.filter((task) => task.status === 'completed')
+        .length ?? 0;
+
+    // Another runner already progressed past kickoff.
+    if (completedCount > 0) {
+      return;
+    }
 
     for (let i = 0; i <= 6; i++) {
       setup.preparationTasks = this.progressService.buildPreparationTasks(i + 1);
@@ -172,7 +268,7 @@ export class WorkspaceSetupService {
         setupData: serializeSetup(setup),
         onboardingStep: STEP_INDEX.preparation,
       });
-      await this.delay(400);
+      await this.delay(300);
     }
 
     setup.discoveryFindings = this.progressService.buildDiscoveryFindings(setup);
@@ -181,13 +277,15 @@ export class WorkspaceSetupService {
       onboardingStep: STEP_INDEX.ready,
       setupData: serializeSetup(setup),
     });
-
-    return this.getState(workspaceId);
   }
 
   async complete(workspaceId: WorkspaceId): Promise<SetupStateResponse> {
     const workspace = await this.requireWorkspace(workspaceId);
-    const setup = this.mergeSetupData(workspace);
+    if (workspace.onboardingStatus === 'COMPLETED') {
+      return this.getState(workspaceId);
+    }
+
+    const setup = this.slimJourneyPrefs(this.mergeSetupData(workspace));
 
     await this.workspaceRepo.updateOnboarding(workspaceId, {
       onboardingStatus: 'COMPLETED',
@@ -367,6 +465,31 @@ export class WorkspaceSetupService {
     });
   }
 
+  private slimAfterBusinessApproval(setup: WorkspaceSetupData): void {
+    setup.businessApproved = true;
+    delete setup.businessReport;
+    if (setup.discovered) {
+      setup.discovered = { status: setup.discovered.status ?? 'completed' };
+    }
+  }
+
+  /** Keep journey prefs only — business truth lives in Profile/Report. */
+  private slimJourneyPrefs(setup: WorkspaceSetupData): WorkspaceSetupData {
+    return {
+      business: setup.business,
+      businessApproved: setup.businessApproved,
+      confirmedProfile: setup.confirmedProfile,
+      discovered: setup.discovered
+        ? { status: setup.discovered.status }
+        : undefined,
+      connections: setup.connections,
+      modules: setup.modules,
+      ai: setup.ai,
+      preparationTasks: setup.preparationTasks,
+      discoveryFindings: setup.discoveryFindings,
+    };
+  }
+
   private async finalizeWorkspaceCreation(
     workspaceId: WorkspaceId,
     setup: WorkspaceSetupData,
@@ -387,6 +510,14 @@ export class WorkspaceSetupService {
       industry: draft.industry ?? null,
       setupData: serializeSetup(setup),
     });
+
+    const activated = setup.modules.activated ?? [];
+    if (activated.length > 0) {
+      const { WorkspaceModuleService } = await import(
+        './workspace-module.service'
+      );
+      await new WorkspaceModuleService().syncFromSetup(workspaceId, activated);
+    }
 
     await this.eventBus.emit({
       type: EVENT_TYPES.WORKSPACE_CREATED,

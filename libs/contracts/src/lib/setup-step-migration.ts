@@ -2,7 +2,10 @@ import type { SetupStepId, WorkspaceSetupData } from './workspace-setup';
 import { SETUP_STEPS } from './workspace-setup';
 
 const BUSINESS_DISCOVERY_INDEX = SETUP_STEPS.indexOf('business_discovery');
-const BUSINESS_UNDERSTANDING_INDEX = SETUP_STEPS.indexOf('business_understanding');
+const BUSINESS_UNDERSTANDING_INDEX = SETUP_STEPS.indexOf(
+  'business_understanding',
+);
+const WORKSPACE_CREATION_INDEX = SETUP_STEPS.indexOf('workspace_creation');
 
 function hasBusinessReport(setup: WorkspaceSetupData): boolean {
   return Boolean(setup.businessReport);
@@ -34,7 +37,7 @@ export function resolveSetupStepId(step: string | undefined): SetupStepId {
 
 /**
  * Map stored onboardingStep index from the legacy 8-step journey
- * to the current 10-step journey when needed.
+ * to the current journey when needed.
  */
 export function migrateLegacyStepIndex(
   index: number,
@@ -42,7 +45,13 @@ export function migrateLegacyStepIndex(
 ): number {
   const raw = Math.max(0, index);
 
+  // Explicit approval flag survives slimAfterBusinessApproval (report removed).
+  if (setup.businessApproved) {
+    return Math.max(raw, WORKSPACE_CREATION_INDEX);
+  }
+
   // Understanding requires a report — otherwise stay on (or return to) discovery.
+  // Do not use confirmedProfile.businessName alone: getState always drafts a name.
   if (
     raw >= BUSINESS_UNDERSTANDING_INDEX &&
     !hasBusinessReport(setup) &&
@@ -51,7 +60,7 @@ export function migrateLegacyStepIndex(
     return BUSINESS_DISCOVERY_INDEX;
   }
 
-  if (hasBusinessReport(setup) || setup.confirmedProfile?.businessName) {
+  if (hasBusinessReport(setup)) {
     return Math.min(raw, SETUP_STEPS.length - 1);
   }
 

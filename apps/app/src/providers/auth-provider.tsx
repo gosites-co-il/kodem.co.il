@@ -44,7 +44,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const refreshSession = useCallback(async () => {
-    const token = getToken();
+    let token = getToken();
+    if (!token) {
+      token = await api.refresh();
+    }
+
     if (!token) {
       setState({
         user: null,
@@ -105,15 +109,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    clearToken();
-    setState({
-      user: null,
-      workspace: null,
-      role: null,
-      isLoading: false,
-      isAuthenticated: false,
+    void api.logout().finally(() => {
+      clearToken();
+      setState({
+        user: null,
+        workspace: null,
+        role: null,
+        isLoading: false,
+        isAuthenticated: false,
+      });
+      window.location.href = ROUTES.login;
     });
-    window.location.href = ROUTES.login;
   }, []);
 
   const value = useMemo(

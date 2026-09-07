@@ -1,5 +1,5 @@
 import { JwtService } from './jwt/jwt.service';
-import { AuthService } from './core/auth.service';
+import { hashToken, generateRawToken } from './token/auth-token.service';
 import { hasPermission } from '@kodem/platform/permissions';
 
 describe('platform auth', () => {
@@ -17,13 +17,22 @@ describe('platform auth', () => {
     expect(payload.role).toBe('owner');
   });
 
-  it('checks permissions via role service', () => {
-    expect(hasPermission('owner', 'workspace:admin')).toBe(true);
-    expect(hasPermission('member', 'workspace:admin')).toBe(false);
+  it('checks permissions via role service — owner vs member', () => {
+    expect(hasPermission('owner', 'workspace.lifecycle.manage')).toBe(true);
+    expect(hasPermission('owner', 'workspace.members.invite')).toBe(true);
+    expect(hasPermission('member', 'workspace.lifecycle.manage')).toBe(false);
+    expect(hasPermission('member', 'workspace.members.invite')).toBe(false);
+    expect(hasPermission('member', 'workspace.members.read')).toBe(true);
+    expect(hasPermission('admin', 'workspace.members.invite')).toBe(true);
+    expect(hasPermission('admin', 'workspace.lifecycle.manage')).toBe(false);
   });
 
-  it('creates auth service', () => {
-    const jwt = new JwtService({ secret: 'test-secret' });
-    expect(new AuthService(jwt)).toBeDefined();
+  it('hashes tokens deterministically for single-use consume lookups', () => {
+    const raw = generateRawToken();
+    const a = hashToken(raw);
+    const b = hashToken(raw);
+    expect(a).toBe(b);
+    expect(a).toHaveLength(64);
+    expect(hashToken(raw + 'x')).not.toBe(a);
   });
 });

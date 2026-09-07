@@ -1,53 +1,75 @@
 'use client';
 
-import { Separator } from '@kodem/design-system/components/ui/separator';
+import Link from 'next/link';
+import { ChevronLeft } from 'lucide-react';
+import { Button } from '@kodem/design-system/components/ui/button';
 import { MotionProvider, m } from '../../lib/auth/motion-provider';
-import { fadeUp, usePrefersReducedMotion } from '../../lib/auth/motion';
-import { AuthFooter } from './auth-footer';
-import { AuthHero } from './auth-hero';
-import { EmailContinueButton } from './email-continue-button';
-import { OAuthButtons } from './oauth-buttons';
+import { fadeUp, scaleIn, usePrefersReducedMotion } from '../../lib/auth/motion';
+import { ROUTES } from '../../lib/constants';
+import { AuthSplitFrame } from './auth-split-frame';
+import { OAuthButton } from './oauth-button';
 
 function AuthLandingContent() {
   const prefersReducedMotion = usePrefersReducedMotion();
 
   return (
-    <div className="relative flex min-h-screen flex-col">
-      <div
-        aria-hidden
-        className="auth-canvas-gradient pointer-events-none absolute inset-0"
-      />
-
-      <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-16 sm:py-20">
-        <div className="flex w-full max-w-sm flex-col items-center">
-          <m.div
-            className="mb-16 w-full sm:mb-20"
-            initial={prefersReducedMotion ? false : fadeUp.hidden}
-            animate={prefersReducedMotion ? undefined : fadeUp.visible}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
+    <AuthSplitFrame>
+      <div className="mx-auto w-full max-w-md space-y-8">
+        <m.div
+          className="space-y-5"
+          initial={prefersReducedMotion ? false : fadeUp.hidden}
+          animate={prefersReducedMotion ? undefined : fadeUp.visible}
+          transition={{ duration: 0.45, ease: 'easeOut' }}
+        >
+          <Link
+            href={ROUTES.login}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-muted/40 px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
-            <AuthHero />
-          </m.div>
+            מערכת ההפעלה של העסק
+            <ChevronLeft className="size-3.5 opacity-60" aria-hidden />
+          </Link>
 
-          <div className="w-full space-y-5">
-            <OAuthButtons />
-
-            <div className="relative py-1">
-              <Separator />
-              <span className="absolute start-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs text-muted-foreground">
-                או
-              </span>
-            </div>
-
-            <EmailContinueButton />
+          <div className="space-y-3">
+            <h1 className="text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl">
+              Kodem
+            </h1>
+            <p className="text-base leading-relaxed text-muted-foreground sm:text-lg">
+              קודם מבינים את העסק — ואז הכול מסתדר. CRM, ידע, תובנות ו-AI
+              במקום אחד.
+            </p>
           </div>
-        </div>
-      </main>
+        </m.div>
 
-      <footer className="relative z-10 pb-10 pt-4">
-        <AuthFooter />
-      </footer>
-    </div>
+        <m.div
+          className="space-y-3"
+          initial={prefersReducedMotion ? false : fadeUp.hidden}
+          animate={prefersReducedMotion ? undefined : fadeUp.visible}
+          transition={{ duration: 0.45, delay: 0.12, ease: 'easeOut' }}
+        >
+          <OAuthButton
+            provider="google"
+            label="הירשמו עם Google"
+            className="h-12 rounded-xl border-transparent bg-foreground text-background shadow-none hover:bg-foreground/90 hover:text-background hover:shadow-none"
+          />
+          <Button
+            variant="outline"
+            className="h-12 w-full rounded-xl border-border/80 bg-card shadow-none hover:bg-muted/50"
+            asChild
+          >
+            <Link href={ROUTES.loginEmail}>הירשמו עם אימייל</Link>
+          </Button>
+        </m.div>
+
+        <m.p
+          className="text-center text-sm text-muted-foreground"
+          initial={prefersReducedMotion ? false : scaleIn.hidden}
+          animate={prefersReducedMotion ? undefined : scaleIn.visible}
+          transition={{ duration: 0.4, delay: 0.22, ease: 'easeOut' }}
+        >
+          אין צורך בכרטיס אשראי
+        </m.p>
+      </div>
+    </AuthSplitFrame>
   );
 }
 

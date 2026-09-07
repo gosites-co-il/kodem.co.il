@@ -11,11 +11,15 @@ export class RoleService {
   }
 
   canManageMembers(role: RoleName): boolean {
-    return this.hasPermission(role, 'members:write');
+    return (
+      this.hasPermission(role, 'workspace.members.invite') ||
+      this.hasPermission(role, 'workspace.members.update') ||
+      this.hasPermission(role, 'workspace.members.remove')
+    );
   }
 
   canAdminWorkspace(role: RoleName): boolean {
-    return this.hasPermission(role, 'workspace:admin');
+    return this.hasPermission(role, 'workspace.lifecycle.manage');
   }
 }
 

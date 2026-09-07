@@ -8,7 +8,13 @@ import {
   JwtService,
   OAuthService,
 } from '@kodem/platform/auth';
-import { LoginInput, OAuthProfile, RegisterInput } from '@kodem/contracts';
+import {
+  LoginInput,
+  OAuthProfile,
+  RegisterInput,
+  User,
+  UserId,
+} from '@kodem/contracts';
 
 @Injectable()
 export class ApiAuthService {
@@ -28,12 +34,43 @@ export class ApiAuthService {
     return this.authService.register(input);
   }
 
-  login(input: LoginInput) {
-    return this.authService.login(input);
+  login(input: LoginInput, rateKey?: string) {
+    return this.authService.login(input, rateKey);
+  }
+
+  refresh(rawRefreshToken: string) {
+    return this.authService.refresh(rawRefreshToken);
+  }
+
+  logout(userId: UserId) {
+    return this.authService.logout(userId);
+  }
+
+  requestPasswordReset(email: string, rateKey?: string) {
+    return this.authService.requestPasswordReset(email, rateKey);
+  }
+
+  confirmPasswordReset(token: string, password: string) {
+    return this.authService.confirmPasswordReset(token, password);
+  }
+
+  verifyEmail(token: string) {
+    return this.authService.verifyEmail(token);
+  }
+
+  sendEmailVerification(user: User, rateKey?: string) {
+    return this.authService.sendEmailVerification(user, rateKey);
   }
 
   async handleOAuth(profile: OAuthProfile) {
     return this.oauthService.handleOAuthCallback(profile);
+  }
+
+  stripRefresh<T extends { refreshToken?: string }>(
+    result: T,
+  ): Omit<T, 'refreshToken'> {
+    const { refreshToken: _, ...rest } = result;
+    return rest;
   }
 
   wrapError(error: unknown): never {
@@ -41,7 +78,10 @@ export class ApiAuthService {
       error instanceof Error ? error.message : 'Authentication failed';
     if (
       message.includes('already exists') ||
-      message.includes('Invalid email')
+      message.includes('Invalid email') ||
+      message.includes('Too many') ||
+      message.includes('required') ||
+      message.includes('Invalid or expired')
     ) {
       throw new BadRequestException(message);
     }

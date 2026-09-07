@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Badge } from '@kodem/design-system/components/ui/badge';
-import { Input } from '@kodem/design-system/components/ui/input';
 import { Label } from '@kodem/design-system/components/ui/label';
 import { Textarea } from '@kodem/design-system/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@kodem/design-system/components/ui/card';
@@ -21,6 +20,10 @@ import type { SetupScreenProps } from '../setup-journey';
 
 function isRunning(report?: BusinessReportDraft, discovered?: { status?: string }) {
   return report?.status === 'running' || discovered?.status === 'running';
+}
+
+function isFailed(report?: BusinessReportDraft, discovered?: { status?: string }) {
+  return report?.status === 'failed' || discovered?.status === 'failed';
 }
 
 export function BusinessUnderstandingScreen({
@@ -43,8 +46,11 @@ export function BusinessUnderstandingScreen({
   const [retrying, setRetrying] = useState(false);
 
   const websiteUrl = state.setup.business?.websiteUrl?.trim();
+  const businessName =
+    state.setup.business?.name?.trim() || state.workspace.name;
 
   const running = isRunning(report, state.setup.discovered);
+  const failed = isFailed(report, state.setup.discovered);
 
   useEffect(() => {
     setDraft(state.setup.businessReport ?? null);
@@ -87,14 +93,44 @@ export function BusinessUnderstandingScreen({
     setApproval(String(key), { edited: true, approved: true, rejected: false });
   }
 
-  if (!draft && !running) {
+  async function continueManually() {
+    const base: BusinessProfileDraft = profileDraft ?? {
+      businessName,
+      emails: [],
+      phones: [],
+      addresses: [],
+      socialProfiles: [],
+      services: [],
+      products: [],
+      fieldStatus: {},
+      website: websiteUrl,
+      industry: state.setup.business?.industry,
+    };
+
+    const confirmed: BusinessProfileDraft = base.businessName.trim()
+      ? base
+      : { ...base, businessName };
+
+    await advance('business_understanding', {
+      confirmedProfile: confirmed,
+      businessReport: draft
+        ? { ...draft, status: 'completed', fieldApprovals: approvals }
+        : undefined,
+    });
+  }
+
+  if ((!draft && !running) || (failed && !running)) {
     return (
       <SetupShell>
         <SetupHeadline
-          title="זה מה שהבנו על העסק שלך"
-          subtitle="לא נמצא דוח הבנה. חזרו לשלב הקודם או נסו שוב."
+          title="גילוי העסק"
+          subtitle={
+            failed
+              ? 'לא הצלחנו לנתח את האתר. אפשר לנסות שוב, להמשיך ידנית, או לדלג.'
+              : 'לא נמצא דוח הבנה. חזרו לשלב הקודם או נסו שוב.'
+          }
         />
-        <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <SetupSecondaryButton
             disabled={isSubmitting || retrying}
             onClick={() => void restartDiscovery()}
@@ -102,7 +138,7 @@ export function BusinessUnderstandingScreen({
             חזרה לגילוי העסק
           </SetupSecondaryButton>
           {websiteUrl ? (
-            <SetupPrimaryButton
+            <SetupSecondaryButton
               disabled={isSubmitting || retrying}
               onClick={() => {
                 setRetrying(true);
@@ -110,13 +146,24 @@ export function BusinessUnderstandingScreen({
               }}
             >
               {retrying ? 'מריצים גילוי…' : 'נסו שוב'}
-            </SetupPrimaryButton>
+            </SetupSecondaryButton>
           ) : null}
+          <SetupPrimaryButton
+            disabled={isSubmitting || retrying || !businessName.trim()}
+            onClick={() => void continueManually()}
+          >
+            {isSubmitting ? 'שומר…' : 'המשך ידנית'}
+          </SetupPrimaryButton>
+          <SetupSecondaryButton
+            disabled={isSubmitting || retrying || !businessName.trim()}
+            onClick={() => void continueManually()}
+          >
+            דלג לעת עתה
+          </SetupSecondaryButton>
         </div>
-        {!websiteUrl ? (
+        {!websiteUrl && !failed ? (
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            לא הוזן אתר בשלב הקודם — חזרו אחורה והוסיפו כתובת אתר כדי שנוכל ללמוד את
-            העסק.
+            לא הוזן אתר — אפשר להמשיך ידנית עם שם העסק בלבד.
           </p>
         ) : null}
         {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}

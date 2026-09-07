@@ -15,6 +15,6 @@ export class OAuthService {
   async handleOAuthCallback(profile: OAuthProfile) {
     const user = await this.userLinking.resolveFromOAuth(profile);
     const resolved = await this.workspaceResolver.resolveForUser(user);
-    return this.authService.issueAuthResult(user, resolved);
+    return this.authService.issueSession(user, resolved);
   }
 }

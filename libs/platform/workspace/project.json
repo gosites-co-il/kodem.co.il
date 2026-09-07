@@ -4,5 +4,13 @@
   "sourceRoot": "libs/platform/workspace/src",
   "projectType": "library",
   "tags": ["scope:platform", "type:util"],
-  "targets": {}
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/platform/workspace"],
+      "options": {
+        "jestConfig": "libs/platform/workspace/jest.config.cts"
+      }
+    }
+  }
 }

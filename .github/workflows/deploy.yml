@@ -4,6 +4,11 @@ on:
   workflow_call:
     inputs:
       environment:
+        description: Environment to deploy, dev or prod. Suffixes the Azure resource names and selects deploy/azure/main.parameters.<env>.json.
+        required: true
+        type: string
+      github_environment:
+        description: GitHub Environment holding the Azure credentials and app secrets. Separate from the name above because GitHub Environments cannot be renamed.
         required: true
         type: string
       image_tag:
@@ -13,19 +18,25 @@ on:
         required: false
         type: string
         default: ''
-    secrets:
-      SSH_HOST:
-        required: true
-      SSH_USER:
-        required: true
-      SSH_KEY:
-        required: true
-      GHCR_PULL_TOKEN:
-        required: true
+      platforms:
+        description: Docker platforms. Container Apps runs amd64, which is also native on GitHub-hosted runners.
+        required: false
+        type: string
+        default: linux/amd64
+      api_origin:
+        description: Origin the Next.js app proxies /api to. Baked into the app image at build time; must match the api container app name.
+        required: false
+        type: string
+        default: http://kodem-api
+      custom_domains:
+        description: Bind the custom domains once their DNS records resolve. Set false to serve on the generated Container Apps FQDNs instead, which unbinds any domain already on the apps.
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
-  packages: write
+  id-token: write
 
 jobs:
   validate:
@@ -43,8 +54,8 @@ jobs:
       - run: CI=true npx nx run-many -t lint --projects=app,api,worker
 
   build-and-push:
-    needs: validate
     runs-on: ubuntu-latest
+    environment: ${{ inputs.github_environment }}
     strategy:
       fail-fast: false
       matrix:
@@ -58,85 +69,438 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check environment configuration
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          AZURE_CONTAINER_REGISTRY: ${{ vars.AZURE_CONTAINER_REGISTRY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_CONTAINER_REGISTRY; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Missing GitHub Environment variables: ${missing[*]}"
+            echo "Run deploy/azure/bootstrap-azure.sh and apply the configuration it prints."
+            exit 1
+          fi
+
       - uses: docker/setup-qemu-action@v3
+        if: contains(inputs.platforms, 'arm64')
 
       - uses: docker/setup-buildx-action@v3
 
-      - uses: docker/login-action@v3
+      - uses: azure/login@v2
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to Azure Container Registry
+        run: az acr login --name "${{ vars.AZURE_CONTAINER_REGISTRY }}"
 
       - name: Build image tags
         id: meta
+        env:
+          REGISTRY: ${{ vars.AZURE_CONTAINER_REGISTRY }}.azurecr.io
+          REPO: kodem-${{ matrix.service }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          EXTRA_TAGS: ${{ inputs.extra_tags }}
         run: |
-          TAGS="ghcr.io/gosites-co-il/kodem-${{ matrix.service }}:${{ inputs.image_tag }}"
-          TAGS="$TAGS,ghcr.io/gosites-co-il/kodem-${{ matrix.service }}:${{ github.sha }}"
-          if [ -n "${{ inputs.extra_tags }}" ]; then
-            TAGS="$TAGS,ghcr.io/gosites-co-il/kodem-${{ matrix.service }}:${{ inputs.extra_tags }}"
+          set -euo pipefail
+          TAGS="$REGISTRY/$REPO:$IMAGE_TAG"
+          TAGS="$TAGS,$REGISTRY/$REPO:$GITHUB_SHA"
+          if [ -n "$EXTRA_TAGS" ]; then
+            TAGS="$TAGS,$REGISTRY/$REPO:$EXTRA_TAGS"
           fi
           echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+          echo "cache=$REGISTRY/$REPO:buildcache" >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@v6
         with:
           context: .
           file: ${{ matrix.file }}
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ inputs.platforms }}
           push: true
+          provenance: false
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
-            API_ORIGIN=http://api:3333
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            API_ORIGIN=${{ inputs.api_origin }}
+          cache-from: type=registry,ref=${{ steps.meta.outputs.cache }}
+          cache-to: type=registry,ref=${{ steps.meta.outputs.cache }},mode=max,image-manifest=true,oci-mediatypes=true
 
   deploy:
-    needs: build-and-push
+    needs: [validate, build-and-push]
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ inputs.github_environment }}
+    outputs:
+      app_url: ${{ steps.infra.outputs.app_url }}
+      api_url: ${{ steps.infra.outputs.api_url }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Copy docker-compose to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          source: docker-compose.yml
-          target: /opt/kodem/
-
-      - name: Deploy stack
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            set -euo pipefail
-            cd /opt/kodem
-            export IMAGE_TAG=${{ inputs.image_tag }}
-            echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker compose pull
-            docker compose up -d --remove-orphans
-            docker compose ps
-            docker image prune -f
-
-      - name: Smoke test API health
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            set -euo pipefail
-            for i in $(seq 1 30); do
-              if curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then
-                echo "Health check passed"
-                exit 0
-              fi
-              sleep 5
-            done
-            echo "Health check failed"
-            docker compose -f /opt/kodem/docker-compose.yml logs --tail=100
+      - name: Check environment configuration
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in AZURE_RESOURCE_GROUP POSTGRES_ADMIN_PASSWORD JWT_SECRET; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Missing GitHub Environment configuration: ${missing[*]}"
+            echo "Run deploy/azure/bootstrap-azure.sh and apply the configuration it prints."
             exit 1
+          fi
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy infrastructure and container apps
+        id: infra
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_ENV: ${{ inputs.environment }}
+          GITHUB_ENV_NAME: ${{ inputs.github_environment }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          CONTAINER_REGISTRY: ${{ vars.AZURE_CONTAINER_REGISTRY }}
+          CUSTOM_DOMAINS: ${{ inputs.custom_domains }}
+          APP_CUSTOM_DOMAIN: ${{ vars.APP_CUSTOM_DOMAIN }}
+          API_CUSTOM_DOMAIN: ${{ vars.API_CUSTOM_DOMAIN }}
+          POSTGRES_LOCATION: ${{ vars.POSTGRES_LOCATION }}
+          POSTGRES_VERSION: ${{ vars.POSTGRES_VERSION }}
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          OAUTH_GOOGLE_CLIENT_ID: ${{ vars.OAUTH_GOOGLE_CLIENT_ID }}
+          OAUTH_GOOGLE_CLIENT_SECRET: ${{ secrets.OAUTH_GOOGLE_CLIENT_SECRET }}
+          OAUTH_GITHUB_CLIENT_ID: ${{ vars.OAUTH_GITHUB_CLIENT_ID }}
+          OAUTH_GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
+          OAUTH_FACEBOOK_CLIENT_ID: ${{ vars.OAUTH_FACEBOOK_CLIENT_ID }}
+          OAUTH_FACEBOOK_CLIENT_SECRET: ${{ secrets.OAUTH_FACEBOOK_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+
+          # The domains live in main.parameters.<env>.json; a GitHub Environment
+          # variable overrides one when set.
+          PARAMS="deploy/azure/main.parameters.$AZURE_ENV.json"
+          APP_DOMAIN="${APP_CUSTOM_DOMAIN:-$(jq -r '.parameters.appCustomDomain.value // ""' "$PARAMS")}"
+          API_DOMAIN="${API_CUSTOM_DOMAIN:-$(jq -r '.parameters.apiCustomDomain.value // ""' "$PARAMS")}"
+
+          txt_record_exists() {
+            # dig is on the GitHub-hosted images, but the fallback keeps this working
+            # on a self-hosted runner without dnsutils.
+            if command -v dig >/dev/null 2>&1; then
+              [ -n "$(dig +short TXT "$1" 2>/dev/null)" ]
+            else
+              [ -n "$(curl -fsS -H 'accept: application/dns-json' \
+                "https://cloudflare-dns.com/dns-query?name=$1&type=TXT" | jq -r '.Answer[]?.data')" ]
+            fi
+          }
+
+          is_bound() {
+            az containerapp show --name "$1" --resource-group "$RESOURCE_GROUP" \
+              --query "properties.configuration.ingress.customDomains[?name=='$2'] | length(@)" \
+              -o tsv 2>/dev/null | grep -qv '^0$'
+          }
+
+          # A managed certificate is validated against DNS records that name the
+          # container app, so they cannot exist before the app does: a new environment
+          # has to come up without its domains and bind them on a later run. Asking for
+          # a hostname whose asuid record is missing fails the whole deployment, so
+          # each one is checked rather than assumed.
+          #
+          # A hostname already on the app stays on it whatever the lookup says. A
+          # resolver hiccup must not take a live domain off a running environment.
+          domain_is_ready() {
+            local domain="$1" app="$2"
+            if is_bound "$app" "$domain" || txt_record_exists "asuid.$domain"; then
+              return 0
+            fi
+            echo "::notice::Deploying without $domain because asuid.$domain does not resolve yet. Create the DNS records from the job summary, then deploy again to bind it."
+            return 1
+          }
+
+          if [ "$CUSTOM_DOMAINS" != "true" ]; then
+            APP_DOMAIN=""
+            API_DOMAIN=""
+          else
+            if [ -n "$APP_DOMAIN" ] && ! domain_is_ready "$APP_DOMAIN" kodem-app; then
+              APP_DOMAIN=""
+            fi
+            if [ -n "$API_DOMAIN" ] && ! domain_is_ready "$API_DOMAIN" kodem-api; then
+              API_DOMAIN=""
+            fi
+          fi
+
+          # Only set when a GitHub Environment variable overrides the template, so the
+          # region and version stay whatever main.bicep says by default.
+          POSTGRES_PARAMS=()
+          if [ -n "$POSTGRES_LOCATION" ]; then
+            POSTGRES_PARAMS+=("postgresLocation=$POSTGRES_LOCATION")
+          fi
+          if [ -n "$POSTGRES_VERSION" ]; then
+            POSTGRES_PARAMS+=("postgresVersion=$POSTGRES_VERSION")
+          fi
+
+          ENV_NAME="kodem-$AZURE_ENV-env"
+
+          named_cert_exists() {
+            local domain="$1" name count
+            name="${domain//./-}"
+            count=$(az containerapp env certificate list -n "$ENV_NAME" -g "$RESOURCE_GROUP" \
+              --query "[?name=='$name'] | length(@)" -o tsv 2>/dev/null || echo 0)
+            [ "${count:-0}" != "0" ]
+          }
+
+          wait_for_cert_operations() {
+            local i state
+            for i in $(seq 1 30); do
+              state=$(az containerapp env certificate list -n "$ENV_NAME" -g "$RESOURCE_GROUP" \
+                --query "[?properties.provisioningState=='Pending' || properties.provisioningState=='InProgress'] | length(@)" \
+                -o tsv 2>/dev/null || echo 0)
+              if [ "${state:-0}" = "0" ]; then
+                return 0
+              fi
+              echo "Waiting for a managed certificate issuance to finish ($i/30)..."
+              sleep 20
+            done
+            echo "::warning::A managed certificate is still issuing after 10 minutes; continuing."
+          }
+
+          delete_auto_certs_for() {
+            local domain="$1" keep certs name
+            [ -n "$domain" ] || return 0
+            keep="${domain//./-}"
+            certs=$(az containerapp env certificate list -n "$ENV_NAME" -g "$RESOURCE_GROUP" -o json 2>/dev/null || echo '[]')
+            while read -r name; do
+              [ -n "$name" ] || continue
+              echo "Removing leftover Auto certificate $name for $domain (keeping $keep)."
+              az containerapp env certificate delete -n "$ENV_NAME" -g "$RESOURCE_GROUP" \
+                --certificate "$name" --yes
+            done < <(echo "$certs" | jq -r --arg domain "$domain" --arg keep "$keep" '
+                .[]
+                | select((.properties.subjectName // .subjectName) == $domain)
+                | select(.name != $keep)
+                | .name')
+          }
+
+          unbind_hostname() {
+            local app="$1" domain="$2"
+            [ -n "$domain" ] || return 0
+            is_bound "$app" "$domain" || return 0
+            echo "Temporarily removing $domain from $app so leftover Auto certificates can be deleted."
+            az containerapp hostname delete -n "$app" -g "$RESOURCE_GROUP" --hostname "$domain" --yes \
+              || az containerapp hostname delete -n "$app" -g "$RESOURCE_GROUP" --hostname "$domain"
+          }
+
+          interpret_errors() {
+            if grep -q "'Version' should be in: \[\]" "$ERRORS"; then
+              PG_LOCATION="${POSTGRES_LOCATION:-$(az group show --name "$RESOURCE_GROUP" --query location -o tsv)}"
+              PG_SKU=$(jq -r '.parameters.postgresSkuName.value // "Standard_B1ms"' "$PARAMS")
+              echo ""
+              echo "PostgreSQL flexible servers look unavailable to this subscription in $PG_LOCATION."
+              echo "Confirm with an account that can read the subscription:"
+              echo ""
+              echo "  az postgres flexible-server list-skus --location $PG_LOCATION -o table"
+              echo ""
+              echo "An empty answer means the region is the problem, not the parameters. Set the"
+              echo "POSTGRES_LOCATION variable on the $GITHUB_ENV_NAME environment to a region that"
+              echo "does answer, or ask Azure support to enable flexible servers in $PG_LOCATION."
+              echo "An answer without $PG_SKU means the compute tier is the problem instead:"
+              echo "change postgresSkuName in $PARAMS to one it lists."
+              echo ""
+              echo "deploy/azure/README.md covers both."
+            fi
+
+            if grep -qE 'DuplicateManagedCertificateInEnvironment|ExistingManagedCertificateOperationInProgress' "$ERRORS"; then
+              echo ""
+              echo "A leftover Auto-issued certificate (named <hostname>-kodem-pr-…) is blocking"
+              echo "the named certificate the template manages. The deploy unbinds the hostname,"
+              echo "deletes those leftovers, then issues app-kodem-co-il / api-kodem-co-il."
+              echo "If one is still issuing, wait and re-run:"
+              echo ""
+              echo "  az containerapp env certificate list -n $ENV_NAME -g $RESOURCE_GROUP -o table"
+            fi
+          }
+
+          deploy_once() {
+            local name="$1"
+            shift
+            ERRORS=$(mktemp)
+            if ! OUTPUTS=$(az deployment group create \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "$name" \
+              --template-file deploy/azure/main.bicep \
+              --parameters "deploy/azure/main.parameters.$AZURE_ENV.json" \
+              --parameters \
+                containerRegistryName="$CONTAINER_REGISTRY" \
+                imageTag="$IMAGE_TAG" \
+                postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
+                jwtSecret="$JWT_SECRET" \
+                googleClientId="$OAUTH_GOOGLE_CLIENT_ID" \
+                googleClientSecret="$OAUTH_GOOGLE_CLIENT_SECRET" \
+                githubClientId="$OAUTH_GITHUB_CLIENT_ID" \
+                githubClientSecret="$OAUTH_GITHUB_CLIENT_SECRET" \
+                facebookClientId="$OAUTH_FACEBOOK_CLIENT_ID" \
+                facebookClientSecret="$OAUTH_FACEBOOK_CLIENT_SECRET" \
+                appCustomDomain="$APP_DOMAIN" \
+                apiCustomDomain="$API_DOMAIN" \
+                "${POSTGRES_PARAMS[@]}" \
+                "$@" \
+              --query properties.outputs -o json 2>"$ERRORS"); then
+              cat "$ERRORS"
+              interpret_errors
+              exit 1
+            fi
+          }
+
+          BIND_APP=false
+          BIND_API=false
+          if [ -n "$APP_DOMAIN" ] && named_cert_exists "$APP_DOMAIN"; then BIND_APP=true; fi
+          if [ -n "$API_DOMAIN" ] && named_cert_exists "$API_DOMAIN"; then BIND_API=true; fi
+
+          NEED_ISSUE=false
+          if [ -n "$APP_DOMAIN" ] && [ "$BIND_APP" != "true" ]; then NEED_ISSUE=true; fi
+          if [ -n "$API_DOMAIN" ] && [ "$BIND_API" != "true" ]; then NEED_ISSUE=true; fi
+
+          if [ "$NEED_ISSUE" = "true" ]; then
+            # Auto leftover certs (from an earlier bindingType Auto deploy) must be
+            # gone before the named ones can be created. They cannot be deleted while
+            # still bound to an app.
+            if [ -n "$APP_DOMAIN" ] && [ "$BIND_APP" != "true" ]; then
+              unbind_hostname kodem-app "$APP_DOMAIN"
+            fi
+            if [ -n "$API_DOMAIN" ] && [ "$BIND_API" != "true" ]; then
+              unbind_hostname kodem-api "$API_DOMAIN"
+            fi
+            wait_for_cert_operations
+            delete_auto_certs_for "$APP_DOMAIN"
+            delete_auto_certs_for "$API_DOMAIN"
+
+            # Register the hostname with no certificate, then issue app-kodem-co-il /
+            # api-kodem-co-il. Hostnames that already have their named cert stay bound.
+            deploy_once "kodem-$AZURE_ENV-$GITHUB_RUN_ID-issue" \
+              bindAppCertificate="$BIND_APP" \
+              bindApiCertificate="$BIND_API"
+          fi
+
+          if [ -n "$APP_DOMAIN" ]; then BIND_APP=true; fi
+          if [ -n "$API_DOMAIN" ]; then BIND_API=true; fi
+
+          deploy_once "kodem-$AZURE_ENV-$GITHUB_RUN_ID" \
+            bindAppCertificate="$BIND_APP" \
+            bindApiCertificate="$BIND_API"
+
+          {
+            echo "app_fqdn=$(echo "$OUTPUTS" | jq -r '.appFqdn.value')"
+            echo "api_fqdn=$(echo "$OUTPUTS" | jq -r '.apiFqdn.value')"
+            echo "app_url=$(echo "$OUTPUTS" | jq -r '.appUrlResolved.value')"
+            echo "api_url=$(echo "$OUTPUTS" | jq -r '.apiUrlResolved.value')"
+            echo "app_domain=$(echo "$OUTPUTS" | jq -r '.appCustomDomainConfigured.value')"
+            echo "api_domain=$(echo "$OUTPUTS" | jq -r '.apiCustomDomainConfigured.value')"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          APP_FQDN: ${{ steps.infra.outputs.app_fqdn }}
+          API_FQDN: ${{ steps.infra.outputs.api_fqdn }}
+          APP_URL: ${{ steps.infra.outputs.app_url }}
+          API_URL: ${{ steps.infra.outputs.api_url }}
+        run: |
+          set -euo pipefail
+
+          wait_for() {
+            local url="$1" attempts="$2" i
+            for i in $(seq 1 "$attempts"); do
+              if curl -fsS --max-time 15 "$url" >/dev/null; then
+                echo "OK  $url"
+                return 0
+              fi
+              echo "  attempt $i/$attempts failed for $url, retrying in 10s..."
+              sleep 10
+            done
+            echo "FAIL $url"
+            return 1
+          }
+
+          # The generated FQDNs answer regardless of how DNS or certificates are set
+          # up, so a failure here is the rollout itself being unhealthy.
+          if ! wait_for "https://$APP_FQDN/api/health" 30 || ! wait_for "https://$API_FQDN/api/health" 6; then
+            az containerapp logs show --name kodem-api --resource-group "$RESOURCE_GROUP" --tail 100 || true
+            az containerapp logs show --name kodem-app --resource-group "$RESOURCE_GROUP" --tail 100 || true
+            exit 1
+          fi
+
+          # A custom domain that does not answer means DNS or the managed certificate
+          # is still settling, which does not make the deployed revision bad.
+          for url in "$APP_URL/api/health" "$API_URL/api/health"; do
+            case "$url" in
+              "https://$APP_FQDN"*|"https://$API_FQDN"*) continue ;;
+            esac
+            wait_for "$url" 6 || echo "::warning::$url did not answer yet. Check the DNS records and the managed certificate."
+          done
+
+      # Printed on every run, including the first one where the domains are not bound
+      # yet: these are exactly the records the managed certificates validate against.
+      - name: Custom domain DNS records
+        if: always() && steps.infra.outputs.app_fqdn != ''
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_ENV: ${{ inputs.environment }}
+          APP_FQDN: ${{ steps.infra.outputs.app_fqdn }}
+          API_FQDN: ${{ steps.infra.outputs.api_fqdn }}
+          APP_CUSTOM_DOMAIN: ${{ vars.APP_CUSTOM_DOMAIN }}
+          API_CUSTOM_DOMAIN: ${{ vars.API_CUSTOM_DOMAIN }}
+          APP_DOMAIN_BOUND: ${{ steps.infra.outputs.app_domain }}
+          API_DOMAIN_BOUND: ${{ steps.infra.outputs.api_domain }}
+        run: |
+          set -euo pipefail
+          PARAMS="deploy/azure/main.parameters.$AZURE_ENV.json"
+          APP_DOMAIN="${APP_CUSTOM_DOMAIN:-$(jq -r '.parameters.appCustomDomain.value // ""' "$PARAMS")}"
+          API_DOMAIN="${API_CUSTOM_DOMAIN:-$(jq -r '.parameters.apiCustomDomain.value // ""' "$PARAMS")}"
+
+          record_rows() {
+            local domain="$1" fqdn="$2"
+            [ -n "$domain" ] || return 0
+            echo "| CNAME | \`$domain\` | \`$fqdn\` |"
+            echo "| TXT | \`asuid.$domain\` | \`$VERIFICATION_ID\` |"
+          }
+
+          VERIFICATION_ID=$(az containerapp show --name kodem-app --resource-group "$RESOURCE_GROUP" \
+            --query properties.customDomainVerificationId -o tsv)
+          {
+            echo "### DNS records for the custom domains"
+            echo ""
+            echo "| Type | Name | Value |"
+            echo "|------|------|-------|"
+            record_rows "$APP_DOMAIN" "$APP_FQDN"
+            record_rows "$API_DOMAIN" "$API_FQDN"
+            echo ""
+            echo "Names are full hostnames; most DNS providers want them relative to the zone."
+            if { [ -n "$APP_DOMAIN" ] && [ -z "$APP_DOMAIN_BOUND" ]; } ||
+              { [ -n "$API_DOMAIN" ] && [ -z "$API_DOMAIN_BOUND" ]; }; then
+              echo ""
+              echo "Some of these are not bound yet, because a hostname is only bound once its"
+              echo "\`asuid\` record resolves. Create the records above and deploy again."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summary
+        run: |
+          {
+            echo "### Deployed to Azure Container Apps"
+            echo ""
+            echo "- Environment: \`${{ inputs.environment }}\` (GitHub Environment \`${{ inputs.github_environment }}\`)"
+            echo "- Image tag: \`${{ inputs.image_tag }}\`"
+            echo "- App: ${{ steps.infra.outputs.app_url }}"
+            echo "- API: ${{ steps.infra.outputs.api_url }}"
+          } >> "$GITHUB_STEP_SUMMARY"

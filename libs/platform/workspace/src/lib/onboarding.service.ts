@@ -16,6 +16,10 @@ const STEP_INDEX: Record<OnboardingStepId, number> = {
   finish: 4,
 };
 
+/**
+ * @deprecated Legacy 5-step onboarding. Canonical flow is Workspace Setup Journey
+ * (`SETUP_STEPS` / WorkspaceSetupService). Do not wire this service to new APIs.
+ */
 export class OnboardingService {
   private readonly workspaceRepo = new WorkspaceRepository();
 

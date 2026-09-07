@@ -6,6 +6,8 @@ services:
       POSTGRES_DB: kodem
       POSTGRES_USER: kodem
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    ports:
+      - '127.0.0.1:5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -15,7 +17,7 @@ services:
       retries: 10
 
   api:
-    image: ghcr.io/gosites-co-il/kodem-api:${IMAGE_TAG:-dev}
+    image: ${REGISTRY_PREFIX-}kodem-api:${IMAGE_TAG:-dev}
     build:
       context: .
       dockerfile: docker/Dockerfile.api
@@ -29,15 +31,15 @@ services:
       DATABASE_URL: postgresql://kodem:${POSTGRES_PASSWORD}@postgres:5432/kodem
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       APP_URL: ${APP_URL:-http://localhost:3000}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-}
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
-      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
-      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-}
-      FACEBOOK_CLIENT_ID: ${FACEBOOK_CLIENT_ID:-}
-      FACEBOOK_CLIENT_SECRET: ${FACEBOOK_CLIENT_SECRET:-}
-      FACEBOOK_CALLBACK_URL: ${FACEBOOK_CALLBACK_URL:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-google-client-id}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-google-client-secret}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:3000/api/auth/google/callback}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-github-client-id}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-github-client-secret}
+      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-http://localhost:3000/api/auth/github/callback}
+      FACEBOOK_CLIENT_ID: ${FACEBOOK_CLIENT_ID:-facebook-client-id}
+      FACEBOOK_CLIENT_SECRET: ${FACEBOOK_CLIENT_SECRET:-facebook-client-secret}
+      FACEBOOK_CALLBACK_URL: ${FACEBOOK_CALLBACK_URL:-http://localhost:3000/api/auth/facebook/callback}
     healthcheck:
       test:
         [
@@ -52,7 +54,7 @@ services:
       start_period: 30s
 
   worker:
-    image: ghcr.io/gosites-co-il/kodem-worker:${IMAGE_TAG:-dev}
+    image: ${REGISTRY_PREFIX-}kodem-worker:${IMAGE_TAG:-dev}
     build:
       context: .
       dockerfile: docker/Dockerfile.worker
@@ -67,7 +69,7 @@ services:
       WORKER_POLL_MS: ${WORKER_POLL_MS:-2000}
 
   app:
-    image: ghcr.io/gosites-co-il/kodem-app:${IMAGE_TAG:-dev}
+    image: ${REGISTRY_PREFIX-}kodem-app:${IMAGE_TAG:-dev}
     build:
       context: .
       dockerfile: docker/Dockerfile.app

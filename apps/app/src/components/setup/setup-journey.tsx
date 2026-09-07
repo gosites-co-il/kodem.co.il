@@ -99,11 +99,11 @@ export function SetupJourney() {
   async function handleComplete() {
     setIsSubmitting(true);
     try {
-      const next = await api.completeSetup();
+      await api.completeSetup();
       const me = await api.me();
       setSession({
         user: me.user,
-        workspace: next.workspace,
+        workspace: me.workspace,
         role: me.role,
       });
       router.replace(ROUTES.dashboard);

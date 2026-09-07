@@ -7,6 +7,7 @@ import {
 import { Request } from 'express';
 import { AuthService, JwtService } from '@kodem/platform/auth';
 import { PlatformContext } from '@kodem/contracts';
+import { ACCESS_COOKIE, readCookie } from '../auth-cookies';
 
 export const PLATFORM_CONTEXT_KEY = 'platformContext';
 
@@ -16,7 +17,8 @@ export class JwtAuthGuard implements CanActivate {
   private readonly authService: AuthService;
 
   constructor() {
-    const secret = process.env['JWT_SECRET'] ?? 'kodem-dev-secret-change-in-production';
+    const secret =
+      process.env['JWT_SECRET'] ?? 'kodem-dev-secret-change-in-production';
     this.jwtService = new JwtService({ secret });
     this.authService = new AuthService(this.jwtService);
   }
@@ -45,9 +47,9 @@ export class JwtAuthGuard implements CanActivate {
     if (auth?.startsWith('Bearer ')) {
       return auth.slice(7);
     }
-    const queryToken = request.query['token'];
-    if (typeof queryToken === 'string') {
-      return queryToken;
+    const cookieToken = readCookie(request, ACCESS_COOKIE);
+    if (cookieToken) {
+      return cookieToken;
     }
     return null;
   }

@@ -4,5 +4,13 @@
   "sourceRoot": "libs/platform/auth/src",
   "projectType": "library",
   "tags": ["scope:platform", "type:util"],
-  "targets": {}
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/platform/auth"],
+      "options": {
+        "jestConfig": "libs/platform/auth/jest.config.cts"
+      }
+    }
+  }
 }

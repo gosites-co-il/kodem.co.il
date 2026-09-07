@@ -1,6 +1,6 @@
 import { TOKEN_COOKIE } from '../constants';
 
-const TOKEN_KEY = 'kodem_token';
+const TOKEN_KEY = 'kodem_access_token';
 
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
