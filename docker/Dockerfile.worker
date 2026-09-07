@@ -19,7 +19,10 @@ ENV NODE_ENV=production
 COPY --from=builder /app/dist/apps/worker/package.json ./package.json
 COPY --from=builder /app/dist/apps/worker/main.js ./main.js
 RUN npm install --omit=dev
-COPY --from=builder /app/libs/database/src/generated/prisma ./libs/database/src/generated/prisma
+# The Prisma client is bundled into main.js, but its query engine is loaded from disk
+# at runtime, from libs/database/src/generated/<output dir> relative to the working
+# directory.
+COPY --from=builder /app/libs/database/src/generated ./libs/database/src/generated
 
 EXPOSE 3334
 CMD ["node", "main.js"]

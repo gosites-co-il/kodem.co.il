@@ -43,7 +43,7 @@ Module/API → Event → Worker → Engines → BKM artifacts → Module/UI
 
 ### Database
 
-- PostgreSQL via `DATABASE_URL` (Docker Compose provides Postgres locally and on dev server).
+- PostgreSQL via `DATABASE_URL` (Docker Compose provides Postgres locally; Azure Database for PostgreSQL Flexible Server in deployed environments).
 - Optional local SQLite fallback when `DATABASE_URL` starts with `file:`.
 
 ### Docker (local smoke test)
@@ -56,16 +56,24 @@ curl http://localhost:3000/api/health
 
 ### Deploy (CI/CD)
 
-| Trigger | Workflow | Environment |
-|---------|----------|-------------|
-| Push to `dev` | `deploy-dev.yml` | `development` |
-| Tag `v-*` on `main` | `deploy-prod.yml` | `production` |
+Target is **Azure Container Apps**, images in **Azure Container Registry**, data in **Azure Database for PostgreSQL Flexible Server**. Full runbook: [`deploy/azure/README.md`](deploy/azure/README.md).
 
-**GitHub Environment secrets** (per environment): `SSH_HOST`, `SSH_USER`, `SSH_KEY`, `GHCR_PULL_TOKEN`
+| Trigger | Workflow | Environment | GitHub Environment | App | API |
+|---------|----------|-------------|--------------------|-----|-----|
+| Push to `dev` | `deploy-dev.yml` | `dev` | `development` | `app.dev.kodem.co.il` | `api.dev.kodem.co.il` |
+| Tag `v-*` on `main` | `deploy-prod.yml` | `prod` | `production` | `app.kodem.co.il` | `api.kodem.co.il` |
 
-Images are built as **linux/amd64** (native on GitHub-hosted runners). If the Oracle VM is Ampere (ARM), pass `platforms: linux/arm64` in the workflow or use an ARM runner — multi-arch QEMU builds are very slow.
+Both call `deploy.yml`: lint → build/push three images to ACR → `az deployment group create` with `deploy/azure/main.bicep` → health check. `dev` / `prod` name the Azure resource suffix and the Bicep parameter file; the GitHub Environment holding the credentials is passed separately as `github_environment`, since GitHub Environments cannot be renamed. The hostnames live in `deploy/azure/main.parameters.<env>.json`.
 
-**Oracle bootstrap** (once): `bash deploy/bootstrap-oracle.sh` — creates `/opt/kodem/.env`, nginx, Docker.
+**GitHub Environment variables**: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_CONTAINER_REGISTRY`, optional `APP_CUSTOM_DOMAIN`, `API_CUSTOM_DOMAIN`, `POSTGRES_LOCATION`, `POSTGRES_VERSION` and `OAUTH_*_CLIENT_ID`.
+
+`POSTGRES_LOCATION` exists because a subscription is not allowed to provision flexible servers in every region; when it cannot, ARM reports `The value of the 'Version' should be in: []`. The deploy job recognises that message and prints what to do about it.
+
+**GitHub Environment secrets**: `POSTGRES_ADMIN_PASSWORD`, `JWT_SECRET`, optional `OAUTH_*_CLIENT_SECRET`.
+
+Authentication is OIDC federated credentials — no Azure passwords in GitHub. Images are built as **linux/amd64**, which Container Apps runs natively.
+
+**Azure bootstrap** (once per environment): `ENVIRONMENT=dev GITHUB_REPO=<owner>/<repo> bash deploy/azure/bootstrap-azure.sh`, or `./deploy/azure/bootstrap-azure.ps1 -Environment dev -GithubRepo <owner>/<repo>` on Windows — creates the resource group, registry, pull identity and OIDC app registration, then prints the GitHub configuration to apply. Keep the two scripts in sync. Default region is `northeurope`; before creating anything the script checks the subscription can provision Container Apps, the registry and PostgreSQL there, and stops with nearby regions that work if it cannot.
 
 **Release to production:**
 
@@ -81,4 +89,5 @@ git push origin v-1.0.0
 - Within `libs/shared/ui`, use **relative** imports between files in the same project.
 - Prisma pinned to v6.
 - If `npx nx` fails (missing `.nx/nxw.js`), use `node node_modules/nx/dist/bin/nx.js`.
-- Next.js app image bakes `API_ORIGIN=http://api:3333` at Docker build time.
+- Next.js app image bakes `API_ORIGIN` at Docker build time: `http://api:3333` for Compose, `http://kodem-api` for Container Apps (the api container app name is its internal DNS name). The public api domain is for direct callers; the web app keeps proxying `/api/*` internally.
+- A new Azure environment reaches its custom domains on the second deploy: the first one skips a hostname whose `asuid` DNS record does not resolve yet, since those records have to name a container app that does not exist before it. See [`deploy/azure/README.md`](deploy/azure/README.md).

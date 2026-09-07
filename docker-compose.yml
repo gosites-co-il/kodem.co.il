@@ -17,7 +17,7 @@ services:
       retries: 10
 
   api:
-    image: ghcr.io/gosites-co-il/kodem-api:${IMAGE_TAG:-dev}
+    image: ${REGISTRY_PREFIX-}kodem-api:${IMAGE_TAG:-dev}
     build:
       context: .
       dockerfile: docker/Dockerfile.api
@@ -54,7 +54,7 @@ services:
       start_period: 30s
 
   worker:
-    image: ghcr.io/gosites-co-il/kodem-worker:${IMAGE_TAG:-dev}
+    image: ${REGISTRY_PREFIX-}kodem-worker:${IMAGE_TAG:-dev}
     build:
       context: .
       dockerfile: docker/Dockerfile.worker
@@ -69,7 +69,7 @@ services:
       WORKER_POLL_MS: ${WORKER_POLL_MS:-2000}
 
   app:
-    image: ghcr.io/gosites-co-il/kodem-app:${IMAGE_TAG:-dev}
+    image: ${REGISTRY_PREFIX-}kodem-app:${IMAGE_TAG:-dev}
     build:
       context: .
       dockerfile: docker/Dockerfile.app

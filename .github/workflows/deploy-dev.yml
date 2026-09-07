@@ -4,15 +4,29 @@ on:
   push:
     branches: [dev]
   workflow_dispatch:
+    inputs:
+      custom_domains:
+        description: Bind app.dev.kodem.co.il and api.dev.kodem.co.il once their DNS records resolve. Uncheck to serve on the generated Container Apps FQDNs instead.
+        type: boolean
+        default: true
 
 concurrency:
   group: deploy-dev
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   deploy:
     uses: ./.github/workflows/deploy.yml
+    secrets: inherit
     with:
-      environment: development
+      environment: dev
+      github_environment: development
       image_tag: dev
       extra_tags: dev
+      # inputs is empty on push, and an unset input compares equal to false, so the
+      # event has to be checked before the input can be trusted.
+      custom_domains: ${{ github.event_name != 'workflow_dispatch' || inputs.custom_domains }}

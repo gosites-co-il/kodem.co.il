@@ -21,9 +21,16 @@ COPY --from=builder /app/dist/apps/api/package.json ./package.json
 COPY --from=builder /app/dist/apps/api/main.js ./main.js
 RUN npm install --omit=dev
 
+# The Prisma client is bundled into main.js, but its query engine is loaded from disk
+# at runtime, from libs/database/src/generated/<output dir> relative to the working
+# directory. Copying the whole generated directory keeps this correct if the schema's
+# output path is ever renamed. Both stages are alpine, so the engine binary matches.
+COPY --from=builder /app/libs/database/src/generated ./libs/database/src/generated
+
+# The entrypoint runs `prisma migrate deploy` on every start, which needs the CLI, the
+# schema and its migrations. It does not need a generated client.
 COPY --from=builder /app/libs/database/prisma ./prisma
-COPY --from=builder /app/libs/database/src/generated/prisma ./libs/database/src/generated/prisma
-RUN npm install prisma@6 @prisma/client@6 && npx prisma generate --schema=./prisma/schema.prisma
+RUN npm install prisma@6
 
 COPY docker/entrypoint-api.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
