@@ -20,5 +20,10 @@
       "command": "CI=true npm run nx -- dev marketing"
     }
   ],
-  "ports": [3000, 3333, 3334, 4321]
+  "ports": [
+    { "name": "app", "port": 3000 },
+    { "name": "api", "port": 3333 },
+    { "name": "worker", "port": 3334 },
+    { "name": "marketing", "port": 4321 }
+  ]
 }
