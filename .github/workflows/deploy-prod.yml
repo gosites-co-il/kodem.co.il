@@ -32,6 +32,11 @@ jobs:
           fetch-depth: 0
 
       - name: Require the ref to point at main
+        # Only the automated path is held to this. Starting the workflow by hand is a
+        # deliberate act by someone who already has access to the production
+        # environment, and it is how an environment is brought up before its code has
+        # reached main.
+        if: github.event_name == 'push'
         run: |
           git fetch origin main
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
@@ -41,7 +46,7 @@ jobs:
           echo "${{ github.ref_name }} is on main."
 
   deploy:
-    # needs: guard
+    needs: guard
     uses: ./.github/workflows/deploy.yml
     secrets: inherit
     with:

@@ -157,8 +157,16 @@ git push origin v-1.0.0
 
 Both workflows can also be started by hand from **Actions → Deploy Dev / Deploy
 Production → Run workflow**, picking the branch or tag to deploy; the production one then
-asks for the image tag to build. The button only appears once the workflow file is on the
-default branch. Both call `deploy.yml`, which lints, builds and pushes the three images to
+asks for the image tag to build. GitHub only shows that button for a workflow that is on
+the repository's default branch, and it runs the workflow file as it exists at whichever
+ref is picked, so both branches have to be up to date before a manual run does what the
+current code says.
+
+A tag push is refused unless it points at a commit on `main`. A manual run is not, since
+it is a deliberate act by someone who already has access to the production environment,
+and it is the only way to bring an environment up before its code has reached `main`.
+
+Both call `deploy.yml`, which lints, builds and pushes the three images to
 ACR, applies the Bicep template, and then polls `/api/health` on the app and on the api
 until they pass. A custom domain that does not answer yet is reported as a warning rather
 than a failed deploy, since the revision itself is fine.
