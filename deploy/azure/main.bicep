@@ -24,6 +24,12 @@ param appCustomDomain string = ''
 @description('Custom domain for the api, e.g. api.kodem.co.il (prod) or api.dev.kodem.co.il (dev). Same DNS prerequisites as appCustomDomain. Leave empty to serve on the generated Container Apps FQDN.')
 param apiCustomDomain string = ''
 
+@description('Bind the issued app managed certificate. The first apply of a hostname registers it with no certificate (Disabled) so one can be issued under the stable name; a later apply with this set attaches it (SniEnabled).')
+param bindAppCertificate bool = false
+
+@description('Bind the issued api managed certificate. Same two-step as bindAppCertificate.')
+param bindApiCertificate bool = false
+
 @description('PostgreSQL administrator login.')
 param postgresAdminUser string = 'kodem'
 
@@ -224,18 +230,25 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
         // Turning this off makes Envoy answer those hops with a redirect to a
         // hostname that only resolves inside Azure.
         allowInsecure: true
-        // Auto registers the hostname and issues the managed certificate. Do not
-        // also declare a managedCertificates resource for the same subject: Azure
-        // allows only one per hostname in the environment, and Auto's name
-        // (api.kodem.co.il-kodem-pr-…) is not the name we would have chosen.
+        // Disabled first, then SniEnabled with our named certificate. Auto is not
+        // used: it issues a second certificate under <hostname>-kodem-pr-… and
+        // Azure allows only one per hostname in the environment.
         customDomains: empty(apiCustomDomain)
           ? []
-          : [
-              {
-                name: apiCustomDomain
-                bindingType: 'Auto'
-              }
-            ]
+          : bindApiCertificate
+            ? [
+                {
+                  name: apiCustomDomain
+                  bindingType: 'SniEnabled'
+                  certificateId: resourceId('Microsoft.App/managedEnvironments/managedCertificates', containerEnv.name, replace(apiCustomDomain, '.', '-'))
+                }
+              ]
+            : [
+                {
+                  name: apiCustomDomain
+                  bindingType: 'Disabled'
+                }
+              ]
       }
       registries: registryConfig
       secrets: [
@@ -396,12 +409,20 @@ resource web 'Microsoft.App/containerApps@2025-07-01' = {
         allowInsecure: false
         customDomains: empty(appCustomDomain)
           ? []
-          : [
-              {
-                name: appCustomDomain
-                bindingType: 'Auto'
-              }
-            ]
+          : bindAppCertificate
+            ? [
+                {
+                  name: appCustomDomain
+                  bindingType: 'SniEnabled'
+                  certificateId: resourceId('Microsoft.App/managedEnvironments/managedCertificates', containerEnv.name, replace(appCustomDomain, '.', '-'))
+                }
+              ]
+            : [
+                {
+                  name: appCustomDomain
+                  bindingType: 'Disabled'
+                }
+              ]
       }
       registries: registryConfig
     }
@@ -443,6 +464,35 @@ resource web 'Microsoft.App/containerApps@2025-07-01' = {
       }
     }
   }
+}
+
+// Named certificates (app-kodem-co-il, api-kodem-co-il). Issued only after the
+// hostname is on the app (Disabled); bound on a later apply (SniEnabled) so the
+// app does not have to name a certificate that does not exist yet.
+resource appCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2025-07-01' = if (!empty(appCustomDomain) && !bindAppCertificate) {
+  parent: containerEnv
+  name: replace(appCustomDomain, '.', '-')
+  location: location
+  properties: {
+    subjectName: appCustomDomain
+    domainControlValidation: 'CNAME'
+  }
+  dependsOn: [
+    web
+  ]
+}
+
+resource apiCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2025-07-01' = if (!empty(apiCustomDomain) && !bindApiCertificate) {
+  parent: containerEnv
+  name: replace(apiCustomDomain, '.', '-')
+  location: location
+  properties: {
+    subjectName: apiCustomDomain
+    domainControlValidation: 'CNAME'
+  }
+  dependsOn: [
+    api
+  ]
 }
 
 output appFqdn string = web.properties.configuration.ingress.fqdn

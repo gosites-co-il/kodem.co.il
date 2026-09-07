@@ -187,22 +187,22 @@ app does, so a new environment reaches its domains on the second deploy:
    Apps FQDN — an intermediate CNAME (Cloudflare proxying, a traffic manager) blocks
    certificate issuance and every later renewal. The TXT record has to stay in place for
    as long as the domain is bound, not just at issuance.
-3. Deploy again. The apps register the hostnames, the certificates are issued, and
-   Container Apps binds each one to the matching hostname.
+3. Deploy again. The apps register the hostnames without a certificate (`Disabled`),
+   the template issues `app-kodem-co-il` / `api-kodem-co-il`, and a second apply binds
+   each one (`SniEnabled`).
 
 Nothing has to be passed for that first pass: the deploy looks up `asuid.<hostname>` and
 leaves a domain off when it does not resolve, because asking for a hostname that cannot
 be validated fails the whole deployment. A hostname already bound to an app stays bound
 whatever the lookup says, so a resolver hiccup cannot take a live domain down.
 
-The hostnames are bound with `bindingType: 'Auto'`. Azure will not issue a certificate
-for a hostname that is not registered on an app yet, and the older `SniEnabled` binding
-will not register a hostname without being handed a certificate id. `Auto` does both:
-it registers the hostname and issues the managed certificate itself (named
-`<hostname>-kodem-pr-…`). The template must not also declare a `managedCertificates`
-resource for the same subject — Azure allows only one per hostname in the environment,
-and a second create fails with `DuplicateManagedCertificateInEnvironment` or
-`ExistingManagedCertificateOperationInProgress`.
+`bindingType: 'Auto'` is not used. Auto issues its own certificate under
+`<hostname>-kodem-pr-…`, and Azure allows only one managed certificate per hostname in
+the environment, so declaring the named certificates at the same time fails with
+`DuplicateManagedCertificateInEnvironment` or
+`ExistingManagedCertificateOperationInProgress`. The named certificates stay; leftover
+Auto certificates from an earlier attempt are unbound and deleted before those are
+issued.
 
 The `custom_domains` input on a manual run turns the domains off outright, which is a way
 back to the generated FQDNs if a certificate goes wrong. The template owns the ingress
