@@ -1,0 +1,24 @@
+{
+  "name": "Kodem",
+  "install": "bash .cursor/install.sh",
+  "start": "bash .cursor/start.sh",
+  "terminals": [
+    {
+      "name": "api",
+      "command": "CI=true npm run nx -- serve api"
+    },
+    {
+      "name": "worker",
+      "command": "CI=true npm run nx -- serve worker"
+    },
+    {
+      "name": "app",
+      "command": "CI=true npm run nx -- dev app"
+    },
+    {
+      "name": "marketing",
+      "command": "CI=true npm run nx -- dev marketing"
+    }
+  ],
+  "ports": [3000, 3333, 3334, 4321]
+}
