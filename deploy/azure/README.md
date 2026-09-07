@@ -195,11 +195,14 @@ leaves a domain off when it does not resolve, because asking for a hostname that
 be validated fails the whole deployment. A hostname already bound to an app stays bound
 whatever the lookup says, so a resolver hiccup cannot take a live domain down.
 
-The hostnames are bound with `bindingType: 'Auto'`, which is what lets one deploy both
-register a hostname and issue its certificate: Azure will not issue a certificate for a
-hostname that is not registered on an app yet, and the older `SniEnabled` binding will
-not register a hostname without being handed a certificate id. `Auto` registers the
-hostname with no certificate and picks up the matching certificate once it exists.
+The hostnames are bound with `bindingType: 'Auto'`. Azure will not issue a certificate
+for a hostname that is not registered on an app yet, and the older `SniEnabled` binding
+will not register a hostname without being handed a certificate id. `Auto` does both:
+it registers the hostname and issues the managed certificate itself (named
+`<hostname>-kodem-pr-…`). The template must not also declare a `managedCertificates`
+resource for the same subject — Azure allows only one per hostname in the environment,
+and a second create fails with `DuplicateManagedCertificateInEnvironment` or
+`ExistingManagedCertificateOperationInProgress`.
 
 The `custom_domains` input on a manual run turns the domains off outright, which is a way
 back to the generated FQDNs if a certificate goes wrong. The template owns the ingress

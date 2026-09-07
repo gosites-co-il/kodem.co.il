@@ -224,6 +224,10 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
         // Turning this off makes Envoy answer those hops with a redirect to a
         // hostname that only resolves inside Azure.
         allowInsecure: true
+        // Auto registers the hostname and issues the managed certificate. Do not
+        // also declare a managedCertificates resource for the same subject: Azure
+        // allows only one per hostname in the environment, and Auto's name
+        // (api.kodem.co.il-kodem-pr-…) is not the name we would have chosen.
         customDomains: empty(apiCustomDomain)
           ? []
           : [
@@ -439,37 +443,6 @@ resource web 'Microsoft.App/containerApps@2025-07-01' = {
       }
     }
   }
-}
-
-// Managed certificates are issued against DNS, and Azure refuses to issue one for a
-// hostname that is not registered on an app yet — while 'SniEnabled' refuses to
-// register a hostname without naming a certificate. 'Auto' breaks that cycle: the app
-// registers the hostname with no certificate, the certificate is created afterwards,
-// and Container Apps binds it to the matching hostname on its own.
-resource appCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2025-07-01' = if (!empty(appCustomDomain)) {
-  parent: containerEnv
-  name: replace(appCustomDomain, '.', '-')
-  location: location
-  properties: {
-    subjectName: appCustomDomain
-    domainControlValidation: 'CNAME'
-  }
-  dependsOn: [
-    web
-  ]
-}
-
-resource apiCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2025-07-01' = if (!empty(apiCustomDomain)) {
-  parent: containerEnv
-  name: replace(apiCustomDomain, '.', '-')
-  location: location
-  properties: {
-    subjectName: apiCustomDomain
-    domainControlValidation: 'CNAME'
-  }
-  dependsOn: [
-    api
-  ]
 }
 
 output appFqdn string = web.properties.configuration.ingress.fqdn

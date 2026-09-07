@@ -293,6 +293,21 @@ jobs:
               echo ""
               echo "deploy/azure/README.md covers both."
             fi
+
+            # bindingType Auto issues the certificate; a second create for the same
+            # subject — from an older template, or from two deploys overlapping — is
+            # refused. The leftover certificate is the one to keep.
+            if grep -qE 'DuplicateManagedCertificateInEnvironment|ExistingManagedCertificateOperationInProgress' "$ERRORS"; then
+              echo ""
+              echo "A managed certificate for this hostname already exists in kodem-$AZURE_ENV-env"
+              echo "(or one is still being issued). bindingType Auto creates that certificate;"
+              echo "the template must not declare a second one."
+              echo ""
+              echo "  az containerapp env certificate list -n kodem-$AZURE_ENV-env -g $RESOURCE_GROUP -o table"
+              echo ""
+              echo "If an issuance is still in progress, wait for it and deploy again. Do not"
+              echo "delete a certificate that is already bound to an app."
+            fi
             exit 1
           fi
 
