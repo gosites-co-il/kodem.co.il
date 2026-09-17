@@ -15,7 +15,7 @@ param containerRegistryName string
 @description('Name of the existing user-assigned identity the container apps run as. Created by deploy/azure/bootstrap-azure.sh, which also grants it AcrPull on the registry.')
 param managedIdentityName string = ''
 
-@description('Image tag to deploy for all services (app, api, worker, marketing).')
+@description('Image tag to deploy for all services (app, api, worker, marketing). Must be unique per deploy — the git SHA — because reusing a mutable tag like dev does not make Container Apps pull the new image.')
 param imageTag string
 
 @description('Custom domain for the web app, e.g. app.kodem.co.il (prod) or app.dev.kodem.co.il (dev). Requires the CNAME and asuid TXT records to exist first; see deploy/azure/README.md. Leave empty to serve on the generated Container Apps FQDN.')
@@ -134,6 +134,9 @@ var marketingAppName = 'kodem-marketing'
 var prefix = 'kodem-${environmentName}'
 var databaseName = 'kodem'
 var resolvedIdentityName = empty(managedIdentityName) ? '${prefix}-identity' : managedIdentityName
+// Container Apps will not pull a new image that reuses a tag. Changing the
+// revision suffix forces a new revision, which pulls whatever imageTag names.
+var revisionSuffix = toLower(take(replace(replace(replace(imageTag, '.', ''), '-', ''), '_', ''), 20))
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: '${prefix}-logs'
@@ -318,6 +321,7 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
       ]
     }
     template: {
+      revisionSuffix: revisionSuffix
       containers: [
         {
           name: 'api'
@@ -406,6 +410,7 @@ resource worker 'Microsoft.App/containerApps@2025-07-01' = {
       ]
     }
     template: {
+      revisionSuffix: revisionSuffix
       containers: [
         {
           name: 'worker'
@@ -478,6 +483,7 @@ resource web 'Microsoft.App/containerApps@2025-07-01' = {
       registries: registryConfig
     }
     template: {
+      revisionSuffix: revisionSuffix
       containers: [
         {
           name: 'app'
@@ -579,6 +585,7 @@ resource marketing 'Microsoft.App/containerApps@2025-07-01' = {
       registries: registryConfig
     }
     template: {
+      revisionSuffix: revisionSuffix
       containers: [
         {
           name: 'marketing'
