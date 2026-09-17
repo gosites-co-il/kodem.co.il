@@ -4,6 +4,7 @@ import { SocialProof } from '../landing/SocialProof';
 import { PainSection } from '../landing/PainSection';
 import { LossCalculator } from '../landing/LossCalculator';
 import { ThreePillars } from '../landing/ThreePillars';
+import { ModulesTeaser } from '../landing/ModulesTeaser';
 import { LiveDemo } from '../landing/LiveDemo';
 import { HowItWorks } from '../landing/HowItWorks';
 import { Comparison } from '../landing/Comparison';
@@ -25,6 +26,7 @@ export function HomePage({ heroVariant = DEFAULT_HERO_VARIANT }: Props) {
       <PainSection />
       <LossCalculator />
       <ThreePillars />
+      <ModulesTeaser />
       <LiveDemo />
       <HowItWorks />
       <Comparison />

@@ -32,7 +32,7 @@ module.exports = {
         'message-in': 'message-in 0.35s ease-out forwards',
       },
       fontFamily: {
-        sans: ['Heebo', 'system-ui', 'sans-serif'],
+        sans: ['Assistant', 'system-ui', 'sans-serif'],
       },
       colors: {
         background: 'hsl(var(--background))',

@@ -1,7 +1,16 @@
-import { MessageSquare, CalendarClock, LineChart, Inbox, Bot, Zap } from 'lucide-react';
+import {
+  MessageSquare,
+  CalendarClock,
+  LineChart,
+  Inbox,
+  Bot,
+  Zap,
+  ArrowLeft,
+} from 'lucide-react';
 import { Button } from '@kodem/design-system/components/ui/button';
 import { PageHero } from '../site/PageHero';
 import { PRIMARY_CTA_LABEL } from '../../lib/site-config';
+import { PRODUCT_MODULES, modulePath } from '../../lib/modules';
 
 const FEATURES = [
   {
@@ -48,7 +57,7 @@ export function ProductPage() {
       <PageHero
         eyebrow="המוצר"
         title={'מערכת אחת.\nמהליד הראשון ועד הסגירה.'}
-        description="KODEM מחברת ליכוד לידים, שיחת מכירה בוואטסאפ, תורים ואנליטיקס — בלי לגלוש בין חמישה כלים."
+        description="KODEM מחברת CRM, אוטומציות ואינטגרציות עם שיחת מכירה בוואטסאפ — בלי לגלוש בין חמישה כלים."
       >
         <div className="flex flex-wrap gap-3">
           <Button
@@ -64,12 +73,12 @@ export function ProductPage() {
             variant="outline"
             className="h-12 cursor-pointer rounded-full"
           >
-            <a href="/how-it-works">איך ההקמה עובדת</a>
+            <a href="#modules">למודולים</a>
           </Button>
         </div>
       </PageHero>
 
-      <section className="section-pad">
+      <section className="section-pad pt-0">
         <div className="container-site">
           <div className="grid gap-4 md:grid-cols-3">
             {FEATURES.map((f) => (
@@ -83,6 +92,46 @@ export function ProductPage() {
                 </p>
                 <div className="pointer-events-none absolute -start-8 -top-8 h-32 w-32 rounded-full bg-cta/5 blur-2xl" />
               </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="modules" className="section-pad bg-muted/40">
+        <div className="container-site">
+          <div className="reveal mx-auto max-w-3xl text-center">
+            <p className="eyebrow mx-auto">מודולים</p>
+            <h2 className="mt-5 text-3xl font-extrabold leading-tight sm:text-4xl">
+              שלושה עמודי תווך. חוויה אחת.
+            </h2>
+            <p className="prose-site mx-auto mt-4">
+              המודולים קיימים למבנה — לא לפיצול. ליד, שיחה, משימה ואינטגרציה חיים באותו זרימה.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            {PRODUCT_MODULES.map((mod) => (
+              <a
+                key={mod.id}
+                href={modulePath(mod.id)}
+                className="bento-card reveal group flex cursor-pointer flex-col transition hover:border-cta/30"
+              >
+                <div className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--surface-dark))] text-white shadow-soft">
+                  <mod.icon className="size-5" aria-hidden />
+                </div>
+                <span className="text-xs font-semibold text-cta">{mod.eyebrow}</span>
+                <h3 className="mt-2 text-xl font-bold group-hover:text-cta">{mod.teaserTitle}</h3>
+                <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
+                  {mod.teaserBody}
+                </p>
+                <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold">
+                  לעמוד המודול
+                  <ArrowLeft
+                    className="size-4 transition group-hover:-translate-x-0.5"
+                    aria-hidden
+                  />
+                </span>
+              </a>
             ))}
           </div>
         </div>
@@ -116,6 +165,28 @@ export function ProductPage() {
                 </li>
               ))}
             </ul>
+          </div>
+        </div>
+      </section>
+
+      <section className="section-pad">
+        <div className="container-site">
+          <div className="bento-card reveal mx-auto max-w-3xl text-center">
+            <h2 className="text-2xl font-bold sm:text-3xl">רוצה לראות את זה על המספרים שלך?</h2>
+            <p className="prose-site mx-auto mt-4 max-w-xl">
+              חשב כמה לידים נעלמים היום — ואז נחבר את ה־CRM, האוטומציות והאינטגרציות לעסק שלך.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Button
+                asChild
+                className="h-11 cursor-pointer rounded-full bg-cta text-cta-foreground hover:bg-cta/90"
+              >
+                <a href="/#loss-calculator">{PRIMARY_CTA_LABEL}</a>
+              </Button>
+              <Button asChild variant="outline" className="h-11 cursor-pointer rounded-full">
+                <a href="/how-it-works">איך ההקמה עובדת</a>
+              </Button>
+            </div>
           </div>
         </div>
       </section>
