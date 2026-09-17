@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
 import { Button } from '@kodem/design-system/components/ui/button';
 import { MotionProvider, m } from '../../lib/auth/motion-provider';
-import { fadeUp, scaleIn, usePrefersReducedMotion } from '../../lib/auth/motion';
+import { fadeUp, usePrefersReducedMotion } from '../../lib/auth/motion';
 import { ROUTES } from '../../lib/constants';
 import { AuthSplitFrame } from './auth-split-frame';
+import { authFieldClasses } from './auth-shell';
 import { OAuthButton } from './oauth-button';
 
 function AuthLandingContent() {
@@ -14,60 +14,72 @@ function AuthLandingContent() {
 
   return (
     <AuthSplitFrame>
-      <div className="mx-auto w-full max-w-md space-y-8">
+      <div className="flex flex-col gap-6">
         <m.div
-          className="space-y-5"
+          className="flex flex-col items-center gap-2 text-center"
           initial={prefersReducedMotion ? false : fadeUp.hidden}
           animate={prefersReducedMotion ? undefined : fadeUp.visible}
-          transition={{ duration: 0.45, ease: 'easeOut' }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
         >
-          <Link
-            href={ROUTES.login}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-muted/40 px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-          >
-            מערכת ההפעלה של העסק
-            <ChevronLeft className="size-3.5 opacity-60" aria-hidden />
-          </Link>
-
-          <div className="space-y-3">
-            <h1 className="text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl">
-              Kodem
-            </h1>
-            <p className="text-base leading-relaxed text-muted-foreground sm:text-lg">
-              קודם מבינים את העסק — ואז הכול מסתדר. CRM, ידע, תובנות ו-AI
-              במקום אחד.
-            </p>
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight">ברוכים הבאים</h1>
+          <p className="text-balance text-sm text-muted-foreground">
+            התחילו עם Google או המשיכו עם אימייל
+          </p>
         </m.div>
 
         <m.div
-          className="space-y-3"
+          className="grid gap-4"
           initial={prefersReducedMotion ? false : fadeUp.hidden}
           animate={prefersReducedMotion ? undefined : fadeUp.visible}
-          transition={{ duration: 0.45, delay: 0.12, ease: 'easeOut' }}
+          transition={{ duration: 0.4, delay: 0.08, ease: 'easeOut' }}
         >
           <OAuthButton
             provider="google"
-            label="הירשמו עם Google"
-            className="h-12 rounded-xl border-transparent bg-foreground text-background shadow-none hover:bg-foreground/90 hover:text-background hover:shadow-none"
+            label="המשך עם Google"
+            className={authFieldClasses.buttonOutline}
           />
+
+          <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:border-t after:border-border">
+            <span className="relative z-10 bg-background px-2 text-muted-foreground">
+              או
+            </span>
+          </div>
+
           <Button
-            variant="outline"
-            className="h-12 w-full rounded-xl border-border/80 bg-card shadow-none hover:bg-muted/50"
+            className={authFieldClasses.button}
             asChild
           >
-            <Link href={ROUTES.loginEmail}>הירשמו עם אימייל</Link>
+            <Link href={ROUTES.loginEmail}>המשך עם אימייל</Link>
           </Button>
         </m.div>
 
-        <m.p
-          className="text-center text-sm text-muted-foreground"
-          initial={prefersReducedMotion ? false : scaleIn.hidden}
-          animate={prefersReducedMotion ? undefined : scaleIn.visible}
-          transition={{ duration: 0.4, delay: 0.22, ease: 'easeOut' }}
-        >
-          אין צורך בכרטיס אשראי
-        </m.p>
+        <p className="px-2 text-center text-xs text-muted-foreground">
+          בהמשך אתם מאשרים את{' '}
+          <Link
+            href={ROUTES.terms}
+            className="underline underline-offset-4 hover:text-foreground"
+          >
+            תנאי השימוש
+          </Link>{' '}
+          ואת{' '}
+          <Link
+            href={ROUTES.privacy}
+            className="underline underline-offset-4 hover:text-foreground"
+          >
+            מדיניות הפרטיות
+          </Link>
+          .
+        </p>
+
+        <p className="text-center text-sm text-muted-foreground">
+          אין לכם חשבון?{' '}
+          <Link
+            href={ROUTES.register}
+            className="underline underline-offset-4 hover:text-foreground"
+          >
+            הירשמו
+          </Link>
+        </p>
       </div>
     </AuthSplitFrame>
   );

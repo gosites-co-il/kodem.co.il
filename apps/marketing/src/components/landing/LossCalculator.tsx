@@ -97,19 +97,7 @@ export function LossCalculator() {
       <div className="container-site">
         <div className="grid items-stretch gap-8 lg:grid-cols-12 lg:gap-10">
           {/* Burn board — full brand color */}
-          <div className="relative overflow-hidden rounded-[2rem] bg-primary p-6 text-primary-foreground shadow-soft sm:p-8 lg:col-span-6">
-            <div
-              className="pointer-events-none absolute -end-20 -top-24 h-64 w-64 rounded-full bg-[hsl(var(--spark))]/45 blur-3xl"
-              aria-hidden
-            />
-            <div
-              className="pointer-events-none absolute -start-16 bottom-[-3rem] h-52 w-52 rounded-full bg-[hsl(var(--glow))]/40 blur-3xl"
-              aria-hidden
-            />
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[hsl(var(--brand))]/50 to-transparent"
-              aria-hidden
-            />
+          <div className="landing-gradient-signal relative overflow-hidden rounded-2xl p-6 text-primary-foreground shadow-soft sm:p-8 lg:col-span-6">
 
             <h2
               id={`${formId}-title`}
@@ -177,7 +165,7 @@ export function LossCalculator() {
           {/* Input desk */}
           <div className="flex flex-col lg:col-span-6">
             <form
-              className="flex flex-1 flex-col rounded-[2rem] border border-border/80 bg-card p-6 shadow-card sm:p-8"
+              className="tech-panel flex flex-1 flex-col border-[hsl(var(--glow))]/25 p-6 sm:p-8"
               onSubmit={onSubmit}
               noValidate
             >

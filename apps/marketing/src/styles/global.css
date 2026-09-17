@@ -7,7 +7,7 @@
 
 @layer base {
   :root {
-    /* KODEM — Vibrant Workshop (DESIGN.md) */
+    /* KODEM — Vibrant Workshop, hi-tech polish */
     --background: 210 40% 98%;
     --foreground: 221 46% 8%;
     --card: 0 0% 100%;
@@ -24,8 +24,8 @@
     --accent-foreground: 178 60% 28%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 215 28% 88%;
-    --input: 215 28% 88%;
+    --border: 215 28% 86%;
+    --input: 215 28% 86%;
     --ring: 187 62% 66%;
     --radius: 0.75rem;
 
@@ -78,7 +78,10 @@
   body {
     @apply min-h-screen bg-background text-foreground antialiased;
     font-family: Assistant, system-ui, sans-serif;
+    font-feature-settings: 'ss01' 1, 'kern' 1;
+    font-variant-numeric: tabular-nums;
     text-align: start;
+    caret-color: hsl(var(--primary));
   }
 
   :focus-visible {
@@ -86,7 +89,36 @@
   }
 
   ::selection {
-    background: hsl(338 85% 46% / 0.2);
+    background: hsl(187 62% 66% / 0.35);
+    color: hsl(var(--foreground));
+  }
+
+  /* Browser chrome — hi-tech precision */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(187 62% 66% / 0.55) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: hsl(187 62% 66% / 0.45);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: hsl(338 85% 46% / 0.55);
+    border: 2px solid transparent;
+    background-clip: padding-box;
   }
 }
 
@@ -101,27 +133,40 @@
     inset: 0;
     z-index: -1;
     background:
-      radial-gradient(ellipse 80% 50% at 85% -10%, hsl(187 62% 66% / 0.18), transparent 55%),
-      radial-gradient(ellipse 60% 45% at 0% 20%, hsl(338 85% 46% / 0.08), transparent 50%),
-      radial-gradient(ellipse 50% 40% at 50% 100%, hsl(39 100% 63% / 0.08), transparent 55%),
+      radial-gradient(ellipse 70% 45% at 90% -5%, hsl(187 62% 66% / 0.2), transparent 55%),
+      radial-gradient(ellipse 55% 40% at -5% 25%, hsl(338 85% 46% / 0.07), transparent 50%),
+      radial-gradient(ellipse 45% 35% at 55% 105%, hsl(178 60% 32% / 0.06), transparent 55%),
       hsl(var(--background));
+  }
+
+  /* Blueprint grid — hi-tech underlay */
+  .site-atmosphere::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.45;
+    background-image:
+      linear-gradient(hsl(215 28% 86% / 0.55) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(215 28% 86% / 0.55) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 20%, transparent 75%);
   }
 
   .site-atmosphere::after {
     content: '';
     position: absolute;
     inset: 0;
-    opacity: 0.28;
+    opacity: 0.18;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
     mix-blend-mode: soft-light;
   }
 
   .glass-panel {
-    @apply border border-white/40 bg-white/70 shadow-soft backdrop-blur-xl;
+    @apply border border-[hsl(var(--glow))]/25 bg-white/75 shadow-soft backdrop-blur-xl;
   }
 
   .glass-panel-dark {
-    @apply border border-white/10 bg-white/5 shadow-soft backdrop-blur-xl;
+    @apply border border-[hsl(var(--glow))]/20 bg-white/5 shadow-soft backdrop-blur-xl;
   }
 
   .page-hero {
@@ -144,12 +189,25 @@
     @apply text-base leading-relaxed text-muted-foreground sm:text-lg;
   }
 
+  /* Precision panels — sharper than soft marketing blobs */
   .bento-card {
-    @apply relative overflow-hidden rounded-3xl border border-border/80 bg-card p-6 shadow-card transition duration-300 hover:-translate-y-0.5 hover:shadow-soft sm:p-8;
+    @apply relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-card transition duration-300 hover:-translate-y-0.5 hover:border-[hsl(var(--glow))]/45 hover:shadow-soft sm:p-8;
   }
 
   .bento-card-dark {
-    @apply relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-6 text-[hsl(var(--surface-dark-fg))] shadow-soft sm:p-8;
+    @apply relative overflow-hidden rounded-2xl border border-[hsl(var(--glow))]/20 bg-[hsl(var(--surface-mid))] p-6 text-[hsl(var(--surface-dark-fg))] shadow-soft sm:p-8;
+  }
+
+  .tech-panel {
+    @apply relative overflow-hidden rounded-2xl border border-border bg-card shadow-card;
+    box-shadow:
+      0 4px 24px -4px hsl(222 47% 11% / 0.08),
+      inset 0 1px 0 0 hsl(187 62% 66% / 0.35);
+  }
+
+  .font-data {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
   }
 
   .reveal {
@@ -158,13 +216,13 @@
 
   .motion-ready .reveal:not(.is-visible) {
     opacity: 0;
-    transform: translateY(18px);
+    transform: translateY(14px);
   }
 
   .motion-ready .reveal {
     transition:
-      opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-      transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+      opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .motion-ready .reveal.is-visible {
@@ -176,15 +234,30 @@
 @layer utilities {
   .landing-gradient-dark {
     background:
-      radial-gradient(ellipse 80% 60% at 80% -10%, hsl(187 62% 66% / 0.22), transparent 55%),
-      radial-gradient(ellipse 55% 45% at 5% 90%, hsl(338 85% 46% / 0.18), transparent 50%),
+      linear-gradient(hsl(187 62% 66% / 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(187 62% 66% / 0.07) 1px, transparent 1px),
+      radial-gradient(ellipse 80% 60% at 80% -10%, hsl(187 62% 66% / 0.28), transparent 55%),
+      radial-gradient(ellipse 55% 45% at 5% 90%, hsl(338 85% 46% / 0.2), transparent 50%),
       linear-gradient(165deg, hsl(221 46% 8%), hsl(221 40% 14%));
+    background-size:
+      32px 32px,
+      32px 32px,
+      auto,
+      auto,
+      auto;
   }
 
   .landing-gradient-hero {
     background:
-      radial-gradient(ellipse 90% 70% at 70% -15%, hsl(187 62% 66% / 0.16), transparent 55%),
+      radial-gradient(ellipse 90% 70% at 70% -15%, hsl(187 62% 66% / 0.18), transparent 55%),
       radial-gradient(ellipse 50% 40% at 0% 50%, hsl(338 85% 46% / 0.08), transparent 50%),
       transparent;
+  }
+
+  .landing-gradient-signal {
+    background:
+      radial-gradient(ellipse 70% 80% at 100% 0%, hsl(187 62% 66% / 0.35), transparent 50%),
+      radial-gradient(ellipse 60% 70% at 0% 100%, hsl(335 52% 37% / 0.55), transparent 55%),
+      hsl(var(--primary));
   }
 }

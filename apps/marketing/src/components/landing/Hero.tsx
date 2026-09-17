@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Inbox, MessageCircle, LineChart } from 'lucide-react';
 import { Button } from '@kodem/design-system/components/ui/button';
 import {
   Carousel,
@@ -17,21 +16,18 @@ const SLIDES = [
     headline: 'כל ליד מקבל מענה תוך 3 שניות.\nגם כשאתה עסוק.',
     body: 'KODEM לוכד לידים מפייסבוק, אינסטגרם ווואטסאפ — ומנהל שיחת מכירה בעברית עד שנקבעת פגישה.',
     visual: 'whatsapp' as const,
-    icon: MessageCircle,
   },
   {
     id: 'capture',
     headline: 'אף ליד לא נופל בין הכיסאות.\nהכל נכנס למשפך אחד.',
     body: 'מכל מקור — טופס, מודעה או אקסל ישן — הליד מתויג, נכנס לתהליך ומקבל פולו־אפ אוטומטי.',
     visual: 'pipeline' as const,
-    icon: Inbox,
   },
   {
     id: 'measure',
     headline: 'רואים כמה כל שקל פרסום מחזיר.\nואז מתקנים.',
     body: 'מקצה לקצה: מהקליק עד הסגירה. פעם בשבוע — תיקון אחד ברור, לא עוד “נראה לי”.',
     visual: 'roas' as const,
-    icon: LineChart,
   },
 ] as const;
 
@@ -45,40 +41,41 @@ const PIPELINE = [
 function PipelineStage() {
   return (
     <div
-      className="flex h-full min-h-[22rem] flex-col justify-center gap-4 rounded-[1.75rem] border border-border/80 bg-card p-6 shadow-soft sm:p-8"
+      className="tech-panel flex h-full min-h-[22rem] flex-col justify-center gap-4 border-[hsl(var(--glow))]/30 p-6 sm:p-8"
       role="img"
       aria-label="הדגמה ויזואלית של משפך לידים"
     >
-      <p className="text-sm font-semibold text-muted-foreground">משפך חי · הדגמה</p>
-      <div className="space-y-3">
+      <p className="font-data text-xs font-semibold tracking-wide text-[hsl(var(--trust))]">
+        PIPELINE · LIVE
+      </p>
+      <div className="space-y-2.5">
         {PIPELINE.map((step, i) => (
           <div
             key={step.label}
             className={cn(
-              'flex items-center gap-3 rounded-2xl border px-4 py-3 transition',
-              step.tone === 'primary' && 'border-primary/30 bg-primary/5',
-              step.tone === 'spark' && 'border-[hsl(var(--spark))]/40 bg-[hsl(var(--spark))]/10',
-              step.tone === 'trust' && 'border-[hsl(var(--trust))]/30 bg-[hsl(var(--trust))]/10',
-              step.tone === 'muted' && 'border-border bg-muted/50',
+              'flex items-center gap-3 rounded-xl border px-4 py-3 transition',
+              step.tone === 'primary' && 'border-primary/35 bg-primary/5',
+              step.tone === 'spark' && 'border-[hsl(var(--spark))]/45 bg-[hsl(var(--spark))]/10',
+              step.tone === 'trust' && 'border-[hsl(var(--trust))]/35 bg-[hsl(var(--trust))]/10',
+              step.tone === 'muted' && 'border-border bg-muted/60',
             )}
-            style={{ animationDelay: `${i * 120}ms` }}
           >
             <span
               className={cn(
-                'flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white',
+                'font-data flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold text-white',
                 step.tone === 'primary' && 'bg-primary',
                 step.tone === 'spark' && 'bg-[hsl(var(--spark))] text-foreground',
                 step.tone === 'trust' && 'bg-[hsl(var(--trust))]',
                 step.tone === 'muted' && 'bg-foreground/70',
               )}
             >
-              {i + 1}
+              {String(i + 1).padStart(2, '0')}
             </span>
             <span className="font-semibold">{step.label}</span>
             {i < PIPELINE.length - 1 ? (
-              <span className="ms-auto text-xs text-muted-foreground">↓</span>
+              <span className="ms-auto font-data text-xs text-muted-foreground">→</span>
             ) : (
-              <span className="ms-auto rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold text-primary-foreground">
+              <span className="ms-auto rounded-md bg-primary px-2.5 py-0.5 text-xs font-bold text-primary-foreground">
                 נסגר
               </span>
             )}
@@ -92,33 +89,27 @@ function PipelineStage() {
 function RoasStage() {
   return (
     <div
-      className="relative flex h-full min-h-[22rem] flex-col justify-between overflow-hidden rounded-[1.75rem] border border-border/80 bg-[hsl(var(--surface-dark))] p-6 text-[hsl(var(--surface-dark-fg))] shadow-soft sm:p-8"
+      className="landing-gradient-dark relative flex h-full min-h-[22rem] flex-col justify-between overflow-hidden rounded-2xl border border-[hsl(var(--glow))]/25 p-6 text-[hsl(var(--surface-dark-fg))] shadow-soft sm:p-8"
       role="img"
       aria-label="הדגמה ויזואלית של מדידת החזר פרסום"
     >
-      <div
-        className="pointer-events-none absolute -end-10 -top-10 h-40 w-40 rounded-full bg-[hsl(var(--glow))]/25 blur-3xl"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -start-8 bottom-0 h-32 w-32 rounded-full bg-primary/30 blur-3xl"
-        aria-hidden
-      />
-      <p className="relative text-sm font-semibold text-white/70">ROAS · הדגמה</p>
+      <p className="relative font-data text-xs font-semibold tracking-wide text-[hsl(var(--glow))]">
+        ROAS · LIVE
+      </p>
       <div className="relative">
-        <p className="font-mono text-6xl font-extrabold tracking-tight text-[hsl(var(--spark))] sm:text-7xl">
+        <p className="font-data text-6xl font-extrabold tracking-tight text-[hsl(var(--spark))] sm:text-7xl">
           4.2×
         </p>
         <p className="mt-2 text-lg text-white/80">החזר על כל שקל פרסום</p>
       </div>
       <div className="relative grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+        <div className="rounded-xl border border-[hsl(var(--glow))]/20 bg-white/5 p-3">
           <p className="text-xs text-white/60">לידים שנענו</p>
-          <p className="mt-1 text-2xl font-bold">100%</p>
+          <p className="font-data mt-1 text-2xl font-bold">100%</p>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+        <div className="rounded-xl border border-[hsl(var(--glow))]/20 bg-white/5 p-3">
           <p className="text-xs text-white/60">זמן מענה</p>
-          <p className="mt-1 text-2xl font-bold">3 שנ׳</p>
+          <p className="font-data mt-1 text-2xl font-bold">3 שנ׳</p>
         </div>
       </div>
     </div>
@@ -130,7 +121,7 @@ function SlideVisual({ kind }: { kind: (typeof SLIDES)[number]['visual'] }) {
     return (
       <div className="relative flex min-h-[22rem] items-center justify-center">
         <div
-          className="absolute -inset-4 rounded-[2rem] bg-[radial-gradient(circle_at_50%_40%,hsl(187_62%_66%/0.28),transparent_65%)] blur-2xl"
+          className="absolute -inset-4 rounded-2xl bg-[radial-gradient(circle_at_50%_40%,hsl(187_62%_66%/0.28),transparent_65%)] blur-2xl"
           aria-hidden
         />
         <WhatsAppConversationDemo className="relative" />
@@ -209,12 +200,6 @@ export function Hero() {
               >
                 <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
                   <div className="flex min-h-[18rem] flex-col justify-center text-center lg:min-h-[28rem] lg:text-start">
-                    <div className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full border border-border/80 bg-card/90 px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm lg:mx-0">
-                      <slide.icon className="size-3.5 text-primary" aria-hidden />
-                      {slide.id === 'answer' && 'מענה מיידי'}
-                      {slide.id === 'capture' && 'ליכוד לידים'}
-                      {slide.id === 'measure' && 'מדידה אמיתית'}
-                    </div>
                     {slideIndex === index ? (
                       <h1 className="display-title whitespace-pre-line">{slide.headline}</h1>
                     ) : (

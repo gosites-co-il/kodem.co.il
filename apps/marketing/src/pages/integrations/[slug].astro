@@ -1,0 +1,22 @@
+---
+import SiteLayout from '../../layouts/SiteLayout.astro';
+import { IntegrationDetailPage } from '../../components/pages/IntegrationsPage';
+import { INTEGRATIONS_CATALOG } from '../../lib/integrations-catalog';
+
+export function getStaticPaths() {
+  return INTEGRATIONS_CATALOG.map((item) => ({
+    params: { slug: item.id },
+    props: {
+      integrationId: item.id,
+      title: `${item.shortName} — אינטגרציות KODEM`,
+      description: `${item.summary} מה צריך: ${item.needs[0]}`,
+    },
+  }));
+}
+
+const { integrationId, title, description } = Astro.props;
+---
+
+<SiteLayout title={title} description={description} path={`/integrations/${integrationId}`}>
+  <IntegrationDetailPage client:load integrationId={integrationId} />
+</SiteLayout>

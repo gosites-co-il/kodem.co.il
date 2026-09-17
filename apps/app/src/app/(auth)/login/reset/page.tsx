@@ -8,7 +8,10 @@ import { Input } from '@kodem/design-system/components/ui/input';
 import { Label } from '@kodem/design-system/components/ui/label';
 import { api, isApiError } from '../../../../lib/api';
 import { ROUTES } from '../../../../lib/constants';
-import { AuthShell } from '../../../../components/auth/auth-shell';
+import {
+  AuthShell,
+  authFieldClasses,
+} from '../../../../components/auth/auth-shell';
 
 function ResetForm() {
   const searchParams = useSearchParams();
@@ -53,35 +56,44 @@ function ResetForm() {
     return (
       <AuthShell
         title="בחירת סיסמה חדשה"
-        description="הזינו סיסמה חדשה לחשבון."
+        description="הזינו סיסמה חדשה לחשבון"
         footer={
           <Link
-            href={ROUTES.loginEmail}
-            className="font-medium text-foreground underline-offset-4 hover:underline"
+            href={ROUTES.login}
+            className="underline underline-offset-4 hover:text-foreground"
           >
             חזרה לכניסה
           </Link>
         }
       >
-        <form onSubmit={confirmReset} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="password">סיסמה חדשה</Label>
+        <form onSubmit={confirmReset} className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="password" className="sr-only">
+              סיסמה חדשה
+            </Label>
             <Input
               id="password"
               type="password"
+              placeholder="סיסמה חדשה (לפחות 8 תווים)"
               required
               minLength={8}
               dir="ltr"
-              className="h-11 text-start"
+              className={authFieldClasses.input}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          {message ? (
-            <p className="text-sm text-muted-foreground">{message}</p>
+          {error ? (
+            <p className="text-center text-sm text-destructive">{error}</p>
           ) : null}
-          <Button type="submit" className="w-full" disabled={busy}>
+          {message ? (
+            <p className="text-center text-sm text-muted-foreground">{message}</p>
+          ) : null}
+          <Button
+            type="submit"
+            className={authFieldClasses.button}
+            disabled={busy}
+          >
             עדכון סיסמה
           </Button>
         </form>
@@ -92,34 +104,39 @@ function ResetForm() {
   return (
     <AuthShell
       title="איפוס סיסמה"
-      description="נשלח קישור לאיפוס לאימייל שלכם."
+      description="נשלח קישור לאיפוס לאימייל שלכם"
       footer={
         <Link
-          href={ROUTES.loginEmail}
-          className="font-medium text-foreground underline-offset-4 hover:underline"
+          href={ROUTES.login}
+          className="underline underline-offset-4 hover:text-foreground"
         >
           חזרה לכניסה
         </Link>
       }
     >
-      <form onSubmit={requestReset} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">אימייל</Label>
+      <form onSubmit={requestReset} className="grid gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="email" className="sr-only">
+            אימייל
+          </Label>
           <Input
             id="email"
             type="email"
+            placeholder="name@example.com"
             required
             dir="ltr"
-            className="h-11 text-start"
+            className={authFieldClasses.input}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        {message ? (
-          <p className="text-sm text-muted-foreground">{message}</p>
+        {error ? (
+          <p className="text-center text-sm text-destructive">{error}</p>
         ) : null}
-        <Button type="submit" className="w-full" disabled={busy}>
+        {message ? (
+          <p className="text-center text-sm text-muted-foreground">{message}</p>
+        ) : null}
+        <Button type="submit" className={authFieldClasses.button} disabled={busy}>
           שליחת קישור
         </Button>
       </form>
@@ -129,7 +146,13 @@ function ResetForm() {
 
 export default function PasswordResetPage() {
   return (
-    <Suspense fallback={<p className="p-8 text-center text-sm">טוען…</p>}>
+    <Suspense
+      fallback={
+        <div className="flex min-h-svh items-center justify-center text-sm text-muted-foreground">
+          טוען…
+        </div>
+      }
+    >
       <ResetForm />
     </Suspense>
   );

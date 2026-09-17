@@ -4,7 +4,7 @@ import { ModulePage } from '../../components/pages/ModulePage';
 import { PRODUCT_MODULES, type ModuleId } from '../../lib/modules';
 
 export function getStaticPaths() {
-  return PRODUCT_MODULES.map((mod) => ({
+  return PRODUCT_MODULES.filter((mod) => mod.id !== 'integrations').map((mod) => ({
     params: { module: mod.id },
     props: {
       moduleId: mod.id as ModuleId,

@@ -38,7 +38,7 @@ export function AboutPage() {
 
       <section className="section-pad pt-0">
         <div className="container-site">
-          <div className="landing-gradient-dark reveal overflow-hidden rounded-[2rem] px-6 py-12 text-center text-[hsl(var(--surface-dark-fg))] sm:px-12">
+          <div className="landing-gradient-dark reveal overflow-hidden rounded-2xl px-6 py-12 text-center text-[hsl(var(--surface-dark-fg))] sm:px-12">
             <h2 className="text-3xl font-extrabold sm:text-4xl">רוצה לבדוק התאמה?</h2>
             <p className="mx-auto mt-4 max-w-xl text-white/70">
               60 שניות במחשבון ההפסדים — או שיחה קצרה איתנו.

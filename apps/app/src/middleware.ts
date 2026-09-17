@@ -34,6 +34,7 @@ export function middleware(request: NextRequest) {
       token &&
       (pathname === ROUTES.login ||
         pathname === ROUTES.loginEmail ||
+        pathname.startsWith(`${ROUTES.login}/`) ||
         pathname === ROUTES.register)
     ) {
       return NextResponse.redirect(new URL(ROUTES.entry, request.url));

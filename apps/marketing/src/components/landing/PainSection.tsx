@@ -25,23 +25,21 @@ export function PainSection() {
           </div>
         </div>
 
-        <aside className="reveal relative overflow-hidden rounded-[1.75rem] border border-border/80 bg-[hsl(var(--surface-dark))] p-6 text-[hsl(var(--surface-dark-fg))] shadow-soft sm:p-8">
-          <div
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_20%_0%,hsl(338_85%_46%/0.35),transparent_55%)]"
-            aria-hidden
-          />
-          <p className="relative text-sm font-semibold text-white/65">מה קורה היום</p>
+        <aside className="landing-gradient-dark reveal relative overflow-hidden rounded-2xl border border-[hsl(var(--glow))]/25 p-6 text-[hsl(var(--surface-dark-fg))] shadow-soft sm:p-8">
+          <p className="relative font-data text-xs font-semibold tracking-wide text-[hsl(var(--glow))]">
+            STATUS · NOW
+          </p>
           <ul className="relative mt-5 space-y-4 text-sm leading-relaxed sm:text-base">
             <li className="flex gap-3">
-              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[hsl(var(--spark))]" />
+              <span className="mt-1 h-2 w-2 shrink-0 rounded-sm bg-[hsl(var(--spark))]" />
               ליד חם מחכה דקות — לפעמים שעות.
             </li>
             <li className="flex gap-3">
-              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
+              <span className="mt-1 h-2 w-2 shrink-0 rounded-sm bg-primary" />
               פולו־אפ ידני נשבר בין וואטסאפ, אקסל והראש.
             </li>
             <li className="flex gap-3">
-              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[hsl(var(--glow))]" />
+              <span className="mt-1 h-2 w-2 shrink-0 rounded-sm bg-[hsl(var(--glow))]" />
               אי אפשר לדעת איזה קמפיין באמת מחזיר כסף.
             </li>
           </ul>

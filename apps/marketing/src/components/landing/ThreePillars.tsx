@@ -42,15 +42,15 @@ export function ThreePillars() {
           {PILLARS.map((card, i) => (
             <article
               key={card.title}
-              className="group relative overflow-hidden rounded-[1.75rem] border border-border/80 bg-card p-6 shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-soft sm:p-8"
+              className="group relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-card transition duration-300 hover:-translate-y-1 hover:border-[hsl(var(--glow))]/45 hover:shadow-soft sm:p-8"
             >
               <div
-                className={`mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl ${card.accent} text-white shadow-soft`}
+                className={`mb-6 inline-flex h-11 w-11 items-center justify-center rounded-xl ${card.accent} text-white shadow-soft`}
               >
                 <card.icon className="size-5" aria-hidden />
               </div>
-              <p className="text-xs font-bold tracking-wide text-muted-foreground">
-                שלב {i + 1}
+              <p className="font-data text-xs font-bold tracking-wide text-[hsl(var(--trust))]">
+                {String(i + 1).padStart(2, '0')}
               </p>
               <h3 className="mt-2 text-2xl font-bold tracking-tight">{card.title}</h3>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">

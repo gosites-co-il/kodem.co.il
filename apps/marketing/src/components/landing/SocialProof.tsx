@@ -67,17 +67,13 @@ function StatCard({
   const shown = useCountUp(value, active, decimals);
 
   return (
-    <article className="relative overflow-hidden rounded-3xl border border-border/80 bg-card p-6 shadow-card sm:p-7">
-      <div
-        className="pointer-events-none absolute -end-6 -top-6 h-24 w-24 rounded-full bg-primary/10 blur-2xl"
-        aria-hidden
-      />
-      <p className="relative font-mono text-4xl font-extrabold tracking-tight text-primary sm:text-5xl">
+    <article className="tech-panel relative overflow-hidden border-[hsl(var(--glow))]/20 p-6 sm:p-7">
+      <p className="font-data relative text-4xl font-extrabold tracking-tight text-primary sm:text-5xl">
         {decimals ? shown.toFixed(1) : Math.round(shown)}
         {suffix}
       </p>
       <p className="relative mt-3 text-sm leading-relaxed text-muted-foreground">{label}</p>
-      <p className="relative mt-3 text-xs text-muted-foreground/80">{note}</p>
+      <p className="relative mt-3 font-data text-xs text-muted-foreground/80">{note}</p>
     </article>
   );
 }

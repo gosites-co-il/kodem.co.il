@@ -51,7 +51,7 @@ export function LiveDemo() {
         </div>
         <div className="relative flex justify-center">
           <div
-            className="absolute -inset-6 rounded-[2rem] bg-[radial-gradient(circle_at_50%_40%,hsl(187_62%_66%/0.22),transparent_65%)] blur-2xl"
+            className="absolute -inset-6 rounded-2xl bg-[radial-gradient(circle_at_50%_40%,hsl(187_62%_66%/0.22),transparent_65%)] blur-2xl"
             aria-hidden
           />
           <WhatsAppConversationDemo

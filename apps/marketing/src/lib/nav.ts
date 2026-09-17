@@ -8,10 +8,11 @@ export type NavItem = {
 
 export const PRODUCT_NAV: NavItem[] = [
   { href: '/product', label: 'סקירת המוצר' },
-  ...PRODUCT_MODULES.map((mod) => ({
+  ...PRODUCT_MODULES.filter((mod) => mod.id !== 'integrations').map((mod) => ({
     href: modulePath(mod.id),
     label: mod.eyebrow,
   })),
+  { href: '/integrations', label: 'אינטגרציות' },
 ];
 
 export const PRIMARY_NAV: NavItem[] = [
@@ -27,10 +28,9 @@ export const FOOTER_NAV = {
     { href: '/product', label: 'יכולות' },
     { href: '/product/crm', label: 'CRM' },
     { href: '/product/automations', label: 'אוטומציות' },
-    { href: '/product/integrations', label: 'אינטגרציות' },
+    { href: '/integrations', label: 'אינטגרציות' },
     { href: '/how-it-works', label: 'הקמה ב־30 דקות' },
     { href: '/pricing', label: 'מחירון' },
-    { href: '/#loss-calculator', label: 'מחשבון הפסדים' },
   ],
   company: [
     { href: '/about', label: 'אודות' },

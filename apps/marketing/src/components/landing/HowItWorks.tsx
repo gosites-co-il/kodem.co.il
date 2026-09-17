@@ -25,16 +25,16 @@ export function HowItWorks() {
           {STEPS.map((step, i) => (
             <li
               key={step.title}
-              className="relative flex flex-col rounded-[1.75rem] border border-border/80 bg-card p-6 shadow-card sm:p-8"
+              className="relative flex flex-col rounded-2xl border border-border bg-card p-6 shadow-card transition hover:border-[hsl(var(--glow))]/40 sm:p-8"
             >
               {i < STEPS.length - 1 ? (
                 <span
-                  className="pointer-events-none absolute -end-3 top-1/2 z-10 hidden h-px w-6 -translate-y-1/2 bg-border md:block"
+                  className="pointer-events-none absolute -end-3 top-1/2 z-10 hidden h-px w-6 -translate-y-1/2 bg-[hsl(var(--glow))]/50 md:block"
                   aria-hidden
                 />
               ) : null}
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                {i + 1}
+              <span className="font-data flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+                {String(i + 1).padStart(2, '0')}
               </span>
               <h3 className="mt-5 text-xl font-bold tracking-tight">{step.title}</h3>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">

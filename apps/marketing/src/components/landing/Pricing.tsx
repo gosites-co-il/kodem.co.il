@@ -24,10 +24,10 @@ export function Pricing() {
               <article
                 key={plan.id}
                 className={cn(
-                  'relative flex flex-col rounded-3xl border bg-card p-6 shadow-card transition duration-300 hover:-translate-y-0.5 hover:shadow-soft sm:p-8',
+                  'relative flex flex-col rounded-2xl border bg-card p-6 shadow-card transition duration-300 hover:-translate-y-0.5 hover:shadow-soft sm:p-8',
                   featured
-                    ? 'border-brand/30 ring-2 ring-cta/25 lg:-translate-y-2'
-                    : 'border-border/80',
+                    ? 'border-[hsl(var(--glow))]/40 ring-2 ring-[hsl(var(--glow))]/30 lg:-translate-y-2'
+                    : 'border-border',
                 )}
               >
                 {plan.badge ? (

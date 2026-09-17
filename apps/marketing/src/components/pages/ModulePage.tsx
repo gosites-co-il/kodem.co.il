@@ -7,7 +7,7 @@ import {
   AccordionTrigger,
 } from '@kodem/design-system/components/ui/accordion';
 import { PageHero } from '../site/PageHero';
-import { PRIMARY_CTA_LABEL } from '../../lib/site-config';
+import { NAV_SIGNUP_HREF, NAV_SIGNUP_LABEL } from '../../lib/site-config';
 import {
   MODULE_SECTION_ICONS,
   PRODUCT_MODULES,
@@ -39,7 +39,7 @@ export function ModulePage({ moduleId }: Props) {
             size="lg"
             className="h-12 cursor-pointer rounded-full bg-cta px-6 text-cta-foreground hover:bg-cta/90"
           >
-            <a href="/#loss-calculator">{PRIMARY_CTA_LABEL}</a>
+            <a href={NAV_SIGNUP_HREF}>{NAV_SIGNUP_LABEL}</a>
           </Button>
           <Button
             asChild
@@ -47,7 +47,9 @@ export function ModulePage({ moduleId }: Props) {
             variant="outline"
             className="h-12 cursor-pointer rounded-full"
           >
-            <a href="/product">כל היכולות</a>
+            <a href={moduleId === 'integrations' ? '/integrations' : '/product'}>
+              {moduleId === 'integrations' ? 'לכל החיבורים' : 'כל היכולות'}
+            </a>
           </Button>
         </div>
       </PageHero>
@@ -187,7 +189,7 @@ export function ModulePage({ moduleId }: Props) {
 
       <section className="section-pad pt-0">
         <div className="container-site">
-          <div className="landing-gradient-dark reveal overflow-hidden rounded-[2rem] px-6 py-12 text-center text-[hsl(var(--surface-dark-fg))] sm:px-12">
+          <div className="landing-gradient-dark reveal overflow-hidden rounded-2xl px-6 py-12 text-center text-[hsl(var(--surface-dark-fg))] sm:px-12">
             <h2 className="text-3xl font-extrabold sm:text-4xl">רוצה לראות את זה על העסק שלך?</h2>
             <p className="mx-auto mt-4 max-w-xl text-white/70">
               חשב כמה לידים נעלמים היום — ואז נחבר את {mod.eyebrow} לשאר המערכת.
@@ -198,7 +200,7 @@ export function ModulePage({ moduleId }: Props) {
                 size="lg"
                 className="h-12 cursor-pointer rounded-full bg-cta px-6 text-cta-foreground hover:bg-cta/90"
               >
-                <a href="/#loss-calculator">{PRIMARY_CTA_LABEL}</a>
+                <a href={NAV_SIGNUP_HREF}>{NAV_SIGNUP_LABEL}</a>
               </Button>
               <Button
                 asChild

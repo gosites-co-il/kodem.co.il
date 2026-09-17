@@ -7,31 +7,23 @@ export function FinalCTA() {
   return (
     <section className="section-pad pt-8">
       <div className="container-site">
-        <div className="landing-gradient-dark relative overflow-hidden rounded-[2rem] px-6 py-14 text-center text-[hsl(var(--surface-dark-fg))] sm:px-12 sm:py-16">
-          <div
-            className="pointer-events-none absolute -end-16 -top-16 h-56 w-56 rounded-full bg-[hsl(var(--glow))]/20 blur-3xl"
-            aria-hidden
-          />
-          <div
-            className="pointer-events-none absolute -start-10 bottom-0 h-40 w-40 rounded-full bg-primary/25 blur-3xl"
-            aria-hidden
-          />
+        <div className="landing-gradient-signal relative overflow-hidden rounded-2xl px-6 py-14 text-center text-primary-foreground sm:px-12 sm:py-16">
           <h2 className="relative whitespace-pre-line text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
             בזמן שקראת את הדף,
             {'\n'}
             ליד אחד כבר חיפש את מה שאתה מוכר.
           </h2>
-          <p className="relative mx-auto mt-4 max-w-xl text-lg text-white/75">
+          <p className="relative mx-auto mt-4 max-w-xl text-lg text-primary-foreground/85">
             השאלה היחידה: מי ענה לו קודם — אתה, או המתחרה.
           </p>
           <Button
             asChild
             size="lg"
-            className="relative mt-8 h-12 cursor-pointer rounded-full bg-cta px-8 text-base font-semibold text-cta-foreground hover:bg-cta/90"
+            className="relative mt-8 h-12 cursor-pointer rounded-full border border-primary-foreground/25 bg-[hsl(var(--surface-dark))] px-8 text-base font-semibold text-[hsl(var(--surface-dark-fg))] hover:bg-[hsl(var(--surface-mid))]"
           >
             <a href="#loss-calculator">{PRIMARY_CTA_LABEL}</a>
           </Button>
-          <p className="relative mt-4 text-sm text-white/60">
+          <p className="relative mt-4 text-sm text-primary-foreground/75">
             60 שניות למחשבון. הקמה מלווה. מהיום — פחות לידים שנעלמים.
           </p>
           {showUrgency ? (

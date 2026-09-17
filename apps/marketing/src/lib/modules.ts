@@ -366,6 +366,7 @@ export function getModule(id: string): ProductModule | undefined {
 }
 
 export function modulePath(id: ModuleId): string {
+  if (id === 'integrations') return '/integrations';
   return `/product/${id}`;
 }
 

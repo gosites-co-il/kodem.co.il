@@ -10,7 +10,8 @@ import { api, isApiError } from '../../lib/api';
 import { completeAuthFlow } from '../../lib/auth/session';
 import { ROUTES } from '../../lib/constants';
 import { useAuth } from '../../providers/auth-provider';
-import { AuthShell } from './auth-shell';
+import { AuthShell, authFieldClasses } from './auth-shell';
+import { OAuthButton } from './oauth-button';
 
 export function RegisterForm() {
   const router = useRouter();
@@ -48,74 +49,99 @@ export function RegisterForm() {
   }
 
   const loginHref = nextParam
-    ? `${ROUTES.loginEmail}?next=${encodeURIComponent(nextParam)}`
+    ? `${ROUTES.login}?next=${encodeURIComponent(nextParam)}`
     : ROUTES.login;
 
   return (
     <AuthShell
       title="יצירת חשבון"
-      description="התחילו עם workspace חדש ב-Kodem."
+      description="התחילו עם Kodem בתוך דקה"
       footer={
         <>
           כבר יש לכם חשבון?{' '}
           <Link
             href={loginHref}
-            className="font-medium text-foreground underline-offset-4 hover:underline"
+            className="underline underline-offset-4 hover:text-foreground"
           >
             התחברו
           </Link>
         </>
       }
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="name">שם</Label>
-          <Input
-            id="name"
-            type="text"
-            autoComplete="name"
-            required
-            className="h-11"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
+      <div className="grid gap-4">
+        <OAuthButton
+          provider="google"
+          label="הירשמו עם Google"
+          className={authFieldClasses.buttonOutline}
+        />
+
+        <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:border-t after:border-border">
+          <span className="relative z-10 bg-background px-2 text-muted-foreground">
+            או
+          </span>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="email">אימייל</Label>
-          <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            required
-            dir="ltr"
-            className="h-11 text-start"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="password">סיסמה</Label>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="new-password"
-            required
-            minLength={8}
-            dir="ltr"
-            className="h-11 text-start"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <Button
-          type="submit"
-          className="h-12 w-full rounded-xl"
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? 'יוצר חשבון…' : 'צרו חשבון'}
-        </Button>
-      </form>
+
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="name" className="sr-only">
+              שם
+            </Label>
+            <Input
+              id="name"
+              type="text"
+              placeholder="שם מלא"
+              autoComplete="name"
+              required
+              className={authFieldClasses.input}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="email" className="sr-only">
+              אימייל
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="name@example.com"
+              autoComplete="email"
+              required
+              dir="ltr"
+              className={authFieldClasses.input}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="password" className="sr-only">
+              סיסמה
+            </Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="סיסמה (לפחות 8 תווים)"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              dir="ltr"
+              className={authFieldClasses.input}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          {error ? (
+            <p className="text-center text-sm text-destructive">{error}</p>
+          ) : null}
+          <Button
+            type="submit"
+            className={authFieldClasses.button}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'יוצר חשבון…' : 'המשך'}
+          </Button>
+        </form>
+      </div>
     </AuthShell>
   );
 }

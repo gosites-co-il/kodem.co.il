@@ -20,9 +20,9 @@ export function ModulesTeaser() {
             <a
               key={mod.id}
               href={mod.href}
-              className="group relative flex cursor-pointer flex-col overflow-hidden rounded-[1.75rem] border border-border/80 bg-card p-6 shadow-card transition duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-soft sm:p-8"
+              className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-card transition duration-300 hover:-translate-y-1 hover:border-[hsl(var(--glow))]/50 hover:shadow-soft sm:p-8"
             >
-              <div className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--surface-dark))] text-white shadow-soft transition group-hover:bg-primary">
+              <div className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[hsl(var(--surface-dark))] text-white shadow-soft transition group-hover:bg-primary">
                 <mod.icon className="size-5" aria-hidden />
               </div>
               <h3 className="text-xl font-bold tracking-tight group-hover:text-primary">
