@@ -96,75 +96,77 @@ export function LossCalculator() {
     >
       <div className="container-site">
         <div className="grid items-stretch gap-8 lg:grid-cols-12 lg:gap-10">
-          {/* Burn board */}
-          <div className="relative overflow-hidden rounded-[2rem] bg-[hsl(var(--surface-dark))] p-6 text-[hsl(var(--surface-dark-fg))] shadow-soft sm:p-8 lg:col-span-5">
+          {/* Burn board — full brand color */}
+          <div className="relative overflow-hidden rounded-[2rem] bg-primary p-6 text-primary-foreground shadow-soft sm:p-8 lg:col-span-6">
             <div
-              className="pointer-events-none absolute -end-16 -top-20 h-56 w-56 rounded-full bg-primary/40 blur-3xl"
+              className="pointer-events-none absolute -end-20 -top-24 h-64 w-64 rounded-full bg-[hsl(var(--spark))]/45 blur-3xl"
               aria-hidden
             />
             <div
-              className="pointer-events-none absolute -start-10 bottom-0 h-40 w-40 rounded-full bg-[hsl(var(--spark))]/25 blur-3xl"
+              className="pointer-events-none absolute -start-16 bottom-[-3rem] h-52 w-52 rounded-full bg-[hsl(var(--glow))]/40 blur-3xl"
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[hsl(var(--brand))]/50 to-transparent"
               aria-hidden
             />
 
             <h2
               id={`${formId}-title`}
-              className="relative max-w-[14ch] text-3xl font-extrabold leading-[1.15] tracking-tight sm:text-4xl"
+              className="relative max-w-[15ch] text-3xl font-extrabold leading-[1.15] tracking-tight sm:text-4xl"
             >
               כמה כסף נשרף כל חודש על לידים שלא נענו בזמן?
             </h2>
-            <p className="relative mt-4 max-w-sm text-sm leading-relaxed text-white/70">
+            <p className="relative mt-4 max-w-sm text-sm leading-relaxed text-primary-foreground/85">
               שלושה מספרים — והמערכת מראה מה העסק משלם על שתיקה.
             </p>
 
-            <div className="relative mt-10">
-              <p className="text-xs font-semibold tracking-wide text-white/55">
-                לידים שנשרפו · תצוגה חיה
-              </p>
-              <p className="mt-2 font-mono text-5xl font-extrabold tracking-tight text-[hsl(var(--spark))] sm:text-6xl">
+            <div className="relative mt-10 flex items-end gap-4">
+              <p className="font-mono text-6xl font-extrabold leading-none tracking-tight text-[hsl(var(--spark))] sm:text-7xl">
                 {missedLeads > 0 ? missedLeads : '—'}
               </p>
-              <div
-                className="mt-5 h-3 overflow-hidden rounded-full bg-white/10"
-                role="meter"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Math.round(missRatio * 100)}
-                aria-label="שיעור לידים שלא נענו בזמן"
-              >
-                <div
-                  className="h-full rounded-full bg-primary transition-[width] duration-500 ease-out"
-                  style={{ width: `${Math.max(missRatio * 100, display ? 4 : 0)}%` }}
-                />
-              </div>
-              <p className="mt-3 text-xs text-white/55">
+              <p className="mb-1 max-w-[10rem] text-sm leading-snug text-primary-foreground/80">
                 {display
-                  ? `${Math.round(missRatio * 100)}% מהלידים לא מקבלים מענה בזמן`
-                  : 'מלא את השדות — המד יתחיל לזוז'}
+                  ? `לידים שנשרפו · ${Math.round(missRatio * 100)}% מהזרימה`
+                  : 'לידים שנשרפו יופיעו כאן בזמן אמת'}
               </p>
+            </div>
+
+            <div
+              className="relative mt-5 h-2.5 overflow-hidden rounded-full bg-primary-foreground/20"
+              role="meter"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(missRatio * 100)}
+              aria-label="שיעור לידים שלא נענו בזמן"
+            >
+              <div
+                className="h-full rounded-full bg-[hsl(var(--spark))] transition-[width] duration-500 ease-out"
+                style={{ width: `${Math.max(missRatio * 100, display ? 4 : 0)}%` }}
+              />
             </div>
 
             {display ? (
               <div
                 className={cn(
-                  'relative mt-10 rounded-2xl border border-white/10 bg-white/5 p-5 transition',
-                  result && 'border-primary/40 bg-primary/10',
+                  'relative mt-8 rounded-2xl border border-primary-foreground/20 bg-primary-foreground/10 p-5 backdrop-blur-[2px] transition',
+                  result && 'border-[hsl(var(--spark))]/50 bg-primary-foreground/15',
                 )}
                 aria-live="polite"
               >
-                <p className="text-xs font-semibold text-white/60">הפסד חודשי משוער</p>
-                <p className="mt-1 font-mono text-3xl font-extrabold tracking-tight sm:text-4xl">
+                <p className="text-sm text-primary-foreground/75">הפסד חודשי משוער</p>
+                <p className="mt-1 font-mono text-4xl font-extrabold tracking-tight sm:text-5xl">
                   {formatIls(display.monthlyLossIls)}
                 </p>
-                <p className="mt-2 text-sm font-medium text-[hsl(var(--spark))]">
+                <p className="mt-2 text-base font-semibold text-[hsl(var(--spark))]">
                   ≈ {formatIls(display.yearlyLossIls)} בשנה
                 </p>
                 {result ? (
-                  <p className="mt-3 text-xs leading-relaxed text-white/65">
+                  <p className="mt-3 text-sm leading-relaxed text-primary-foreground/80">
                     בלי לידים שענו &quot;אני אחשוב על זה&quot; ואף אחד לא חזר אליהם.
                   </p>
                 ) : (
-                  <p className="mt-3 text-xs text-white/55">
+                  <p className="mt-3 text-sm text-primary-foreground/70">
                     תצוגה מקדימה — לחץ &quot;הראה לי את המספר&quot; לנעילה.
                   </p>
                 )}
@@ -173,7 +175,7 @@ export function LossCalculator() {
           </div>
 
           {/* Input desk */}
-          <div className="flex flex-col lg:col-span-7">
+          <div className="flex flex-col lg:col-span-6">
             <form
               className="flex flex-1 flex-col rounded-[2rem] border border-border/80 bg-card p-6 shadow-card sm:p-8"
               onSubmit={onSubmit}

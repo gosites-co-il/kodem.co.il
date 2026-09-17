@@ -1,6 +1,7 @@
 import { Button } from '@kodem/design-system/components/ui/button';
 import { PageHero } from '../site/PageHero';
 import { HowItWorks } from '../landing/HowItWorks';
+import { NAV_SIGNUP_HREF } from '../../lib/site-config';
 
 export function HowItWorksPage() {
   return (
@@ -15,7 +16,7 @@ export function HowItWorksPage() {
           size="lg"
           className="h-12 cursor-pointer rounded-full bg-cta px-6 text-cta-foreground hover:bg-cta/90"
         >
-          <a href="/signup">מתחילים עכשיו</a>
+          <a href={NAV_SIGNUP_HREF}>מתחילים עכשיו</a>
         </Button>
       </PageHero>
       <HowItWorks />

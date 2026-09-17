@@ -9,8 +9,15 @@ export const SITE_CONFIG = {
   ) ?? '',
   apiUrl: (import.meta.env.PUBLIC_API_URL as string | undefined) ?? 'http://localhost:3333/api',
   siteUrl: (import.meta.env.PUBLIC_SITE_URL as string | undefined) ?? 'https://kodem.co.il',
+  /** SaaS app origin, e.g. https://app.kodem.co.il or http://localhost:3000 */
+  appUrl: (import.meta.env.PUBLIC_APP_URL as string | undefined) ?? 'http://localhost:3000',
+  /**
+   * Full URL to the app register page. Prefer PUBLIC_APP_SIGNUP_URL; otherwise
+   * derive from PUBLIC_APP_URL + /register.
+   */
   appSignupBase:
-    (import.meta.env.PUBLIC_APP_SIGNUP_URL as string | undefined) ?? '/signup',
+    (import.meta.env.PUBLIC_APP_SIGNUP_URL as string | undefined) ??
+    `${(import.meta.env.PUBLIC_APP_URL as string | undefined) ?? 'http://localhost:3000'}/register`,
   gaMeasurementId: (import.meta.env.PUBLIC_GA_MEASUREMENT_ID as string | undefined) ?? '',
   metaPixelId: (import.meta.env.PUBLIC_META_PIXEL_ID as string | undefined) ?? '',
   /**
@@ -28,5 +35,7 @@ export function getWhatsAppUrl(prefill?: string): string | null {
 }
 
 export const PRIMARY_CTA_LABEL = 'בדוק כמה אתה מפסיד בחודש';
+export const NAV_SIGNUP_LABEL = 'הרשמה';
+export const NAV_SIGNUP_HREF = SITE_CONFIG.appSignupBase;
 export const SECONDARY_CTA_LABEL = 'שלח הודעה למערכת עכשיו';
 export const CALCULATOR_SECTION_ID = 'loss-calculator';

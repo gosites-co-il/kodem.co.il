@@ -149,8 +149,11 @@ jobs:
           else
             echo "api_url=https://api.kodem.co.il/api" >> "$GITHUB_OUTPUT"
           fi
-          # Signup lives on the marketing site itself.
-          echo "signup_url=/signup" >> "$GITHUB_OUTPUT"
+          if [ -n "$APP_DOMAIN" ]; then
+            echo "signup_url=https://$APP_DOMAIN/register" >> "$GITHUB_OUTPUT"
+          else
+            echo "signup_url=https://app.kodem.co.il/register" >> "$GITHUB_OUTPUT"
+          fi
           echo "whatsapp_phone=${PUBLIC_WHATSAPP_PHONE:-}" >> "$GITHUB_OUTPUT"
           echo "ga_id=${PUBLIC_GA_MEASUREMENT_ID:-}" >> "$GITHUB_OUTPUT"
           echo "meta_pixel_id=${PUBLIC_META_PIXEL_ID:-}" >> "$GITHUB_OUTPUT"

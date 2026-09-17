@@ -10,7 +10,6 @@ interface Props {
   description: string;
   path?: string;
   ogImage?: string;
-  homeCta?: boolean;
 }
 
 const {
@@ -18,7 +17,6 @@ const {
   description,
   path = Astro.url.pathname,
   ogImage = `${SITE_CONFIG.siteUrl}/og-default.png`,
-  homeCta = false,
 } = Astro.props;
 
 const canonical = `${SITE_CONFIG.siteUrl}${path === '/' ? '/' : path.replace(/\/$/, '')}`;
@@ -66,7 +64,7 @@ const canonical = `${SITE_CONFIG.siteUrl}${path === '/' ? '/' : path.replace(/\/
   </head>
   <body class="site-shell">
     <div class="site-atmosphere" aria-hidden="true"></div>
-    <SiteHeader client:load currentPath={path} homeCta={homeCta} />
+    <SiteHeader client:load currentPath={path} />
     <main>
       <slot />
     </main>

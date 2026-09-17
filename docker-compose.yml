@@ -94,7 +94,8 @@ services:
       args:
         PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-http://localhost:4321}
         PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:3333/api}
-        PUBLIC_APP_SIGNUP_URL: /signup
+        PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
+        PUBLIC_APP_SIGNUP_URL: ${PUBLIC_APP_SIGNUP_URL:-http://localhost:3000/register}
         PUBLIC_WHATSAPP_PHONE: ${PUBLIC_WHATSAPP_PHONE:-}
     restart: unless-stopped
     ports:

@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly PUBLIC_SITE_URL?: string;
   readonly PUBLIC_API_URL?: string;
+  readonly PUBLIC_APP_URL?: string;
   readonly PUBLIC_WHATSAPP_PHONE?: string;
   readonly PUBLIC_APP_SIGNUP_URL?: string;
   readonly PUBLIC_GA_MEASUREMENT_ID?: string;

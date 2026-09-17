@@ -2,14 +2,12 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@kodem/design-system/components/ui/button';
 import { cn } from '@kodem/design-system/lib/utils';
-import { PRIMARY_CTA_LABEL } from '../../lib/site-config';
+import { NAV_SIGNUP_HREF, NAV_SIGNUP_LABEL } from '../../lib/site-config';
 import { PRIMARY_NAV, isNavActive, isNavSectionActive, type NavItem } from '../../lib/nav';
 import { Logo } from './Logo';
 
 type Props = {
   currentPath?: string;
-  /** When true, primary CTA scrolls to calculator on home; otherwise links to /#loss-calculator */
-  homeCta?: boolean;
 };
 
 function DesktopNavItem({ item, currentPath }: { item: NavItem; currentPath: string }) {
@@ -120,7 +118,7 @@ function DesktopNavItem({ item, currentPath }: { item: NavItem; currentPath: str
   );
 }
 
-export function SiteHeader({ currentPath = '/', homeCta = false }: Props) {
+export function SiteHeader({ currentPath = '/' }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [mobileProductOpen, setMobileProductOpen] = useState(false);
@@ -144,8 +142,6 @@ export function SiteHeader({ currentPath = '/', homeCta = false }: Props) {
       setMobileProductOpen(true);
     }
   }, [currentPath]);
-
-  const ctaHref = homeCta ? '#loss-calculator' : '/#loss-calculator';
 
   return (
     <header
@@ -171,7 +167,7 @@ export function SiteHeader({ currentPath = '/', homeCta = false }: Props) {
             size="sm"
             className="hidden h-10 cursor-pointer rounded-full bg-cta px-5 text-cta-foreground hover:bg-cta/90 sm:inline-flex"
           >
-            <a href={ctaHref}>{PRIMARY_CTA_LABEL}</a>
+            <a href={NAV_SIGNUP_HREF}>{NAV_SIGNUP_LABEL}</a>
           </Button>
           <Button
             type="button"
@@ -252,8 +248,8 @@ export function SiteHeader({ currentPath = '/', homeCta = false }: Props) {
               asChild
               className="mt-3 h-12 w-full cursor-pointer rounded-full bg-cta text-cta-foreground hover:bg-cta/90"
             >
-              <a href={ctaHref} onClick={() => setOpen(false)}>
-                {PRIMARY_CTA_LABEL}
+              <a href={NAV_SIGNUP_HREF} onClick={() => setOpen(false)}>
+                {NAV_SIGNUP_LABEL}
               </a>
             </Button>
           </nav>
