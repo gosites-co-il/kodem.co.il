@@ -142,7 +142,7 @@ jobs:
           if [ -n "$MARKETING_DOMAIN" ]; then
             echo "site_url=https://$MARKETING_DOMAIN" >> "$GITHUB_OUTPUT"
           else
-            echo "site_url=https://www.kodem.co.il" >> "$GITHUB_OUTPUT"
+            echo "site_url=https://kodem.co.il" >> "$GITHUB_OUTPUT"
           fi
           if [ -n "$API_DOMAIN" ]; then
             echo "api_url=https://$API_DOMAIN/api" >> "$GITHUB_OUTPUT"
@@ -431,7 +431,15 @@ jobs:
           record_rows() {
             local domain="$1" fqdn="$2"
             [ -n "$domain" ] || return 0
-            echo "| CNAME | \`$domain\` | \`$fqdn\` |"
+            # Apex zones (kodem.co.il) cannot use a CNAME at the root — use ALIAS/ANAME
+            # (or an A record to the environment static IP when available).
+            local labels
+            labels=$(echo "$domain" | tr '.' '\n' | wc -l)
+            if [ "$labels" -le 2 ]; then
+              echo "| ALIAS/ANAME (or A) | \`$domain\` | \`$fqdn\` (apex — not a CNAME) |"
+            else
+              echo "| CNAME | \`$domain\` | \`$fqdn\` |"
+            fi
             echo "| TXT | \`asuid.$domain\` | \`$VERIFICATION_ID\` |"
           }
 

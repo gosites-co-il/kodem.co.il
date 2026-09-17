@@ -24,7 +24,7 @@ param appCustomDomain string = ''
 @description('Custom domain for the api, e.g. api.kodem.co.il (prod) or api.dev.kodem.co.il (dev). Same DNS prerequisites as appCustomDomain. Leave empty to serve on the generated Container Apps FQDN.')
 param apiCustomDomain string = ''
 
-@description('Custom domain for the marketing site, e.g. www.kodem.co.il (prod) or www.dev.kodem.co.il (dev). Same DNS prerequisites as appCustomDomain.')
+@description('Custom domain for the marketing site, e.g. kodem.co.il (prod) or dev.kodem.co.il (dev). Same DNS prerequisites as appCustomDomain; apex domains use HTTP certificate validation.')
 param marketingCustomDomain string = ''
 
 @description('PostgreSQL administrator login.')
@@ -544,7 +544,8 @@ resource marketingCertificate 'Microsoft.App/managedEnvironments/managedCertific
   location: location
   properties: {
     subjectName: marketingCustomDomain
-    domainControlValidation: 'CNAME'
+    // Apex (kodem.co.il) cannot use CNAME validation; subdomains (dev.kodem.co.il) can.
+    domainControlValidation: length(split(marketingCustomDomain, '.')) <= 2 ? 'HTTP' : 'CNAME'
   }
   dependsOn: [
     marketing

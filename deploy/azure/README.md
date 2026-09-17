@@ -11,8 +11,8 @@ database and container apps.
 
 | Environment | GitHub Environment | Resource group | App | API | Marketing |
 |-------------|--------------------|----------------|-----|-----|-----------|
-| `dev` | `development` | `kodem-dev-rg` | `app.dev.kodem.co.il` | `api.dev.kodem.co.il` | `www.dev.kodem.co.il` |
-| `prod` | `production` | `kodem-prod-rg` | `app.kodem.co.il` | `api.kodem.co.il` | `www.kodem.co.il` |
+| `dev` | `development` | `kodem-dev-rg` | `app.dev.kodem.co.il` | `api.dev.kodem.co.il` | `dev.kodem.co.il` |
+| `prod` | `production` | `kodem-prod-rg` | `app.kodem.co.il` | `api.kodem.co.il` | `kodem.co.il` |
 
 `dev` and `prod` name the environment everywhere it matters — Azure resources, parameter
 files, image tags. The GitHub Environments keep the names they were created with, because
@@ -177,12 +177,14 @@ against DNS records that name the container app. Those records cannot exist befo
 app does, so a new environment reaches its domains on the second deploy:
 
 1. Deploy. The domains are skipped, because their `asuid` records do not resolve yet, and
-   the job summary prints the CNAME and `asuid` TXT records to create for both hostnames.
+   the job summary prints the DNS and `asuid` TXT records to create for each hostname.
    The environment is live on the generated `*.azurecontainerapps.io` FQDNs meanwhile.
-2. Create those records at the DNS provider. Point the CNAME straight at the Container
-   Apps FQDN — an intermediate CNAME (Cloudflare proxying, a traffic manager) blocks
-   certificate issuance and every later renewal. The TXT record has to stay in place for
-   as long as the domain is bound, not just at issuance.
+2. Create those records at the DNS provider. Subdomains (`app…`, `api…`, `dev.kodem.co.il`)
+   use a CNAME straight at the Container Apps FQDN — an intermediate CNAME (Cloudflare
+   proxying, a traffic manager) blocks certificate issuance and every later renewal.
+   The apex marketing domain (`kodem.co.il`) cannot be a CNAME; use an ALIAS/ANAME (or A)
+   record instead. The TXT `asuid` record has to stay in place for as long as the domain
+   is bound, not just at issuance.
 3. Deploy again. The apps register the hostnames, the certificates are issued, and
    Container Apps binds each one to the matching hostname.
 

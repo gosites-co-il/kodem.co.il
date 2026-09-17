@@ -61,8 +61,8 @@ Target is **Azure Container Apps**, images in **Azure Container Registry**, data
 
 | Trigger | Workflow | Environment | GitHub Environment | App | API | Marketing |
 |---------|----------|-------------|--------------------|-----|-----|-----------|
-| Push to `dev` | `deploy-dev.yml` | `dev` | `development` | `app.dev.kodem.co.il` | `api.dev.kodem.co.il` | `www.dev.kodem.co.il` |
-| Tag `v-*` on `main` | `deploy-prod.yml` | `prod` | `production` | `app.kodem.co.il` | `api.kodem.co.il` | `www.kodem.co.il` |
+| Push to `dev` | `deploy-dev.yml` | `dev` | `development` | `app.dev.kodem.co.il` | `api.dev.kodem.co.il` | `dev.kodem.co.il` |
+| Tag `v-*` on `main` | `deploy-prod.yml` | `prod` | `production` | `app.kodem.co.il` | `api.kodem.co.il` | `kodem.co.il` |
 
 Both call `deploy.yml`: lint + marketing build → build/push four images to ACR → `az deployment group create` with `deploy/azure/main.bicep` → health check. `dev` / `prod` name the Azure resource suffix and the Bicep parameter file; the GitHub Environment holding the credentials is passed separately as `github_environment`, since GitHub Environments cannot be renamed. The hostnames live in `deploy/azure/main.parameters.<env>.json`.
 
