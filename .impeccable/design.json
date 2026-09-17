@@ -1,0 +1,379 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-17T13:31:00.000Z",
+  "title": "Design System: KODEM",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Raspberry Signal",
+        "canonical": "#D81159",
+        "tonalRamp": [
+          "#4A061F",
+          "#7A0A34",
+          "#A80E48",
+          "#D81159",
+          "#E54B7F",
+          "#F08AA9",
+          "#F8C4D4",
+          "#FCE8EF"
+        ]
+      },
+      "primary-deep": {
+        "role": "primary",
+        "displayName": "Berry Press",
+        "canonical": "#8F2D56",
+        "tonalRamp": [
+          "#2E0E1C",
+          "#4A1730",
+          "#6B2243",
+          "#8F2D56",
+          "#A95274",
+          "#C88A9F",
+          "#E2C2CD",
+          "#F4E8EC"
+        ]
+      },
+      "secondary": {
+        "role": "secondary",
+        "displayName": "Workshop Teal",
+        "canonical": "#218380",
+        "tonalRamp": [
+          "#0A2A29",
+          "#114645",
+          "#186460",
+          "#218380",
+          "#3EA3A0",
+          "#78C4C2",
+          "#B5E0DE",
+          "#E4F5F4"
+        ]
+      },
+      "highlight": {
+        "role": "tertiary",
+        "displayName": "Cyan Highlight",
+        "canonical": "#73D2DE",
+        "tonalRamp": [
+          "#164A52",
+          "#1F6B75",
+          "#2F95A3",
+          "#73D2DE",
+          "#97DEE7",
+          "#BBEAF0",
+          "#D9F4F7",
+          "#F0FBFC"
+        ]
+      },
+      "spark": {
+        "role": "tertiary",
+        "displayName": "Amber Spark",
+        "canonical": "#FFBC42",
+        "tonalRamp": [
+          "#5C3F08",
+          "#8A5F0C",
+          "#C48A18",
+          "#FFBC42",
+          "#FFCD6E",
+          "#FFDE9A",
+          "#FFEEC6",
+          "#FFF8E8"
+        ]
+      },
+      "background": {
+        "role": "neutral",
+        "displayName": "Cool Paper",
+        "canonical": "#F8FAFC",
+        "tonalRamp": [
+          "#0B111E",
+          "#515E70",
+          "#8A97A8",
+          "#D8DFE9",
+          "#EEF2F6",
+          "#F8FAFC",
+          "#FFFFFF",
+          "#FFFFFF"
+        ]
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#0B111E",
+        "tonalRamp": [
+          "#05070D",
+          "#0B111E",
+          "#1C2740",
+          "#515E70",
+          "#8A97A8",
+          "#D8DFE9",
+          "#EEF2F6",
+          "#F8FAFC"
+        ]
+      },
+      "card": {
+        "role": "neutral",
+        "displayName": "White Card",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#D8DFE9",
+          "#EEF2F6",
+          "#F8FAFC",
+          "#FFFFFF",
+          "#FFFFFF",
+          "#FFFFFF",
+          "#FFFFFF",
+          "#FFFFFF"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Mist",
+        "canonical": "#EEF2F6",
+        "tonalRamp": [
+          "#515E70",
+          "#8A97A8",
+          "#B8C2CE",
+          "#D8DFE9",
+          "#EEF2F6",
+          "#F8FAFC",
+          "#FFFFFF",
+          "#FFFFFF"
+        ]
+      },
+      "muted-foreground": {
+        "role": "neutral",
+        "displayName": "Slate Caption",
+        "canonical": "#515E70",
+        "tonalRamp": [
+          "#0B111E",
+          "#1C2740",
+          "#515E70",
+          "#6B7789",
+          "#8A97A8",
+          "#B8C2CE",
+          "#D8DFE9",
+          "#EEF2F6"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#D8DFE9",
+        "tonalRamp": [
+          "#8A97A8",
+          "#B8C2CE",
+          "#D8DFE9",
+          "#E8EDF3",
+          "#EEF2F6",
+          "#F8FAFC",
+          "#FFFFFF",
+          "#FFFFFF"
+        ]
+      },
+      "destructive": {
+        "role": "neutral",
+        "displayName": "Alert Red",
+        "canonical": "#DC2828",
+        "tonalRamp": [
+          "#4A0C0C",
+          "#7F1414",
+          "#B01C1C",
+          "#DC2828",
+          "#E85A5A",
+          "#F19696",
+          "#F8CACA",
+          "#FCEFEF"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Marketing heroes and rare product empty-state titles."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section and page titles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card, dialog, and nav group titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Prose and form copy."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Eyebrows, badges, compact control labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card-rest",
+        "value": "0 4px 24px -4px hsl(222 47% 11% / 0.08)",
+        "purpose": "Marketing cards at rest."
+      },
+      {
+        "name": "soft-lift",
+        "value": "0 10px 40px -12px hsl(222 47% 11% / 0.12)",
+        "purpose": "Hover lift on marketing cards and menus."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-workshop",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Marketing reveal and intentional entrance motion."
+      },
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Default control state transitions."
+      },
+      {
+        "name": "duration-reveal",
+        "value": "0.7s",
+        "purpose": "Marketing scroll reveal."
+      },
+      {
+        "name": "duration-control",
+        "value": "0.2s",
+        "purpose": "Buttons, accordions, focus transitions."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "App primary action — raspberry fill, md radius.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">שמירת שינויים</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; height: 2.5rem; padding: 0.625rem 1rem; border: none; border-radius: 0.75rem; background: #D81159; color: #FFFFFF; font-family: Assistant, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-primary:hover { background: #8F2D56; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px #F8FAFC, 0 0 0 4px #73D2DE; }"
+    },
+    {
+      "name": "Marketing CTA",
+      "kind": "button",
+      "refersTo": "button-cta-marketing",
+      "description": "Conversion pill CTA for marketing — taller, full radius.",
+      "html": "<button class=\"ds-btn-cta\" type=\"button\">התחילו עכשיו</button>",
+      "css": ".ds-btn-cta { display: inline-flex; align-items: center; justify-content: center; height: 3rem; padding: 0.75rem 1.75rem; border: none; border-radius: 9999px; background: #D81159; color: #FFFFFF; font-family: Assistant, system-ui, sans-serif; font-size: 0.9375rem; font-weight: 700; cursor: pointer; transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-cta:hover { background: #8F2D56; } .ds-btn-cta:focus-visible { outline: none; box-shadow: 0 0 0 2px #F8FAFC, 0 0 0 4px #73D2DE; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Teal secondary action for trust/secondary paths.",
+      "html": "<button class=\"ds-btn-secondary\" type=\"button\">למידע נוסף</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; height: 2.5rem; padding: 0.625rem 1rem; border: none; border-radius: 0.75rem; background: #218380; color: #FFFFFF; font-family: Assistant, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-secondary:hover { background: #186460; } .ds-btn-secondary:focus-visible { outline: none; box-shadow: 0 0 0 2px #F8FAFC, 0 0 0 4px #73D2DE; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Neutral outline control for secondary chrome.",
+      "html": "<button class=\"ds-btn-outline\" type=\"button\">ביטול</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; height: 2.5rem; padding: 0.625rem 1rem; border: 1px solid #D8DFE9; border-radius: 0.75rem; background: #FFFFFF; color: #0B111E; font-family: Assistant, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-outline:hover { background: #EEF2F6; } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 2px #F8FAFC, 0 0 0 4px #73D2DE; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Default text input — calm cyan focus ring.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"שם מלא\" dir=\"rtl\" />",
+      "css": ".ds-input { display: block; width: 100%; height: 2.5rem; padding: 0.5rem 0.75rem; border: 1px solid #D8DFE9; border-radius: 0.75rem; background: #FFFFFF; color: #0B111E; font-family: Assistant, system-ui, sans-serif; font-size: 0.875rem; } .ds-input::placeholder { color: #515E70; } .ds-input:focus-visible { outline: none; border-color: #73D2DE; box-shadow: 0 0 0 2px #F8FAFC, 0 0 0 4px #73D2DE; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card-default",
+      "description": "White surface card with hairline border; soft lift optional on marketing.",
+      "html": "<article class=\"ds-card\"><h3 class=\"ds-card-title\">לידים חדשים</h3><p class=\"ds-card-body\">נהלו פניות במקום אחד.</p></article>",
+      "css": ".ds-card { background: #FFFFFF; color: #0B111E; border: 1px solid #D8DFE9; border-radius: 1rem; padding: 1.5rem; font-family: Assistant, system-ui, sans-serif; box-shadow: none; transition: box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); } .ds-card:hover { box-shadow: 0 10px 40px -12px hsl(222 47% 11% / 0.12); transform: translateY(-2px); } .ds-card-title { margin: 0 0 0.5rem; font-size: 1.125rem; font-weight: 600; line-height: 1.4; } .ds-card-body { margin: 0; font-size: 1rem; line-height: 1.625; color: #515E70; }"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "refersTo": "chip-default",
+      "description": "Compact pill chip for filters and tags.",
+      "html": "<span class=\"ds-chip\">CRM</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; height: 1.75rem; padding: 0.25rem 0.75rem; border-radius: 9999px; background: #EEF2F6; color: #0B111E; font-family: Assistant, system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; }"
+    },
+    {
+      "name": "Marketing Nav CTA",
+      "kind": "nav",
+      "refersTo": "button-cta-marketing",
+      "description": "Header conversion control — pill raspberry.",
+      "html": "<nav class=\"ds-nav\" dir=\"rtl\"><a class=\"ds-nav-link\" href=\"#\">המוצר</a><a class=\"ds-nav-cta\" href=\"#\">התחילו</a></nav>",
+      "css": ".ds-nav { display: flex; align-items: center; gap: 0.5rem; font-family: Assistant, system-ui, sans-serif; } .ds-nav-link { padding: 0.5rem 0.875rem; border-radius: 9999px; color: #0B111E; text-decoration: none; font-size: 0.875rem; font-weight: 500; } .ds-nav-link:hover { background: #EEF2F6; } .ds-nav-cta { display: inline-flex; align-items: center; height: 2.5rem; padding: 0 1.25rem; border-radius: 9999px; background: #D81159; color: #FFFFFF; text-decoration: none; font-size: 0.875rem; font-weight: 700; } .ds-nav-cta:hover { background: #8F2D56; } .ds-nav-cta:focus-visible { outline: none; box-shadow: 0 0 0 2px #F8FAFC, 0 0 0 4px #73D2DE; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Vibrant Workshop",
+    "overview": "KODEM’s visual system is one workshop with two work modes. On the marketing site it is bold, colorful, and conversion-focused — strong hierarchy, high-energy accents, and CTAs that feel decisive. In the application it stays the same palette and type, but dials density and chrome quieter so everyday CRM and lead work feels clean, intuitive, and comfortable.\n\nThe shared language is Hebrew-first and RTL-native: Assistant for all roles, start-aligned text, and components from `@kodem/design-system`. Color is the differentiator from generic SaaS zinc: raspberry primary, teal trust, cyan highlight, and amber spark — used with restraint in-app and with presence on marketing.",
+    "keyCharacteristics": [
+      "One palette and type ramp across apps/marketing and apps/app",
+      "Vibrant brand color with calm neutral surfaces for long sessions",
+      "Flat-by-default depth; soft lift only on hover and key cards",
+      "Marketing CTAs are full-pill and louder; app controls are rounded-md and quieter",
+      "RTL / Hebrew is default, not an afterthought"
+    ],
+    "rules": [
+      {
+        "name": "The One Workshop Rule",
+        "body": "Marketing and app share the same five brand hues and neutrals. Do not keep a separate zinc or ink-teal theme per app.",
+        "section": "colors"
+      },
+      {
+        "name": "The Loud-on-Site Rule",
+        "body": "Raspberry and amber may dominate marketing hero/CTA bands. In the app, raspberry is for primary actions only (roughly ≤10% of chrome); teal and neutrals carry the rest.",
+        "section": "colors"
+      },
+      {
+        "name": "The Spark Budget Rule",
+        "body": "Amber Spark is a highlight, not a background system. Never flood an app screen with #FFBC42.",
+        "section": "colors"
+      },
+      {
+        "name": "The Single Face Rule",
+        "body": "Do not introduce Inter, Roboto, or a second display family. Assistant covers Hebrew + Latin.",
+        "section": "typography"
+      },
+      {
+        "name": "The Dual Density Rule",
+        "body": "Same tokens; marketing adds section air and larger hit targets, app compresses chrome — never by inventing a second spacing scale.",
+        "section": "colors"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Surfaces are flat at rest. Soft lift is a response (hover, open menu, featured marketing card), not permanent decoration on every panel.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Pill-for-Conversion Rule",
+        "body": "Full pills are a marketing signature for primary CTAs. In-app primary buttons stay rounded-md so daily tools feel calmer.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "Do use the same five brand hues + neutrals in marketing and app.",
+      "Do put conversion weight on Raspberry Signal CTAs on marketing surfaces.",
+      "Do keep app chrome mostly neutrals + teal, with raspberry reserved for primary actions.",
+      "Do design RTL-first with Assistant and start alignment.",
+      "Do honor prefers-reduced-motion (marketing already hard-kills motion)."
+    ],
+    "donts": [
+      "Don't keep separate zinc (app) or old ink-teal (marketing) as competing systems.",
+      "Don't use purple-on-white SaaS defaults, cream+terracotta editorial clichés, or Inter as the UI face.",
+      "Don't use Amber Spark as large app backgrounds or primary buttons.",
+      "Don't invent testimonials, fake metrics, or decorative proof chips as a visual pattern.",
+      "Don't mix full-pill primary buttons into dense app toolbars."
+    ]
+  }
+}

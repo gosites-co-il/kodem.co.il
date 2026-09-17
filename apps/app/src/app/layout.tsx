@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
 import Script from 'next/script';
-import { Heebo } from 'next/font/google';
+import { Assistant } from 'next/font/google';
 import './global.css';
 import { getThemeInitScript } from '@kodem/design-system/lib/theme-script';
 import { AuthProvider } from '../providers/auth-provider';
 import { ThemeProvider } from '../providers/theme-provider';
 
-const heebo = Heebo({
+const assistant = Assistant({
   subsets: ['hebrew', 'latin'],
-  variable: '--font-heebo',
+  variable: '--font-assistant',
   display: 'swap',
 });
 
@@ -24,7 +24,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="he" dir="rtl" suppressHydrationWarning>
-      <body className={`${heebo.variable} font-sans`}>
+      <body className={`${assistant.variable} font-sans`}>
         <Script id="kodem-theme-init" strategy="beforeInteractive">
           {getThemeInitScript()}
         </Script>

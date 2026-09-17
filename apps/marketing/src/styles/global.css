@@ -75,7 +75,7 @@
 
   body {
     @apply min-h-screen bg-background text-foreground antialiased;
-    font-family: Heebo, system-ui, sans-serif;
+    font-family: Assistant, system-ui, sans-serif;
     text-align: start;
   }
 

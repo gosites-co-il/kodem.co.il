@@ -1,0 +1,22 @@
+---
+import SiteLayout from '../../layouts/SiteLayout.astro';
+import { ModulePage } from '../../components/pages/ModulePage';
+import { PRODUCT_MODULES, type ModuleId } from '../../lib/modules';
+
+export function getStaticPaths() {
+  return PRODUCT_MODULES.map((mod) => ({
+    params: { module: mod.id },
+    props: {
+      moduleId: mod.id as ModuleId,
+      title: `${mod.eyebrow} — KODEM`,
+      description: mod.metaDescription,
+    },
+  }));
+}
+
+const { moduleId, title, description } = Astro.props;
+---
+
+<SiteLayout title={title} description={description} path={`/product/${moduleId}`}>
+  <ModulePage client:load moduleId={moduleId} />
+</SiteLayout>
