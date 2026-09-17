@@ -12,7 +12,7 @@ export function Pricing() {
     <section id="pricing" className="bg-muted/40 py-16 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <p className="text-center text-base font-medium text-muted-foreground">
-          תזכור את המספר מהמחשבון. עכשיו תסתכל על המחירים.
+          זכרת את המספר מהמחשבון? עכשיו תסתכל מה עולה לתקן את זה.
         </p>
         <h2 className="sr-only">מחירון</h2>
 

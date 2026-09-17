@@ -100,8 +100,7 @@ export function ProductPage() {
       <section id="modules" className="section-pad bg-muted/40">
         <div className="container-site">
           <div className="reveal mx-auto max-w-3xl text-center">
-            <p className="eyebrow mx-auto">מודולים</p>
-            <h2 className="mt-5 text-3xl font-extrabold leading-tight sm:text-4xl">
+            <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
               שלושה עמודי תווך. חוויה אחת.
             </h2>
             <p className="prose-site mx-auto mt-4">
@@ -119,8 +118,7 @@ export function ProductPage() {
                 <div className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--surface-dark))] text-white shadow-soft">
                   <mod.icon className="size-5" aria-hidden />
                 </div>
-                <span className="text-xs font-semibold text-cta">{mod.eyebrow}</span>
-                <h3 className="mt-2 text-xl font-bold group-hover:text-cta">{mod.teaserTitle}</h3>
+                <h3 className="text-xl font-bold group-hover:text-cta">{mod.teaserTitle}</h3>
                 <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
                   {mod.teaserBody}
                 </p>
@@ -140,8 +138,7 @@ export function ProductPage() {
       <section className="section-pad landing-gradient-dark text-[hsl(var(--surface-dark-fg))]">
         <div className="container-site grid items-center gap-10 lg:grid-cols-2">
           <div className="reveal">
-            <p className="eyebrow border-white/15 bg-white/10 text-white/80">למה זה מרגיש אחרת</p>
-            <h2 className="mt-5 text-3xl font-extrabold leading-tight sm:text-4xl">
+            <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
               לא בוט של תפריטים.
               <br />
               שיחת מכירה אמיתית.

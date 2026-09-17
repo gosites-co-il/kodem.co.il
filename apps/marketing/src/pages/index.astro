@@ -1,7 +1,6 @@
 ---
 import SiteLayout from '../layouts/SiteLayout.astro';
 import { HomePage } from '../components/landing/LandingPage';
-import { DEFAULT_HERO_VARIANT } from '../lib/hero-variants';
 
 const title = 'KODEM — מענה ללידים בוואטסאפ תוך 3 שניות';
 const description =
@@ -9,5 +8,5 @@ const description =
 ---
 
 <SiteLayout title={title} description={description} path="/" homeCta>
-  <HomePage client:load heroVariant={DEFAULT_HERO_VARIANT} />
+  <HomePage client:load />
 </SiteLayout>

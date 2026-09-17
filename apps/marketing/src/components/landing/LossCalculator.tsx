@@ -68,13 +68,13 @@ export function LossCalculator() {
       <div className="mx-auto max-w-xl px-4 sm:px-6">
         <h2
           id={`${formId}-title`}
-          className="text-center text-3xl font-bold leading-tight sm:text-4xl"
+          className="text-center text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl"
         >
-          כמה כסף העסק שלך מאבד כל חודש?
+          כמה כסף נשרף כל חודש על לידים שלא נענו בזמן?
         </h2>
 
         <form
-          className="mt-10 space-y-5 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm sm:p-8"
+          className="mt-10 space-y-5 rounded-[1.75rem] border border-white/10 bg-white/5 p-5 shadow-soft backdrop-blur-sm sm:p-8"
           onSubmit={onSubmit}
           noValidate
         >
@@ -115,7 +115,7 @@ export function LossCalculator() {
           <Button
             type="submit"
             size="lg"
-            className="h-12 w-full cursor-pointer bg-cta text-base text-cta-foreground hover:bg-cta/90"
+            className="h-12 w-full cursor-pointer rounded-full bg-cta text-base font-semibold text-cta-foreground hover:bg-cta/90"
           >
             הראה לי את המספר
           </Button>
@@ -129,7 +129,7 @@ export function LossCalculator() {
             <p className="whitespace-pre-line text-xl font-bold leading-relaxed sm:text-2xl">
               {`העסק שלך מאבד בערך ${formatIls(result.monthlyLossIls)} בחודש\nמלידים שלא קיבלו מענה בזמן.`}
             </p>
-            <p className="mt-3 text-lg font-semibold text-emerald-300">
+            <p className="mt-3 text-lg font-semibold text-[hsl(var(--spark))]">
               זה {formatIls(result.yearlyLossIls)} בשנה.
             </p>
             <p className="mt-4 text-sm text-white/70">
