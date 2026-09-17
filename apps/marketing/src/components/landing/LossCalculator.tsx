@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { Button } from '@kodem/design-system/components/ui/button';
 import { Input } from '@kodem/design-system/components/ui/input';
 import { Label } from '@kodem/design-system/components/ui/label';
@@ -12,6 +12,7 @@ import {
 import { track } from '../../lib/analytics';
 import { CALCULATOR_SECTION_ID } from '../../lib/site-config';
 import { LeadCaptureForm } from './LeadCaptureForm';
+import { cn } from '@kodem/design-system/lib/utils';
 
 const ERROR_COPY: Record<CalculatorValidationError, string> = {
   empty: 'מלא את כל השדות כדי לראות את המספר.',
@@ -21,6 +22,16 @@ const ERROR_COPY: Record<CalculatorValidationError, string> = {
   too_large: 'הערך גבוה מדי. בדוק שהמספרים נכונים.',
 };
 
+function tryPreview(input: {
+  monthlyLeads: string;
+  answeredInTime: string;
+  averageDealValueIls: string;
+}): CalculatorResult | null {
+  const validation = validateCalculatorInput(input);
+  if (!validation.ok) return null;
+  return calculateMonthlyLoss(validation.input);
+}
+
 export function LossCalculator() {
   const formId = useId();
   const started = useRef(false);
@@ -29,6 +40,24 @@ export function LossCalculator() {
   const [averageDealValueIls, setAverageDealValueIls] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CalculatorResult | null>(null);
+
+  const preview = useMemo(
+    () =>
+      tryPreview({
+        monthlyLeads,
+        answeredInTime,
+        averageDealValueIls,
+      }),
+    [monthlyLeads, answeredInTime, averageDealValueIls],
+  );
+
+  const display = result ?? preview;
+  const missedLeads = display?.missedLeads ?? 0;
+  const totalLeads = Number.parseInt(monthlyLeads, 10);
+  const missRatio =
+    display && Number.isFinite(totalLeads) && totalLeads > 0
+      ? Math.min(1, display.missedLeads / totalLeads)
+      : 0;
 
   const markStarted = () => {
     if (started.current) return;
@@ -62,88 +91,158 @@ export function LossCalculator() {
   return (
     <section
       id={CALCULATOR_SECTION_ID}
-      className="landing-gradient-dark scroll-mt-20 py-16 text-[hsl(var(--surface-dark-fg))] sm:py-20"
+      className="scroll-mt-20 border-y border-border/70 bg-background py-16 sm:py-20"
       aria-labelledby={`${formId}-title`}
     >
-      <div className="mx-auto max-w-xl px-4 sm:px-6">
-        <h2
-          id={`${formId}-title`}
-          className="text-center text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl"
-        >
-          כמה כסף נשרף כל חודש על לידים שלא נענו בזמן?
-        </h2>
+      <div className="container-site">
+        <div className="grid items-stretch gap-8 lg:grid-cols-12 lg:gap-10">
+          {/* Burn board */}
+          <div className="relative overflow-hidden rounded-[2rem] bg-[hsl(var(--surface-dark))] p-6 text-[hsl(var(--surface-dark-fg))] shadow-soft sm:p-8 lg:col-span-5">
+            <div
+              className="pointer-events-none absolute -end-16 -top-20 h-56 w-56 rounded-full bg-primary/40 blur-3xl"
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute -start-10 bottom-0 h-40 w-40 rounded-full bg-[hsl(var(--spark))]/25 blur-3xl"
+              aria-hidden
+            />
 
-        <form
-          className="mt-10 space-y-5 rounded-[1.75rem] border border-white/10 bg-white/5 p-5 shadow-soft backdrop-blur-sm sm:p-8"
-          onSubmit={onSubmit}
-          noValidate
-        >
-          <Field
-            id={`${formId}-leads`}
-            label="כמה לידים נכנסים אליך בחודש?"
-            value={monthlyLeads}
-            onChange={(v) => {
-              markStarted();
-              setMonthlyLeads(v);
-            }}
-          />
-          <Field
-            id={`${formId}-answered`}
-            label="לכמה מהם אתה מספיק לענות בזמן?"
-            value={answeredInTime}
-            onChange={(v) => {
-              markStarted();
-              setAnsweredInTime(v);
-            }}
-          />
-          <Field
-            id={`${formId}-deal`}
-            label="כמה שווה לך עסקה ממוצעת?"
-            value={averageDealValueIls}
-            onChange={(v) => {
-              markStarted();
-              setAverageDealValueIls(v);
-            }}
-          />
+            <h2
+              id={`${formId}-title`}
+              className="relative max-w-[14ch] text-3xl font-extrabold leading-[1.15] tracking-tight sm:text-4xl"
+            >
+              כמה כסף נשרף כל חודש על לידים שלא נענו בזמן?
+            </h2>
+            <p className="relative mt-4 max-w-sm text-sm leading-relaxed text-white/70">
+              שלושה מספרים — והמערכת מראה מה העסק משלם על שתיקה.
+            </p>
 
-          {error ? (
-            <p role="alert" className="text-sm text-red-300">
-              {error}
-            </p>
-          ) : null}
+            <div className="relative mt-10">
+              <p className="text-xs font-semibold tracking-wide text-white/55">
+                לידים שנשרפו · תצוגה חיה
+              </p>
+              <p className="mt-2 font-mono text-5xl font-extrabold tracking-tight text-[hsl(var(--spark))] sm:text-6xl">
+                {missedLeads > 0 ? missedLeads : '—'}
+              </p>
+              <div
+                className="mt-5 h-3 overflow-hidden rounded-full bg-white/10"
+                role="meter"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(missRatio * 100)}
+                aria-label="שיעור לידים שלא נענו בזמן"
+              >
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-500 ease-out"
+                  style={{ width: `${Math.max(missRatio * 100, display ? 4 : 0)}%` }}
+                />
+              </div>
+              <p className="mt-3 text-xs text-white/55">
+                {display
+                  ? `${Math.round(missRatio * 100)}% מהלידים לא מקבלים מענה בזמן`
+                  : 'מלא את השדות — המד יתחיל לזוז'}
+              </p>
+            </div>
 
-          <Button
-            type="submit"
-            size="lg"
-            className="h-12 w-full cursor-pointer rounded-full bg-cta text-base font-semibold text-cta-foreground hover:bg-cta/90"
-          >
-            הראה לי את המספר
-          </Button>
-        </form>
-
-        {result ? (
-          <div
-            className="mt-8 animate-message-in rounded-2xl border border-cta/40 bg-cta/10 p-6 text-center"
-            aria-live="polite"
-          >
-            <p className="whitespace-pre-line text-xl font-bold leading-relaxed sm:text-2xl">
-              {`העסק שלך מאבד בערך ${formatIls(result.monthlyLossIls)} בחודש\nמלידים שלא קיבלו מענה בזמן.`}
-            </p>
-            <p className="mt-3 text-lg font-semibold text-[hsl(var(--spark))]">
-              זה {formatIls(result.yearlyLossIls)} בשנה.
-            </p>
-            <p className="mt-4 text-sm text-white/70">
-              המספר הזה לא כולל את הלידים שענו לך &quot;אני אחשוב על זה&quot; ואף אחד לא חזר
-              אליהם.
-            </p>
+            {display ? (
+              <div
+                className={cn(
+                  'relative mt-10 rounded-2xl border border-white/10 bg-white/5 p-5 transition',
+                  result && 'border-primary/40 bg-primary/10',
+                )}
+                aria-live="polite"
+              >
+                <p className="text-xs font-semibold text-white/60">הפסד חודשי משוער</p>
+                <p className="mt-1 font-mono text-3xl font-extrabold tracking-tight sm:text-4xl">
+                  {formatIls(display.monthlyLossIls)}
+                </p>
+                <p className="mt-2 text-sm font-medium text-[hsl(var(--spark))]">
+                  ≈ {formatIls(display.yearlyLossIls)} בשנה
+                </p>
+                {result ? (
+                  <p className="mt-3 text-xs leading-relaxed text-white/65">
+                    בלי לידים שענו &quot;אני אחשוב על זה&quot; ואף אחד לא חזר אליהם.
+                  </p>
+                ) : (
+                  <p className="mt-3 text-xs text-white/55">
+                    תצוגה מקדימה — לחץ &quot;הראה לי את המספר&quot; לנעילה.
+                  </p>
+                )}
+              </div>
+            ) : null}
           </div>
-        ) : null}
 
-        {result ? (
-          <div className="mt-10">
-            <LeadCaptureForm calculatorMonthlyLossIls={result.monthlyLossIls} />
+          {/* Input desk */}
+          <div className="flex flex-col lg:col-span-7">
+            <form
+              className="flex flex-1 flex-col rounded-[2rem] border border-border/80 bg-card p-6 shadow-card sm:p-8"
+              onSubmit={onSubmit}
+              noValidate
+            >
+              <p className="text-sm font-semibold text-muted-foreground">
+                הזן את המספרים האמיתיים שלך
+              </p>
+
+              <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                <Field
+                  id={`${formId}-leads`}
+                  label="לידים בחודש"
+                  hint="כמה נכנסים אליך בערך"
+                  value={monthlyLeads}
+                  className="sm:col-span-2"
+                  onChange={(v) => {
+                    markStarted();
+                    setMonthlyLeads(v);
+                    setResult(null);
+                  }}
+                />
+                <Field
+                  id={`${formId}-answered`}
+                  label="נענו בזמן"
+                  hint="כמה הספקת לענות מהר"
+                  value={answeredInTime}
+                  onChange={(v) => {
+                    markStarted();
+                    setAnsweredInTime(v);
+                    setResult(null);
+                  }}
+                />
+                <Field
+                  id={`${formId}-deal`}
+                  label="שווי עסקה ממוצעת"
+                  hint="בשקלים"
+                  value={averageDealValueIls}
+                  suffix="₪"
+                  onChange={(v) => {
+                    markStarted();
+                    setAverageDealValueIls(v);
+                    setResult(null);
+                  }}
+                />
+              </div>
+
+              {error ? (
+                <p role="alert" className="mt-4 text-sm text-destructive">
+                  {error}
+                </p>
+              ) : null}
+
+              <Button
+                type="submit"
+                size="lg"
+                className="mt-8 h-12 w-full cursor-pointer rounded-full bg-cta text-base font-semibold text-cta-foreground hover:bg-cta/90 sm:mt-auto sm:w-auto sm:self-start sm:px-10"
+              >
+                הראה לי את המספר
+              </Button>
+            </form>
+
+            {result ? (
+              <div className="mt-6 animate-message-in">
+                <LeadCaptureForm calculatorMonthlyLossIls={result.monthlyLossIls} />
+              </div>
+            ) : null}
           </div>
-        ) : null}
+        </div>
       </div>
     </section>
   );
@@ -152,29 +251,46 @@ export function LossCalculator() {
 function Field({
   id,
   label,
+  hint,
   value,
   onChange,
+  suffix,
+  className,
 }: {
   id: string;
   label: string;
+  hint?: string;
   value: string;
   onChange: (v: string) => void;
+  suffix?: string;
+  className?: string;
 }) {
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id} className="text-white/90">
+    <div className={cn('space-y-2', className)}>
+      <Label htmlFor={id} className="text-foreground">
         {label}
       </Label>
-      <Input
-        id={id}
-        inputMode="numeric"
-        pattern="[0-9]*"
-        autoComplete="off"
-        className="h-12 border-white/20 bg-white/95 text-base text-foreground"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        required
-      />
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+      <div className="relative">
+        <Input
+          id={id}
+          inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete="off"
+          className={cn(
+            'h-12 border-input bg-background text-base',
+            suffix && 'pe-10',
+          )}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          required
+        />
+        {suffix ? (
+          <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+            {suffix}
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }
