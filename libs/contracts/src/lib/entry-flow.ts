@@ -4,7 +4,7 @@ import type {
   EntryPhase,
   EntryResolution,
 } from './onboarding';
-import { resolveWorkspaceRoute } from './onboarding';
+import { requiresOnboarding, resolveWorkspaceRoute } from './onboarding';
 import type { Workspace } from './workspace';
 
 /**
@@ -28,11 +28,17 @@ export class EntryFlowService {
       };
     }
 
+    const active = this.resolveActiveWorkspace(context);
+
+    // Incomplete active workspace always continues setup (skip select hop).
+    if (active && requiresOnboarding(active)) {
+      return this.resolveForWorkspace(active);
+    }
+
     if (context.memberships.length > 1 && !context.workspaceSelected) {
       return this.phase('workspace_select', ENTRY_ROUTES.workspaceSelect);
     }
 
-    const active = this.resolveActiveWorkspace(context);
     if (!active) {
       return this.phase('workspace_select', ENTRY_ROUTES.workspaceSelect);
     }

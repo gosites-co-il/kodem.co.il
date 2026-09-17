@@ -79,12 +79,16 @@ export interface EntryResolution {
 }
 
 export function requiresOnboarding(workspace: Workspace): boolean {
-  return workspace.onboardingStatus !== 'COMPLETED';
+  // Setup gate: incomplete journey, or legacy lifecycle still marked onboarding.
+  return (
+    workspace.onboardingStatus !== 'COMPLETED' ||
+    workspace.status === 'onboarding'
+  );
 }
 
 export function resolveWorkspaceRoute(workspace: Workspace): string {
-  if (workspace.onboardingStatus === 'COMPLETED') {
-    return ENTRY_ROUTES.dashboard;
+  if (requiresOnboarding(workspace)) {
+    return ENTRY_ROUTES.setup;
   }
-  return ENTRY_ROUTES.setup;
+  return ENTRY_ROUTES.dashboard;
 }

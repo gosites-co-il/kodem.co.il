@@ -4,9 +4,11 @@ import {
   Controller,
   Get,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { WorkspaceSetupService } from '@kodem/platform/workspace';
+import { checkHostnameAvailable } from '@kodem/integrations';
 import type { AdvanceSetupInput } from '@kodem/contracts';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentContext } from '../auth/decorators/current-context.decorator';
@@ -20,6 +22,80 @@ export class WorkspaceSetupController {
   @UseGuards(JwtAuthGuard)
   async getState(@CurrentContext() context: PlatformContext) {
     return this.setupService.getState(context.workspace.id);
+  }
+
+  @Get('slug-availability')
+  @UseGuards(JwtAuthGuard)
+  async slugAvailability(
+    @CurrentContext() context: PlatformContext,
+    @Query('slug') slug?: string,
+  ) {
+    if (!slug?.trim()) {
+      throw new BadRequestException('slug is required');
+    }
+
+    const db = await this.setupService.checkSlugAvailability(
+      context.workspace.id,
+      slug,
+    );
+
+    if (!db.available) {
+      return { ...db, dnsChecked: false };
+    }
+
+    const dns = await checkHostnameAvailable(db.slug);
+    if (dns.checked && !dns.available) {
+      return {
+        ...db,
+        available: false,
+        reason: 'taken_dns' as const,
+        dnsChecked: true,
+      };
+    }
+
+    return {
+      ...db,
+      dnsChecked: dns.checked,
+    };
+  }
+
+  @Post('identity')
+  @UseGuards(JwtAuthGuard)
+  async saveIdentity(
+    @CurrentContext() context: PlatformContext,
+    @Body()
+    body: { businessName?: string; workspaceName?: string; slug?: string },
+  ) {
+    if (
+      !body.businessName?.trim() ||
+      !body.workspaceName?.trim() ||
+      !body.slug?.trim()
+    ) {
+      throw new BadRequestException(
+        'businessName, workspaceName, and slug are required',
+      );
+    }
+
+    const availability = await this.slugAvailability(context, body.slug);
+    if (!availability.available) {
+      throw new BadRequestException(
+        availability.reason === 'invalid'
+          ? 'Invalid subdomain'
+          : `Subdomain unavailable: ${availability.hostname}`,
+      );
+    }
+
+    try {
+      return await this.setupService.saveIdentity(context.workspace.id, {
+        businessName: body.businessName,
+        workspaceName: body.workspaceName,
+        slug: body.slug,
+      });
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Failed to save identity',
+      );
+    }
   }
 
   @Post('step')

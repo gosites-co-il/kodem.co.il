@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@kodem/design-system/components/ui/card';
+import { requiresOnboarding } from '@kodem/contracts';
 import { useAuth } from '../../providers/auth-provider';
 import { isApiError } from '../../lib/api';
 import { fetchEntryResolution } from '../../lib/entry/entry-flow';
@@ -19,7 +20,7 @@ import { ROUTES } from '../../lib/constants';
 
 export function EntryResolver() {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, workspace } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const resolveStarted = useRef(false);
 
@@ -45,7 +46,17 @@ export function EntryResolver() {
           return;
         }
 
-        router.replace(resolution.route);
+        let route = resolution.route;
+        // Safety net: never land on dashboard while active workspace needs setup.
+        if (
+          workspace &&
+          requiresOnboarding(workspace) &&
+          route === ROUTES.dashboard
+        ) {
+          route = ROUTES.setup;
+        }
+
+        router.replace(route);
       } catch (err) {
         setError(
           isApiError(err)
@@ -56,7 +67,7 @@ export function EntryResolver() {
     }
 
     void resolve();
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, router, workspace]);
 
   if (error) {
     return (

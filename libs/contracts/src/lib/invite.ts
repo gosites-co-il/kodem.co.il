@@ -23,11 +23,22 @@ export interface CreateInviteInput {
   invitedById: UserId;
 }
 
+export interface InviteMemberPreview {
+  name: string;
+  initials: string;
+}
+
 export interface InvitePublicView {
   id: string;
   workspaceName: string;
+  workspaceSlug?: string;
   email: string;
   role: RoleName;
   status: InviteStatus;
   expiresAt: Date;
+  invitedByName?: string;
+  invitedByEmail?: string;
+  memberCount?: number;
+  membersPreview?: InviteMemberPreview[];
 }
+

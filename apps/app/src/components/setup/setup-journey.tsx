@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import type { SetupStateResponse, SetupStepId } from '@kodem/contracts';
 import { resolveSetupStepId } from '@kodem/contracts';
@@ -8,7 +8,9 @@ import { api, isApiError } from '../../lib/api';
 import { ROUTES } from '../../lib/constants';
 import { useAuth } from '../../providers/auth-provider';
 import { SetupShell } from './setup-shell';
-import { WelcomeScreen } from './screens/welcome-screen';
+import { SetupFrame } from './setup-frame';
+import type { SetupStepperStep } from './setup-stepper';
+import { IdentityScreen } from './screens/identity-screen';
 import { BusinessDiscoveryScreen } from './screens/business-discovery-screen';
 import { BusinessUnderstandingScreen } from './screens/business-understanding-screen';
 import { WorkspaceCreationScreen } from './screens/workspace-creation-screen';
@@ -17,6 +19,19 @@ import { ModulesScreen } from './screens/modules-screen';
 import { AiScreen } from './screens/ai-screen';
 import { PreparationScreen } from './screens/preparation-screen';
 import { ReadyScreen } from './screens/ready-screen';
+
+/** Provisional labels for the horizontal stepper (steps 2+ still evolving). */
+const SETUP_STEPPER_STEPS: readonly SetupStepperStep[] = [
+  { id: 'welcome', label: 'זהות' },
+  { id: 'business_discovery', label: 'גילוי' },
+  { id: 'business_understanding', label: 'פרופיל' },
+  { id: 'workspace_creation', label: 'סביבה' },
+  { id: 'connections', label: 'חיבורים' },
+  { id: 'modules', label: 'מודולים' },
+  { id: 'ai', label: 'AI' },
+  { id: 'preparation', label: 'הכנה' },
+  { id: 'ready', label: 'מוכן' },
+];
 
 export function SetupJourney() {
   const router = useRouter();
@@ -56,6 +71,25 @@ export function SetupJourney() {
       return next;
     } catch (err) {
       setError(isApiError(err) ? err.message : 'לא ניתן לשמור.');
+      return null;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function saveIdentity(payload: {
+    businessName: string;
+    workspaceName: string;
+    slug: string;
+  }) {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const next = await api.saveSetupIdentity(payload);
+      setState(next);
+      return next;
+    } catch (err) {
+      setError(isApiError(err) ? err.message : 'לא ניתן לשמור את הזהות.');
       return null;
     } finally {
       setIsSubmitting(false);
@@ -114,29 +148,40 @@ export function SetupJourney() {
     }
   }
 
-  if (isLoading) {
+  function frame(activeStepId: string, children: ReactNode) {
     return (
-      <SetupShell>
+      <SetupFrame steps={SETUP_STEPPER_STEPS} activeStepId={activeStepId}>
+        {children}
+      </SetupFrame>
+    );
+  }
+
+  if (isLoading) {
+    return frame(
+      'welcome',
+      <SetupShell centered>
         <p className="text-center text-sm text-muted-foreground">טוען…</p>
-      </SetupShell>
+      </SetupShell>,
     );
   }
 
   if (error && !state) {
-    return (
-      <SetupShell>
+    return frame(
+      'welcome',
+      <SetupShell centered>
         <p className="text-center text-sm text-destructive">{error}</p>
-      </SetupShell>
+      </SetupShell>,
     );
   }
 
   if (!state) {
-    return (
-      <SetupShell>
+    return frame(
+      'welcome',
+      <SetupShell centered>
         <p className="text-center text-sm text-muted-foreground">
           לא ניתן לטעון את ההגדרה.
         </p>
-      </SetupShell>
+      </SetupShell>,
     );
   }
 
@@ -154,31 +199,50 @@ export function SetupJourney() {
 
   switch (step) {
     case 'welcome':
-      return <WelcomeScreen {...screenProps} />;
+      return frame(
+        'welcome',
+        <IdentityScreen
+          {...screenProps}
+          onIdentitySaved={async (payload) => {
+            await saveIdentity(payload);
+          }}
+        />,
+      );
     case 'business_discovery':
-      return <BusinessDiscoveryScreen {...screenProps} />;
+      return frame(
+        'business_discovery',
+        <BusinessDiscoveryScreen {...screenProps} />,
+      );
     case 'business_understanding':
-      return <BusinessUnderstandingScreen {...screenProps} />;
+      return frame(
+        'business_understanding',
+        <BusinessUnderstandingScreen {...screenProps} />,
+      );
     case 'workspace_creation':
-      return <WorkspaceCreationScreen {...screenProps} />;
+      return frame(
+        'workspace_creation',
+        <WorkspaceCreationScreen {...screenProps} />,
+      );
     case 'connections':
-      return <ConnectionsScreen {...screenProps} />;
+      return frame('connections', <ConnectionsScreen {...screenProps} />);
     case 'modules':
-      return <ModulesScreen {...screenProps} />;
+      return frame('modules', <ModulesScreen {...screenProps} />);
     case 'ai':
-      return <AiScreen {...screenProps} />;
+      return frame('ai', <AiScreen {...screenProps} />);
     case 'preparation':
-      return <PreparationScreen {...screenProps} />;
+      return frame('preparation', <PreparationScreen {...screenProps} />);
     case 'ready':
-      return (
+      return frame(
+        'ready',
         <ReadyScreen
           {...screenProps}
           onComplete={() => void handleComplete()}
-        />
+        />,
       );
     default:
-      return (
-        <SetupShell>
+      return frame(
+        'welcome',
+        <SetupShell centered>
           <p className="text-center text-sm text-muted-foreground">
             שלב לא מוכר ({String(state.step)}).{' '}
             <button
@@ -189,7 +253,7 @@ export function SetupJourney() {
               נסו שוב
             </button>
           </p>
-        </SetupShell>
+        </SetupShell>,
       );
   }
 }

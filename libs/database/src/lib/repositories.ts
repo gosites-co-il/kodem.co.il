@@ -142,6 +142,7 @@ export class WorkspaceRepository {
     id: WorkspaceId,
     data: {
       name?: string;
+      slug?: string;
       websiteUrl?: string | null;
       industry?: string | null;
       businessSize?: string | null;

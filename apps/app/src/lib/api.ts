@@ -303,6 +303,28 @@ export const api = {
     return request<SetupStateResponse>('/workspace/setup');
   },
 
+  checkSetupSlug(slug: string) {
+    const query = new URLSearchParams({ slug });
+    return request<{
+      slug: string;
+      hostname: string;
+      available: boolean;
+      reason?: string;
+      dnsChecked: boolean;
+    }>(`/workspace/setup/slug-availability?${query.toString()}`);
+  },
+
+  saveSetupIdentity(body: {
+    businessName: string;
+    workspaceName: string;
+    slug: string;
+  }) {
+    return request<SetupStateResponse>('/workspace/setup/identity', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
   advanceSetupStep(body: AdvanceSetupInput) {
     return request<SetupStateResponse>('/workspace/setup/step', {
       method: 'POST',

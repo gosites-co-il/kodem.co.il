@@ -33,6 +33,30 @@ const STEP_INDEX: Record<SetupStepId, number> = Object.fromEntries(
   SETUP_STEPS.map((step, index) => [step, index]),
 ) as Record<SetupStepId, number>;
 
+const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])?$/;
+const WORKSPACE_SUBDOMAIN_SUFFIX =
+  process.env['WORKSPACE_SUBDOMAIN_SUFFIX'] ?? '.app.kodem.co.il';
+
+export function normalizeWorkspaceSlug(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+}
+
+export function isValidWorkspaceSlug(slug: string): boolean {
+  return SLUG_PATTERN.test(slug);
+}
+
+function workspaceHostname(slug: string): string {
+  const suffix = WORKSPACE_SUBDOMAIN_SUFFIX.startsWith('.')
+    ? WORKSPACE_SUBDOMAIN_SUFFIX
+    : `.${WORKSPACE_SUBDOMAIN_SUFFIX}`;
+  return `${slug}${suffix}`;
+}
+
 function serializeSetup(data: WorkspaceSetupData | undefined): string | null {
   if (!data || Object.keys(data).length === 0) return null;
   return JSON.stringify(data);
@@ -82,7 +106,8 @@ export class WorkspaceSetupService {
     const stepIndex = migrateLegacyStepIndex(workspace.onboardingStep, setup);
     if (
       stepIndex !== workspace.onboardingStep ||
-      setup.businessApproved !== workspace.setupData?.businessApproved
+      setup.businessApproved !== workspace.setupData?.businessApproved ||
+      setup.identityComplete !== workspace.setupData?.identityComplete
     ) {
       await this.workspaceRepo.updateOnboarding(workspaceId, {
         onboardingStep: stepIndex,
@@ -109,6 +134,12 @@ export class WorkspaceSetupService {
 
     const workspace = await this.requireWorkspace(workspaceId);
     const currentSetup = this.mergeSetupData(workspace);
+
+    // Identity (step 1) must be completed before advancing further.
+    if (!currentSetup.identityComplete) {
+      throw new Error('Complete business identity before continuing');
+    }
+
     const nextSetup = this.mergeStepData(currentSetup, input);
     const stepIndex = STEP_INDEX[input.step];
     const nextStepIndex = Math.min(stepIndex + 1, SETUP_STEPS.length - 1);
@@ -168,6 +199,110 @@ export class WorkspaceSetupService {
     if (input.step === 'workspace_creation') {
       await this.finalizeWorkspaceCreation(workspaceId, nextSetup);
     }
+
+    return this.getState(workspaceId);
+  }
+
+  async checkSlugAvailability(
+    workspaceId: WorkspaceId,
+    rawSlug: string,
+  ): Promise<{
+    slug: string;
+    hostname: string;
+    available: boolean;
+    reason?: 'invalid' | 'taken_db' | 'current';
+  }> {
+    const slug = normalizeWorkspaceSlug(rawSlug);
+    const hostname = workspaceHostname(slug);
+
+    if (!isValidWorkspaceSlug(slug)) {
+      return {
+        slug,
+        hostname,
+        available: false,
+        reason: 'invalid',
+      };
+    }
+
+    const workspace = await this.requireWorkspace(workspaceId);
+    if (workspace.slug === slug) {
+      return {
+        slug,
+        hostname,
+        available: true,
+        reason: 'current',
+      };
+    }
+
+    const existing = await this.workspaceRepo.findBySlug(slug);
+    if (existing && existing.id !== workspaceId) {
+      return {
+        slug,
+        hostname,
+        available: false,
+        reason: 'taken_db',
+      };
+    }
+
+    return {
+      slug,
+      hostname,
+      available: true,
+    };
+  }
+
+  /**
+   * Questionnaire step 1 — business name, workspace name, subdomain slug.
+   * Advances past welcome when still on the first step.
+   */
+  async saveIdentity(
+    workspaceId: WorkspaceId,
+    input: {
+      businessName: string;
+      workspaceName: string;
+      slug: string;
+    },
+  ): Promise<SetupStateResponse> {
+    const businessName = input.businessName.trim();
+    const workspaceName = input.workspaceName.trim();
+    const slug = normalizeWorkspaceSlug(input.slug);
+
+    if (!businessName || !workspaceName) {
+      throw new Error('Business name and workspace name are required');
+    }
+
+    const availability = await this.checkSlugAvailability(workspaceId, slug);
+    if (!availability.available) {
+      throw new Error(
+        availability.reason === 'invalid'
+          ? 'Invalid subdomain'
+          : `Subdomain unavailable: ${availability.hostname}`,
+      );
+    }
+
+    const workspace = await this.requireWorkspace(workspaceId);
+    const setup = this.mergeSetupData(workspace);
+    setup.business = {
+      ...setup.business,
+      name: businessName,
+    };
+    setup.identityComplete = true;
+
+    const nextStep =
+      workspace.onboardingStep <= STEP_INDEX.welcome
+        ? STEP_INDEX.business_discovery
+        : Math.max(workspace.onboardingStep, STEP_INDEX.business_discovery);
+
+    await this.workspaceRepo.updateOnboarding(workspaceId, {
+      name: workspaceName,
+      slug,
+      onboardingStatus:
+        workspace.onboardingStatus === 'NOT_STARTED'
+          ? 'IN_PROGRESS'
+          : workspace.onboardingStatus,
+      onboardingStep: nextStep,
+      setupData: serializeSetup(setup),
+    });
 
     return this.getState(workspaceId);
   }
@@ -480,6 +615,7 @@ export class WorkspaceSetupService {
     return {
       business: setup.business,
       businessApproved: setup.businessApproved,
+      identityComplete: setup.identityComplete,
       confirmedProfile: setup.confirmedProfile,
       discovered: setup.discovered
         ? { status: setup.discovered.status }
@@ -496,7 +632,9 @@ export class WorkspaceSetupService {
     workspaceId: WorkspaceId,
     setup: WorkspaceSetupData,
   ): Promise<void> {
-    setup.modules ??= this.progressService.defaultModules();
+    const modules: NonNullable<WorkspaceSetupData['modules']> =
+      setup.modules ?? this.progressService.defaultModules();
+    setup.modules = modules;
     setup.ai ??= this.progressService.defaultAi();
     setup.connections ??= { connected: [], skipped: [] };
 
@@ -513,7 +651,7 @@ export class WorkspaceSetupService {
       setupData: serializeSetup(setup),
     });
 
-    const activated = setup.modules.activated ?? [];
+    const activated = modules.activated ?? [];
     if (activated.length > 0) {
       const { WorkspaceModuleService } = await import(
         './workspace-module.service'

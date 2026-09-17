@@ -1,17 +1,43 @@
 import Link from 'next/link';
+import { cn } from '@kodem/design-system/lib/utils';
 import { ROUTES } from '../../lib/constants';
 
-/** Compact brand mark + wordmark for auth surfaces. */
-export function AuthBrandLogo({ href = ROUTES.login }: { href?: string }) {
-  return (
-    <Link
-      href={href}
-      className="inline-flex items-center gap-2 font-semibold tracking-tight text-foreground"
-    >
-      <span className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+/** Compact brand mark + wordmark for auth / setup surfaces. */
+export function AuthBrandLogo({
+  href = ROUTES.login,
+  inverted = false,
+}: {
+  href?: string | null;
+  inverted?: boolean;
+}) {
+  const className = cn(
+    'inline-flex items-center gap-2 font-semibold tracking-tight',
+    inverted ? 'text-primary-foreground' : 'text-foreground',
+  );
+
+  const mark = (
+    <>
+      <span
+        className={cn(
+          'flex size-8 items-center justify-center rounded-md',
+          inverted
+            ? 'bg-primary-foreground/15 text-primary-foreground'
+            : 'bg-primary text-primary-foreground',
+        )}
+      >
         <KodemGlyph className="size-4" />
       </span>
       <span>Kodem</span>
+    </>
+  );
+
+  if (href === null) {
+    return <span className={className}>{mark}</span>;
+  }
+
+  return (
+    <Link href={href} className={className}>
+      {mark}
     </Link>
   );
 }

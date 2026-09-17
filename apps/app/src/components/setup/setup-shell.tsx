@@ -3,30 +3,25 @@
 import type { ReactNode } from 'react';
 import { cn } from '@kodem/design-system/lib/utils';
 
+/** Content wrapper inside SetupFrame — no full-page chrome. */
 export function SetupShell({
   children,
   className,
-  centered = true,
+  centered = false,
 }: {
   children: ReactNode;
   className?: string;
   centered?: boolean;
 }) {
   return (
-    <div className="relative min-h-screen">
-      <div
-        aria-hidden
-        className="auth-canvas-gradient pointer-events-none absolute inset-0"
-      />
-      <div
-        className={cn(
-          'relative z-10 mx-auto w-full max-w-lg px-4 py-12 sm:py-16',
-          centered && 'flex min-h-screen flex-col justify-center',
-          className,
-        )}
-      >
-        {children}
-      </div>
+    <div
+      className={cn(
+        'flex w-full flex-1 flex-col',
+        centered && 'justify-center',
+        className,
+      )}
+    >
+      {children}
     </div>
   );
 }
@@ -39,8 +34,8 @@ export function SetupHeadline({
   subtitle?: string;
 }) {
   return (
-    <div className="mb-10 space-y-3 text-center">
-      <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+    <div className="mb-8 space-y-2 text-start">
+      <h1 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
         {title}
       </h1>
       {subtitle ? (

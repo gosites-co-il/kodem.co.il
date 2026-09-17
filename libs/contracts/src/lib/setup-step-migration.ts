@@ -45,6 +45,11 @@ export function migrateLegacyStepIndex(
 ): number {
   const raw = Math.max(0, index);
 
+  // Step 1 (identity) is required before any later questionnaire step.
+  if (!setup.identityComplete) {
+    return 0;
+  }
+
   // Explicit approval flag survives slimAfterBusinessApproval (report removed).
   if (setup.businessApproved) {
     return Math.max(raw, WORKSPACE_CREATION_INDEX);

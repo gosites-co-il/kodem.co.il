@@ -1,0 +1,10 @@
+{
+  "approved": true,
+  "composition": "A-dock-plus-C-brand-panel",
+  "step1": {
+    "fields": ["businessName", "workspaceName", "slug"],
+    "subdomainSuffix": ".app.kodem.co.il",
+    "cloudflare": "check-only"
+  },
+  "prompt": "Hybrid of end-dock sheet (5/8) and brand panel (3/8) for KODEM Hebrew RTL setup step 1"
+}

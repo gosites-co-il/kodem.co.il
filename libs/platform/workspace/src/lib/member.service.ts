@@ -42,6 +42,16 @@ function isInvitableRole(role: RoleName): role is 'admin' | 'member' {
   return (INVITABLE_ROLES as RoleName[]).includes(role);
 }
 
+function initialsFromName(value: string): string {
+  const parts = value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+}
+
 export class MemberService {
   private readonly memberRepo = new MemberRepository();
   private readonly inviteRepo = new WorkspaceInviteRepository();
@@ -210,13 +220,25 @@ export class MemberService {
       status = 'expired';
     }
 
+    const inviter = await this.userRepo.findById(invite.invitedById);
+    const members = await this.listMembers(invite.workspaceId);
+    const membersPreview = members.slice(0, 4).map((m) => ({
+      name: m.name || m.email,
+      initials: initialsFromName(m.name || m.email),
+    }));
+
     return {
       id: invite.id,
       workspaceName: workspace.name,
+      workspaceSlug: workspace.slug,
       email: invite.email,
       role: invite.role,
       status,
       expiresAt: invite.expiresAt,
+      invitedByName: inviter?.name,
+      invitedByEmail: inviter?.email,
+      memberCount: members.length,
+      membersPreview,
     };
   }
 

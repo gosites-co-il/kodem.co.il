@@ -78,9 +78,7 @@
   body {
     @apply min-h-screen bg-background text-foreground antialiased;
     font-feature-settings: 'rlig' 1, 'calt' 1;
-    font-variant-numeric: tabular-nums;
     text-align: start;
-    caret-color: hsl(var(--primary));
   }
 
   :focus-visible {
@@ -88,13 +86,7 @@
   }
 
   ::selection {
-    background: hsl(187 62% 66% / 0.35);
-    color: hsl(var(--foreground));
-  }
-
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: hsl(187 62% 66% / 0.5) transparent;
+    background: hsl(338 85% 46% / 0.22);
   }
 }
 

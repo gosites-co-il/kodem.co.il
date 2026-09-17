@@ -128,6 +128,8 @@ export interface WorkspaceSetupData {
   confirmedProfile?: BusinessProfileDraft;
   /** Set when business_understanding is approved and persisted to domain entities. */
   businessApproved?: boolean;
+  /** Set when step 1 identity (business + workspace + slug) is saved. */
+  identityComplete?: boolean;
   connections?: SetupConnectionsData;
   modules?: SetupModulesData;
   ai?: SetupAiData;

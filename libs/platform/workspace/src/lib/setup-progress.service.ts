@@ -1,5 +1,7 @@
 import type {
+  SetupAiData,
   SetupDiscoveryFinding,
+  SetupModulesData,
   SetupProgressTask,
   WorkspaceSetupData,
 } from '@kodem/contracts';
@@ -82,13 +84,13 @@ export class SetupProgressService {
     ];
   }
 
-  defaultModules(): WorkspaceSetupData['modules'] {
+  defaultModules(): SetupModulesData {
     return {
       activated: ['crm', 'knowledge', 'insights', 'digital_card'],
     };
   }
 
-  defaultAi(): WorkspaceSetupData['ai'] {
+  defaultAi(): SetupAiData {
     return { provider: 'kodem' };
   }
 }
