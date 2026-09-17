@@ -49,6 +49,18 @@ export class UserService {
     return this.userRepo.create({
       email: input.email,
       name: input.name,
+      emailVerifiedAt: new Date(),
     });
+  }
+
+  async ensureEmailVerified(userId: UserId): Promise<User> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    if (user.emailVerifiedAt) {
+      return user;
+    }
+    return this.userRepo.setEmailVerifiedAt(userId, new Date());
   }
 }

@@ -1,0 +1,12 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { AboutPage } from '../components/pages/AboutPage';
+---
+
+<SiteLayout
+  title="עלינו — KODEM"
+  description="נבנה בישראל לעסקים שמוכרים בוואטסאפ ומודדים כל שקל פרסום."
+  path="/about"
+>
+  <AboutPage client:load />
+</SiteLayout>

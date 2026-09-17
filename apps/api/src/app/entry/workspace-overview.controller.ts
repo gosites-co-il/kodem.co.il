@@ -5,17 +5,20 @@ import {
 } from '@kodem/database';
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ModuleGuard } from '../auth/guards/module.guard';
+import { RequireModule } from '../auth/decorators/require-module.decorator';
 import { CurrentContext } from '../auth/decorators/current-context.decorator';
 import type { PlatformContext } from '@kodem/contracts';
 
 @Controller('workspace/overview')
+@UseGuards(JwtAuthGuard, ModuleGuard)
 export class WorkspaceOverviewController {
   private readonly profileRepo = new BusinessProfileRepository();
   private readonly insightRepo = new InsightRepository();
   private readonly recommendationRepo = new RecommendationRepository();
 
   @Get()
-  @UseGuards(JwtAuthGuard)
+  @RequireModule('insights')
   async overview(@CurrentContext() context: PlatformContext) {
     const workspaceId = context.workspace.id;
     const [profile, insights, recommendations] = await Promise.all([
@@ -24,8 +27,8 @@ export class WorkspaceOverviewController {
       this.recommendationRepo.findByWorkspace(workspaceId),
     ]);
 
-    const primaryRecommendation = recommendations.find((r) => r.isPrimary) ??
-      recommendations[0];
+    const primaryRecommendation =
+      recommendations.find((r) => r.isPrimary) ?? recommendations[0];
 
     return {
       workspace: context.workspace,

@@ -16,6 +16,7 @@ import {
   WorkspaceRepository,
 } from '@kodem/database';
 import { EVENT_TYPES, KodemEventBus } from '@kodem/events';
+import { UsageService } from '@kodem/platform/usage';
 import { BusinessDiscoveryService } from './business-discovery.service';
 import {
   buildProfileDraftFromSetup,
@@ -44,6 +45,7 @@ export class WorkspaceSetupService {
   private readonly progressService = new SetupProgressService();
   private readonly discoveryService = new BusinessDiscoveryService();
   private readonly eventBus = new KodemEventBus(new PrismaEventStore());
+  private readonly usage = new UsageService();
 
   async getState(workspaceId: WorkspaceId): Promise<SetupStateResponse> {
     const workspace = await this.requireWorkspace(workspaceId);
@@ -566,6 +568,15 @@ export class WorkspaceSetupService {
           workspaceId,
           payload: event.payload as unknown as Record<string, unknown>,
         });
+
+        if (event.type === 'discovery.completed') {
+          await this.usage.assertAndTrack({
+            workspaceId,
+            metric: 'events',
+            quantity: 1,
+            metadata: { source: 'discovery.completed' },
+          });
+        }
       },
     };
   }

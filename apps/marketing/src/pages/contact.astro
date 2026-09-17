@@ -1,0 +1,12 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { ContactPage } from '../components/pages/ContactPage';
+---
+
+<SiteLayout
+  title="צור קשר — KODEM"
+  description="שיחת היכרות קצרה או פנייה בוואטסאפ. בודקים התאמה לפני שקל."
+  path="/contact"
+>
+  <ContactPage client:load />
+</SiteLayout>

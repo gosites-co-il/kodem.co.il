@@ -1,0 +1,12 @@
+---
+import SiteLayout from '../../layouts/SiteLayout.astro';
+import { ResourcesPage } from '../../components/pages/ResourcesPage';
+---
+
+<SiteLayout
+  title="מרכז ידע — KODEM"
+  description="מדריכים על זמן מענה ללידים, Meta API ו-ROAS לעסקים בישראל."
+  path="/resources"
+>
+  <ResourcesPage client:load />
+</SiteLayout>

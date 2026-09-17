@@ -46,12 +46,14 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
 
       - run: CI=true npx nx run-many -t lint --projects=app,api,worker
+
+      - run: CI=true npx nx build marketing
 
   build-and-push:
     runs-on: ubuntu-latest
@@ -66,6 +68,8 @@ jobs:
             file: docker/Dockerfile.api
           - service: worker
             file: docker/Dockerfile.worker
+          - service: marketing
+            file: docker/Dockerfile.marketing
     steps:
       - uses: actions/checkout@v4
 
@@ -118,6 +122,39 @@ jobs:
           echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
           echo "cache=$REGISTRY/$REPO:buildcache" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve marketing public URLs
+        id: urls
+        env:
+          AZURE_ENV: ${{ inputs.environment }}
+          APP_CUSTOM_DOMAIN: ${{ vars.APP_CUSTOM_DOMAIN }}
+          API_CUSTOM_DOMAIN: ${{ vars.API_CUSTOM_DOMAIN }}
+          MARKETING_CUSTOM_DOMAIN: ${{ vars.MARKETING_CUSTOM_DOMAIN }}
+          PUBLIC_WHATSAPP_PHONE: ${{ vars.PUBLIC_WHATSAPP_PHONE }}
+          PUBLIC_GA_MEASUREMENT_ID: ${{ vars.PUBLIC_GA_MEASUREMENT_ID }}
+          PUBLIC_META_PIXEL_ID: ${{ vars.PUBLIC_META_PIXEL_ID }}
+        run: |
+          set -euo pipefail
+          PARAMS="deploy/azure/main.parameters.$AZURE_ENV.json"
+          APP_DOMAIN="${APP_CUSTOM_DOMAIN:-$(jq -r '.parameters.appCustomDomain.value // ""' "$PARAMS")}"
+          API_DOMAIN="${API_CUSTOM_DOMAIN:-$(jq -r '.parameters.apiCustomDomain.value // ""' "$PARAMS")}"
+          MARKETING_DOMAIN="${MARKETING_CUSTOM_DOMAIN:-$(jq -r '.parameters.marketingCustomDomain.value // ""' "$PARAMS")}"
+
+          if [ -n "$MARKETING_DOMAIN" ]; then
+            echo "site_url=https://$MARKETING_DOMAIN" >> "$GITHUB_OUTPUT"
+          else
+            echo "site_url=https://kodem.co.il" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -n "$API_DOMAIN" ]; then
+            echo "api_url=https://$API_DOMAIN/api" >> "$GITHUB_OUTPUT"
+          else
+            echo "api_url=https://api.kodem.co.il/api" >> "$GITHUB_OUTPUT"
+          fi
+          # Signup lives on the marketing site itself.
+          echo "signup_url=/signup" >> "$GITHUB_OUTPUT"
+          echo "whatsapp_phone=${PUBLIC_WHATSAPP_PHONE:-}" >> "$GITHUB_OUTPUT"
+          echo "ga_id=${PUBLIC_GA_MEASUREMENT_ID:-}" >> "$GITHUB_OUTPUT"
+          echo "meta_pixel_id=${PUBLIC_META_PIXEL_ID:-}" >> "$GITHUB_OUTPUT"
+
       - uses: docker/build-push-action@v6
         with:
           context: .
@@ -128,6 +165,12 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             API_ORIGIN=${{ inputs.api_origin }}
+            PUBLIC_SITE_URL=${{ steps.urls.outputs.site_url }}
+            PUBLIC_API_URL=${{ steps.urls.outputs.api_url }}
+            PUBLIC_APP_SIGNUP_URL=${{ steps.urls.outputs.signup_url }}
+            PUBLIC_WHATSAPP_PHONE=${{ steps.urls.outputs.whatsapp_phone }}
+            PUBLIC_GA_MEASUREMENT_ID=${{ steps.urls.outputs.ga_id }}
+            PUBLIC_META_PIXEL_ID=${{ steps.urls.outputs.meta_pixel_id }}
           cache-from: type=registry,ref=${{ steps.meta.outputs.cache }}
           cache-to: type=registry,ref=${{ steps.meta.outputs.cache }},mode=max,image-manifest=true,oci-mediatypes=true
 
@@ -138,6 +181,7 @@ jobs:
     outputs:
       app_url: ${{ steps.infra.outputs.app_url }}
       api_url: ${{ steps.infra.outputs.api_url }}
+      marketing_url: ${{ steps.infra.outputs.marketing_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -175,6 +219,7 @@ jobs:
           CUSTOM_DOMAINS: ${{ inputs.custom_domains }}
           APP_CUSTOM_DOMAIN: ${{ vars.APP_CUSTOM_DOMAIN }}
           API_CUSTOM_DOMAIN: ${{ vars.API_CUSTOM_DOMAIN }}
+          MARKETING_CUSTOM_DOMAIN: ${{ vars.MARKETING_CUSTOM_DOMAIN }}
           POSTGRES_LOCATION: ${{ vars.POSTGRES_LOCATION }}
           POSTGRES_VERSION: ${{ vars.POSTGRES_VERSION }}
           POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
@@ -193,6 +238,7 @@ jobs:
           PARAMS="deploy/azure/main.parameters.$AZURE_ENV.json"
           APP_DOMAIN="${APP_CUSTOM_DOMAIN:-$(jq -r '.parameters.appCustomDomain.value // ""' "$PARAMS")}"
           API_DOMAIN="${API_CUSTOM_DOMAIN:-$(jq -r '.parameters.apiCustomDomain.value // ""' "$PARAMS")}"
+          MARKETING_DOMAIN="${MARKETING_CUSTOM_DOMAIN:-$(jq -r '.parameters.marketingCustomDomain.value // ""' "$PARAMS")}"
 
           txt_record_exists() {
             # dig is on the GitHub-hosted images, but the fallback keeps this working
@@ -231,12 +277,16 @@ jobs:
           if [ "$CUSTOM_DOMAINS" != "true" ]; then
             APP_DOMAIN=""
             API_DOMAIN=""
+            MARKETING_DOMAIN=""
           else
             if [ -n "$APP_DOMAIN" ] && ! domain_is_ready "$APP_DOMAIN" kodem-app; then
               APP_DOMAIN=""
             fi
             if [ -n "$API_DOMAIN" ] && ! domain_is_ready "$API_DOMAIN" kodem-api; then
               API_DOMAIN=""
+            fi
+            if [ -n "$MARKETING_DOMAIN" ] && ! domain_is_ready "$MARKETING_DOMAIN" kodem-marketing; then
+              MARKETING_DOMAIN=""
             fi
           fi
 
@@ -324,7 +374,7 @@ jobs:
               echo ""
               echo "A leftover Auto-issued certificate (named <hostname>-kodem-pr-…) is blocking"
               echo "the named certificate the template manages. The deploy unbinds the hostname,"
-              echo "deletes those leftovers, then issues app-kodem-co-il / api-kodem-co-il."
+              echo "deletes those leftovers, then issues app-kodem-co-il / api-kodem-co-il / marketing host certs."
               echo "If one is still issuing, wait and re-run:"
               echo ""
               echo "  az containerapp env certificate list -n $ENV_NAME -g $RESOURCE_GROUP -o table"
@@ -353,6 +403,7 @@ jobs:
                 facebookClientSecret="$OAUTH_FACEBOOK_CLIENT_SECRET" \
                 appCustomDomain="$APP_DOMAIN" \
                 apiCustomDomain="$API_DOMAIN" \
+                marketingCustomDomain="$MARKETING_DOMAIN" \
                 "${POSTGRES_PARAMS[@]}" \
                 "$@" \
               --query properties.outputs -o json 2>"$ERRORS"); then
@@ -364,12 +415,15 @@ jobs:
 
           BIND_APP=false
           BIND_API=false
+          BIND_MARKETING=false
           if [ -n "$APP_DOMAIN" ] && named_cert_exists "$APP_DOMAIN"; then BIND_APP=true; fi
           if [ -n "$API_DOMAIN" ] && named_cert_exists "$API_DOMAIN"; then BIND_API=true; fi
+          if [ -n "$MARKETING_DOMAIN" ] && named_cert_exists "$MARKETING_DOMAIN"; then BIND_MARKETING=true; fi
 
           NEED_ISSUE=false
           if [ -n "$APP_DOMAIN" ] && [ "$BIND_APP" != "true" ]; then NEED_ISSUE=true; fi
           if [ -n "$API_DOMAIN" ] && [ "$BIND_API" != "true" ]; then NEED_ISSUE=true; fi
+          if [ -n "$MARKETING_DOMAIN" ] && [ "$BIND_MARKETING" != "true" ]; then NEED_ISSUE=true; fi
 
           if [ "$NEED_ISSUE" = "true" ]; then
             # Auto leftover certs (from an earlier bindingType Auto deploy) must be
@@ -381,31 +435,41 @@ jobs:
             if [ -n "$API_DOMAIN" ] && [ "$BIND_API" != "true" ]; then
               unbind_hostname kodem-api "$API_DOMAIN"
             fi
+            if [ -n "$MARKETING_DOMAIN" ] && [ "$BIND_MARKETING" != "true" ]; then
+              unbind_hostname kodem-marketing "$MARKETING_DOMAIN"
+            fi
             wait_for_cert_operations
             delete_auto_certs_for "$APP_DOMAIN"
             delete_auto_certs_for "$API_DOMAIN"
+            delete_auto_certs_for "$MARKETING_DOMAIN"
 
-            # Register the hostname with no certificate, then issue app-kodem-co-il /
-            # api-kodem-co-il. Hostnames that already have their named cert stay bound.
+            # Register the hostname with no certificate, then issue named certs.
+            # Hostnames that already have their named cert stay bound.
             deploy_once "kodem-$AZURE_ENV-$GITHUB_RUN_ID-issue" \
               bindAppCertificate="$BIND_APP" \
-              bindApiCertificate="$BIND_API"
+              bindApiCertificate="$BIND_API" \
+              bindMarketingCertificate="$BIND_MARKETING"
           fi
 
           if [ -n "$APP_DOMAIN" ]; then BIND_APP=true; fi
           if [ -n "$API_DOMAIN" ]; then BIND_API=true; fi
+          if [ -n "$MARKETING_DOMAIN" ]; then BIND_MARKETING=true; fi
 
           deploy_once "kodem-$AZURE_ENV-$GITHUB_RUN_ID" \
             bindAppCertificate="$BIND_APP" \
-            bindApiCertificate="$BIND_API"
+            bindApiCertificate="$BIND_API" \
+            bindMarketingCertificate="$BIND_MARKETING"
 
           {
             echo "app_fqdn=$(echo "$OUTPUTS" | jq -r '.appFqdn.value')"
             echo "api_fqdn=$(echo "$OUTPUTS" | jq -r '.apiFqdn.value')"
+            echo "marketing_fqdn=$(echo "$OUTPUTS" | jq -r '.marketingFqdn.value')"
             echo "app_url=$(echo "$OUTPUTS" | jq -r '.appUrlResolved.value')"
             echo "api_url=$(echo "$OUTPUTS" | jq -r '.apiUrlResolved.value')"
+            echo "marketing_url=$(echo "$OUTPUTS" | jq -r '.marketingUrlResolved.value')"
             echo "app_domain=$(echo "$OUTPUTS" | jq -r '.appCustomDomainConfigured.value')"
             echo "api_domain=$(echo "$OUTPUTS" | jq -r '.apiCustomDomainConfigured.value')"
+            echo "marketing_domain=$(echo "$OUTPUTS" | jq -r '.marketingCustomDomainConfigured.value')"
           } >> "$GITHUB_OUTPUT"
 
       - name: Smoke test
@@ -413,8 +477,10 @@ jobs:
           RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           APP_FQDN: ${{ steps.infra.outputs.app_fqdn }}
           API_FQDN: ${{ steps.infra.outputs.api_fqdn }}
+          MARKETING_FQDN: ${{ steps.infra.outputs.marketing_fqdn }}
           APP_URL: ${{ steps.infra.outputs.app_url }}
           API_URL: ${{ steps.infra.outputs.api_url }}
+          MARKETING_URL: ${{ steps.infra.outputs.marketing_url }}
         run: |
           set -euo pipefail
 
@@ -434,17 +500,20 @@ jobs:
 
           # The generated FQDNs answer regardless of how DNS or certificates are set
           # up, so a failure here is the rollout itself being unhealthy.
-          if ! wait_for "https://$APP_FQDN/api/health" 30 || ! wait_for "https://$API_FQDN/api/health" 6; then
+          if ! wait_for "https://$APP_FQDN/api/health" 30 \
+            || ! wait_for "https://$API_FQDN/api/health" 6 \
+            || ! wait_for "https://$MARKETING_FQDN/health" 12; then
             az containerapp logs show --name kodem-api --resource-group "$RESOURCE_GROUP" --tail 100 || true
             az containerapp logs show --name kodem-app --resource-group "$RESOURCE_GROUP" --tail 100 || true
+            az containerapp logs show --name kodem-marketing --resource-group "$RESOURCE_GROUP" --tail 100 || true
             exit 1
           fi
 
           # A custom domain that does not answer means DNS or the managed certificate
           # is still settling, which does not make the deployed revision bad.
-          for url in "$APP_URL/api/health" "$API_URL/api/health"; do
+          for url in "$APP_URL/api/health" "$API_URL/api/health" "$MARKETING_URL/health"; do
             case "$url" in
-              "https://$APP_FQDN"*|"https://$API_FQDN"*) continue ;;
+              "https://$APP_FQDN"*|"https://$API_FQDN"*|"https://$MARKETING_FQDN"*) continue ;;
             esac
             wait_for "$url" 6 || echo "::warning::$url did not answer yet. Check the DNS records and the managed certificate."
           done
@@ -458,20 +527,29 @@ jobs:
           AZURE_ENV: ${{ inputs.environment }}
           APP_FQDN: ${{ steps.infra.outputs.app_fqdn }}
           API_FQDN: ${{ steps.infra.outputs.api_fqdn }}
+          MARKETING_FQDN: ${{ steps.infra.outputs.marketing_fqdn }}
           APP_CUSTOM_DOMAIN: ${{ vars.APP_CUSTOM_DOMAIN }}
           API_CUSTOM_DOMAIN: ${{ vars.API_CUSTOM_DOMAIN }}
+          MARKETING_CUSTOM_DOMAIN: ${{ vars.MARKETING_CUSTOM_DOMAIN }}
           APP_DOMAIN_BOUND: ${{ steps.infra.outputs.app_domain }}
           API_DOMAIN_BOUND: ${{ steps.infra.outputs.api_domain }}
+          MARKETING_DOMAIN_BOUND: ${{ steps.infra.outputs.marketing_domain }}
         run: |
           set -euo pipefail
           PARAMS="deploy/azure/main.parameters.$AZURE_ENV.json"
           APP_DOMAIN="${APP_CUSTOM_DOMAIN:-$(jq -r '.parameters.appCustomDomain.value // ""' "$PARAMS")}"
           API_DOMAIN="${API_CUSTOM_DOMAIN:-$(jq -r '.parameters.apiCustomDomain.value // ""' "$PARAMS")}"
+          MARKETING_DOMAIN="${MARKETING_CUSTOM_DOMAIN:-$(jq -r '.parameters.marketingCustomDomain.value // ""' "$PARAMS")}"
 
           record_rows() {
             local domain="$1" fqdn="$2"
             [ -n "$domain" ] || return 0
-            echo "| CNAME | \`$domain\` | \`$fqdn\` |"
+            # Apex domains cannot be CNAMEs; print ALIAS/ANAME guidance instead.
+            if [ "$(echo "$domain" | tr '.' '\n' | wc -l)" -le 2 ]; then
+              echo "| ALIAS/ANAME (or A) | \`$domain\` | \`$fqdn\` |"
+            else
+              echo "| CNAME | \`$domain\` | \`$fqdn\` |"
+            fi
             echo "| TXT | \`asuid.$domain\` | \`$VERIFICATION_ID\` |"
           }
 
@@ -484,10 +562,13 @@ jobs:
             echo "|------|------|-------|"
             record_rows "$APP_DOMAIN" "$APP_FQDN"
             record_rows "$API_DOMAIN" "$API_FQDN"
+            record_rows "$MARKETING_DOMAIN" "$MARKETING_FQDN"
             echo ""
             echo "Names are full hostnames; most DNS providers want them relative to the zone."
+            echo "The apex marketing domain needs an ALIAS/ANAME (or A) record, not a CNAME."
             if { [ -n "$APP_DOMAIN" ] && [ -z "$APP_DOMAIN_BOUND" ]; } ||
-              { [ -n "$API_DOMAIN" ] && [ -z "$API_DOMAIN_BOUND" ]; }; then
+              { [ -n "$API_DOMAIN" ] && [ -z "$API_DOMAIN_BOUND" ]; } ||
+              { [ -n "$MARKETING_DOMAIN" ] && [ -z "$MARKETING_DOMAIN_BOUND" ]; }; then
               echo ""
               echo "Some of these are not bound yet, because a hostname is only bound once its"
               echo "\`asuid\` record resolves. Create the records above and deploy again."
@@ -503,4 +584,5 @@ jobs:
             echo "- Image tag: \`${{ inputs.image_tag }}\`"
             echo "- App: ${{ steps.infra.outputs.app_url }}"
             echo "- API: ${{ steps.infra.outputs.api_url }}"
+            echo "- Marketing: ${{ steps.infra.outputs.marketing_url }}"
           } >> "$GITHUB_STEP_SUMMARY"
