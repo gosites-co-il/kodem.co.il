@@ -21,15 +21,16 @@ export class UserRepository {
     email: string;
     name: string;
     passwordHash?: string;
+    emailVerifiedAt?: Date | null;
   }): Promise<User> {
     const id = createId<'UserId'>('usr');
-    const now = new Date();
     const row = await this.db.user.create({
       data: {
         id,
         email: input.email.toLowerCase(),
         name: input.name,
         passwordHash: input.passwordHash,
+        emailVerifiedAt: input.emailVerifiedAt ?? null,
       },
     });
     return mapUserRowToDomain(row);

@@ -4,5 +4,13 @@
   "sourceRoot": "libs/platform/feature-flags/src",
   "projectType": "library",
   "tags": ["scope:platform", "type:feature"],
-  "targets": {}
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/platform/feature-flags"],
+      "options": {
+        "jestConfig": "libs/platform/feature-flags/jest.config.cts"
+      }
+    }
+  }
 }

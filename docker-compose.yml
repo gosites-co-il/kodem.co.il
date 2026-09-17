@@ -86,5 +86,25 @@ services:
     ports:
       - '127.0.0.1:3000:3000'
 
+  marketing:
+    image: ${REGISTRY_PREFIX-}kodem-marketing:${IMAGE_TAG:-dev}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.marketing
+      args:
+        PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-http://localhost:4321}
+        PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:3333/api}
+        PUBLIC_APP_SIGNUP_URL: /signup
+        PUBLIC_WHATSAPP_PHONE: ${PUBLIC_WHATSAPP_PHONE:-}
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:4321:80'
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1/health']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
 volumes:
   postgres_data:

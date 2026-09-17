@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       custom_domains:
-        description: Bind app.dev.kodem.co.il and api.dev.kodem.co.il once their DNS records resolve. Uncheck to serve on the generated Container Apps FQDNs instead.
+        description: Bind app.dev.kodem.co.il, api.dev.kodem.co.il and www.dev.kodem.co.il once their DNS records resolve. Uncheck to serve on the generated Container Apps FQDNs instead.
         type: boolean
         default: true
 

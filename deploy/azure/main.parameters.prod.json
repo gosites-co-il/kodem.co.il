@@ -12,6 +12,9 @@
     "apiMinReplicas": { "value": 2 },
     "apiMaxReplicas": { "value": 6 },
     "appMinReplicas": { "value": 2 },
-    "appMaxReplicas": { "value": 6 }
+    "appMaxReplicas": { "value": 6 },
+    "marketingCustomDomain": { "value": "www.kodem.co.il" },
+    "marketingMinReplicas": { "value": 1 },
+    "marketingMaxReplicas": { "value": 4 }
   }
 }

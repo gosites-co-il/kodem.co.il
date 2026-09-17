@@ -15,7 +15,7 @@ param containerRegistryName string
 @description('Name of the existing user-assigned identity the container apps run as. Created by deploy/azure/bootstrap-azure.sh, which also grants it AcrPull on the registry.')
 param managedIdentityName string = ''
 
-@description('Image tag to deploy for all three services.')
+@description('Image tag to deploy for all services (app, api, worker, marketing).')
 param imageTag string
 
 @description('Custom domain for the web app, e.g. app.kodem.co.il (prod) or app.dev.kodem.co.il (dev). Requires the CNAME and asuid TXT records to exist first; see deploy/azure/README.md. Leave empty to serve on the generated Container Apps FQDN.')
@@ -23,6 +23,9 @@ param appCustomDomain string = ''
 
 @description('Custom domain for the api, e.g. api.kodem.co.il (prod) or api.dev.kodem.co.il (dev). Same DNS prerequisites as appCustomDomain. Leave empty to serve on the generated Container Apps FQDN.')
 param apiCustomDomain string = ''
+
+@description('Custom domain for the marketing site, e.g. www.kodem.co.il (prod) or www.dev.kodem.co.il (dev). Same DNS prerequisites as appCustomDomain.')
+param marketingCustomDomain string = ''
 
 @description('PostgreSQL administrator login.')
 param postgresAdminUser string = 'kodem'
@@ -82,12 +85,17 @@ param apiMaxReplicas int = 3
 param appMinReplicas int = 1
 param appMaxReplicas int = 3
 
+@description('Replica bounds for the marketing container app.')
+param marketingMinReplicas int = 1
+param marketingMaxReplicas int = 3
+
 // Container app names are also their internal DNS names inside the Container Apps
 // environment, so they stay identical across environments: the app image bakes
 // API_ORIGIN=http://kodem-api at build time and must resolve in dev and prod alike.
 var apiAppName = 'kodem-api'
 var workerAppName = 'kodem-worker'
 var webAppName = 'kodem-app'
+var marketingAppName = 'kodem-marketing'
 
 var prefix = 'kodem-${environmentName}'
 var databaseName = 'kodem'
@@ -187,6 +195,9 @@ var resolvedAppUrl = empty(appCustomDomain)
 var resolvedApiUrl = empty(apiCustomDomain)
   ? 'https://${apiAppName}.${containerEnv.properties.defaultDomain}'
   : 'https://${apiCustomDomain}'
+var resolvedMarketingUrl = empty(marketingCustomDomain)
+  ? 'https://${marketingAppName}.${containerEnv.properties.defaultDomain}'
+  : 'https://${marketingCustomDomain}'
 var databaseUrl = 'postgresql://${postgresAdminUser}:${uriComponent(postgresAdminPassword)}@${postgres.properties.fullyQualifiedDomainName}:5432/${databaseName}?sslmode=require'
 
 var registryConfig = [
@@ -472,12 +483,83 @@ resource apiCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2
   ]
 }
 
+resource marketing 'Microsoft.App/containerApps@2025-07-01' = {
+  name: marketingAppName
+  location: location
+  identity: managedIdentity
+  properties: {
+    managedEnvironmentId: containerEnv.id
+    configuration: {
+      activeRevisionsMode: 'Single'
+      ingress: {
+        external: true
+        targetPort: 80
+        transport: 'auto'
+        allowInsecure: false
+        customDomains: empty(marketingCustomDomain)
+          ? []
+          : [
+              {
+                name: marketingCustomDomain
+                bindingType: 'Auto'
+              }
+            ]
+      }
+      registries: registryConfig
+    }
+    template: {
+      containers: [
+        {
+          name: 'marketing'
+          image: '${loginServer}/kodem-marketing:${imageTag}'
+          resources: {
+            cpu: json('0.25')
+            memory: '0.5Gi'
+          }
+          probes: [
+            {
+              type: 'Readiness'
+              httpGet: {
+                path: '/health'
+                port: 80
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              failureThreshold: 3
+            }
+          ]
+        }
+      ]
+      scale: {
+        minReplicas: marketingMinReplicas
+        maxReplicas: marketingMaxReplicas
+      }
+    }
+  }
+}
+
+resource marketingCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2025-07-01' = if (!empty(marketingCustomDomain)) {
+  parent: containerEnv
+  name: replace(marketingCustomDomain, '.', '-')
+  location: location
+  properties: {
+    subjectName: marketingCustomDomain
+    domainControlValidation: 'CNAME'
+  }
+  dependsOn: [
+    marketing
+  ]
+}
+
 output appFqdn string = web.properties.configuration.ingress.fqdn
 output appUrlResolved string = resolvedAppUrl
 output apiFqdn string = api.properties.configuration.ingress.fqdn
 output apiUrlResolved string = resolvedApiUrl
+output marketingFqdn string = marketing.properties.configuration.ingress.fqdn
+output marketingUrlResolved string = resolvedMarketingUrl
 output appCustomDomainConfigured string = appCustomDomain
 output apiCustomDomainConfigured string = apiCustomDomain
+output marketingCustomDomainConfigured string = marketingCustomDomain
 output containerRegistryLoginServer string = loginServer
 output postgresFqdn string = postgres.properties.fullyQualifiedDomainName
 output apiInternalOrigin string = 'http://${apiAppName}'

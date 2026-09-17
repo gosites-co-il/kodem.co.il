@@ -17,7 +17,7 @@ export class UserLinkingService {
       if (!user) {
         throw new Error('OAuth account references missing user');
       }
-      return user;
+      return this.userService.ensureEmailVerified(user.id);
     }
 
     const byEmail = await this.userService.findByEmail(profile.email);
@@ -28,7 +28,7 @@ export class UserLinkingService {
         byEmail.id,
         profile.email,
       );
-      return byEmail;
+      return this.userService.ensureEmailVerified(byEmail.id);
     }
 
     const user = await this.userService.createOAuthUser({

@@ -11,13 +11,26 @@ export async function fetchEntryResolution(options?: {
   return api.resolveEntry(options?.workspaceSelected);
 }
 
-/** Persist auth and navigate to the entry resolver. */
-export async function completeAuthFlow(result: {
-  token: string;
-  user: import('@kodem/contracts').User;
-  workspace: import('@kodem/contracts').Workspace;
-  role: import('@kodem/contracts').RoleName;
-}): Promise<string> {
+/** Persist auth and navigate to entry — or honor a safe `next` redirect. */
+export async function completeAuthFlow(
+  result: {
+    token: string;
+    user: import('@kodem/contracts').User;
+    workspace: import('@kodem/contracts').Workspace;
+    role: import('@kodem/contracts').RoleName;
+  },
+  options?: { next?: string | null },
+): Promise<string> {
   setToken(result.token);
+  const next = options?.next?.trim();
+  if (next && isSafeNextPath(next)) {
+    return next;
+  }
   return ENTRY_ROUTES.entry;
+}
+
+function isSafeNextPath(path: string): boolean {
+  if (!path.startsWith('/') || path.startsWith('//')) return false;
+  if (path.includes('://')) return false;
+  return true;
 }

@@ -252,6 +252,12 @@ export const api = {
     });
   },
 
+  deactivateWorkspace() {
+    return request<{ ok: boolean }>('/workspace/members/deactivate', {
+      method: 'POST',
+    });
+  },
+
   transferOwnership(toUserId: UserId | string) {
     return request<{ ok: boolean }>('/workspace/members/transfer', {
       method: 'POST',

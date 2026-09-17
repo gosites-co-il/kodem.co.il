@@ -29,7 +29,8 @@ export function LoginForm() {
 
     try {
       const result = await api.login({ email, password });
-      const nextRoute = await completeAuthFlow(result);
+      const nextParam = searchParams.get('next');
+      const nextRoute = await completeAuthFlow(result, { next: nextParam });
       setSession({
         user: result.user,
         workspace: result.workspace,
@@ -54,7 +55,12 @@ export function LoginForm() {
         <>
           אין לכם חשבון?{' '}
           <Link
-            href={ROUTES.register}
+            href={(() => {
+              const next = searchParams.get('next');
+              return next
+                ? `${ROUTES.register}?next=${encodeURIComponent(next)}`
+                : ROUTES.register;
+            })()}
             className="font-medium text-foreground underline-offset-4 hover:underline"
           >
             צרו חשבון

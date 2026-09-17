@@ -22,6 +22,7 @@ import {
 import { AuditService } from '@kodem/platform/audit';
 import { NotificationService } from '@kodem/platform/notifications';
 import { EntitlementsService } from '@kodem/platform/subscription';
+import { UsageService } from '@kodem/platform/usage';
 
 export interface MemberListItem extends Member {
   email: string;
@@ -49,6 +50,7 @@ export class MemberService {
   private readonly notifications = new NotificationService();
   private readonly audit = new AuditService();
   private readonly entitlements = new EntitlementsService();
+  private readonly usage = new UsageService();
   private readonly inviteLimiter = new RateLimitService(20, 60 * 60 * 1000);
 
   async listMembers(workspaceId: WorkspaceId): Promise<MemberListItem[]> {
@@ -267,6 +269,13 @@ export class MemberService {
       role: invite.role,
     });
     await this.inviteRepo.markAccepted(invite.id);
+
+    await this.usage.track({
+      workspaceId: invite.workspaceId,
+      metric: 'members',
+      quantity: 1,
+      metadata: { action: 'member.joined' },
+    });
 
     if (options?.switchActive !== false) {
       await this.userRepo.setActiveWorkspace(userId, invite.workspaceId);

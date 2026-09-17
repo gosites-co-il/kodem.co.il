@@ -1,0 +1,12 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { HowItWorksPage } from '../components/pages/HowItWorksPage';
+---
+
+<SiteLayout
+  title="איך זה עובד — KODEM"
+  description="מהרשמה ללידים שנענים לבד תוך 30 דקות. ליווי מלא בהקמה."
+  path="/how-it-works"
+>
+  <HowItWorksPage client:load />
+</SiteLayout>
