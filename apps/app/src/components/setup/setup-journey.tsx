@@ -96,6 +96,8 @@ export function SetupJourney() {
   useEffect(() => {
     if (!state || isLoading || isSubmitting) return;
     if (!isSetupStartOverPath(pathname)) return;
+    // Already past identity — sync will leave start-over; do not wipe again.
+    if (state.setup.identityComplete) return;
     if (
       resolveSetupStepId(state.step) === 'welcome' &&
       state.setup.identityMode === 'manual'
@@ -110,16 +112,17 @@ export function SetupJourney() {
   useEffect(() => {
     if (!state) return;
 
-    // /setup/start-over is owned by the start-over effect until manual welcome is ready.
-    if (
+    const step = resolveSetupStepId(state.step);
+    // While start-over is still resetting into manual welcome, don't yank the URL.
+    const awaitingManualWelcome =
       isSetupStartOverPath(pathname) &&
-      (resolveSetupStepId(state.step) !== 'welcome' ||
-        state.setup.identityMode !== 'manual')
-    ) {
+      !state.setup.identityComplete &&
+      (step !== 'welcome' || state.setup.identityMode !== 'manual');
+
+    if (awaitingManualWelcome) {
       return;
     }
 
-    const step = resolveSetupStepId(state.step);
     const href = setupHrefForState(step, state.setup);
     if (pathname !== href) {
       router.replace(href);
