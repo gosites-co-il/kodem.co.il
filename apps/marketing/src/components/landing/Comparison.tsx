@@ -13,8 +13,8 @@ export function Comparison() {
   return (
     <section className="bg-background py-16 sm:py-20">
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
-        <h2 className="text-center text-3xl font-bold leading-tight sm:text-4xl">
-          בדקנו את כל הכלים בשוק. בגלל זה בנינו את KODEM.
+        <h2 className="text-center text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+          למה עסקים בונים על KODEM — ולא על עוד כלי צ׳אט.
         </h2>
 
         {/* Desktop table */}

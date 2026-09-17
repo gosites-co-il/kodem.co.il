@@ -77,6 +77,9 @@ module.exports = {
           DEFAULT: 'hsl(var(--cta))',
           foreground: 'hsl(var(--cta-foreground))',
         },
+        spark: 'hsl(var(--spark))',
+        trust: 'hsl(var(--trust))',
+        glow: 'hsl(var(--glow))',
       },
       boxShadow: {
         soft: '0 10px 40px -12px hsl(222 47% 11% / 0.12)',

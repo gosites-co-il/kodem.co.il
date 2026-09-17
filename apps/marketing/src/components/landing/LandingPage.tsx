@@ -1,4 +1,3 @@
-import { DEFAULT_HERO_VARIANT, type HeroVariantId } from '../../lib/hero-variants';
 import { Hero } from '../landing/Hero';
 import { SocialProof } from '../landing/SocialProof';
 import { PainSection } from '../landing/PainSection';
@@ -13,15 +12,11 @@ import { Testimonials } from '../landing/Testimonials';
 import { FAQ } from '../landing/FAQ';
 import { FinalCTA } from '../landing/FinalCTA';
 
-type Props = {
-  heroVariant?: HeroVariantId;
-};
-
 /** Homepage conversion narrative — chrome comes from SiteLayout. */
-export function HomePage({ heroVariant = DEFAULT_HERO_VARIANT }: Props) {
+export function HomePage() {
   return (
     <>
-      <Hero heroVariant={heroVariant} />
+      <Hero />
       <SocialProof />
       <PainSection />
       <LossCalculator />

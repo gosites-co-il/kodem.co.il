@@ -1,6 +1,7 @@
 import { cn } from '@kodem/design-system/lib/utils';
 
 type Props = {
+  /** @deprecated Kickers/eyebrows are banned by the design craft floor; ignored. */
   eyebrow?: string;
   title: string;
   description?: string;
@@ -11,7 +12,6 @@ type Props = {
 };
 
 export function PageHero({
-  eyebrow,
   title,
   description,
   align = 'start',
@@ -28,23 +28,16 @@ export function PageHero({
       )}
     >
       {!dark ? <div className="landing-gradient-hero absolute inset-0 -z-10" /> : null}
-      <div className="site-grid-bg absolute inset-0 -z-10 opacity-60" aria-hidden />
       <div
         className={cn(
           'container-site relative',
           align === 'center' && 'text-center',
         )}
       >
-        {eyebrow ? (
-          <p className={cn('eyebrow reveal', dark && 'border-white/15 bg-white/10 text-white/80')}>
-            {eyebrow}
-          </p>
-        ) : null}
         <h1
           className={cn(
-            'display-title reveal mt-5 max-w-4xl whitespace-pre-line',
+            'display-title reveal max-w-4xl whitespace-pre-line',
             align === 'center' && 'mx-auto',
-            dark && 'text-gradient-light',
           )}
         >
           {title}

@@ -1,43 +1,42 @@
 const STEPS = [
   {
-    n: '01',
-    title: 'מגדירים',
-    body: 'נרשמים, מחברים וואטסאפ ופייסבוק, מספרים למערכת על העסק. ליווי מלא שלנו בהקמה.',
+    title: 'מגדירים יחד',
+    body: 'מחברים וואטסאפ ופייסבוק, מספרים למערכת על העסק — עם ליווי הקמה צמוד.',
   },
   {
-    n: '02',
     title: 'המערכת לומדת',
-    body: 'ה-AI מקבל את השאלות, המחירים והטון שלך. אתה מאשר איך הוא עונה לפני שהוא פוגש לקוח ראשון.',
+    body: 'ה-AI מקבל שאלות, מחירים וטון. אתה מאשר איך הוא עונה לפני ליד ראשון.',
   },
   {
-    n: '03',
     title: 'אתה סוגר',
-    body: 'מהרגע הזה כל ליד נענה תוך שניות. אתה נכנס רק לסגירות ולפגישות שכבר נקבעו לך ביומן.',
+    body: 'כל ליד נענה תוך שניות. אתה נכנס לפגישות ולסגירות שכבר מחכות ביומן.',
   },
 ] as const;
 
 export function HowItWorks() {
   return (
-    <section className="bg-muted/30 py-16 sm:py-20">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <h2 className="text-center text-3xl font-bold leading-tight sm:text-4xl">
-          מהרשמה ללידים שנענים לבד: 30 דקות.
+    <section className="section-pad">
+      <div className="container-site">
+        <h2 className="mx-auto max-w-3xl text-center text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+          מהרשמה ללידים שנענים לבד — כ־30 דקות.
         </h2>
 
-        <ol className="mt-12 flex flex-col gap-8 md:flex-row md:gap-6">
+        <ol className="mt-12 grid gap-5 md:grid-cols-3">
           {STEPS.map((step, i) => (
             <li
-              key={step.n}
-              className="relative flex flex-1 flex-col rounded-2xl border border-border bg-card p-6 shadow-card"
+              key={step.title}
+              className="relative flex flex-col rounded-[1.75rem] border border-border/80 bg-card p-6 shadow-card sm:p-8"
             >
               {i < STEPS.length - 1 ? (
                 <span
-                  className="pointer-events-none absolute start-1/2 top-full z-0 hidden h-8 w-px -translate-x-1/2 bg-border md:start-full md:top-1/2 md:h-px md:w-6 md:translate-x-0 md:-translate-y-1/2"
+                  className="pointer-events-none absolute -end-3 top-1/2 z-10 hidden h-px w-6 -translate-y-1/2 bg-border md:block"
                   aria-hidden
                 />
               ) : null}
-              <span className="text-sm font-bold text-brand">{step.n}</span>
-              <h3 className="mt-2 text-xl font-bold">{step.title}</h3>
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                {i + 1}
+              </span>
+              <h3 className="mt-5 text-xl font-bold tracking-tight">{step.title}</h3>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                 {step.body}
               </p>

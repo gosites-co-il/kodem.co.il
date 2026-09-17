@@ -55,8 +55,7 @@ export function ModulePage({ moduleId }: Props) {
       <section className="section-pad pt-0">
         <div className="container-site">
           <div className="reveal mx-auto mb-10 max-w-3xl text-center">
-            <p className="eyebrow mx-auto">למה זה כואב היום</p>
-            <h2 className="mt-5 text-3xl font-extrabold leading-tight sm:text-4xl">
+            <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
               הבעיה שהמודול הזה פותר.
             </h2>
           </div>
@@ -77,8 +76,7 @@ export function ModulePage({ moduleId }: Props) {
       <section className="section-pad bg-muted/40">
         <div className="container-site">
           <div className="reveal max-w-3xl">
-            <p className="eyebrow">יכולות</p>
-            <h2 className="mt-5 text-3xl font-extrabold leading-tight sm:text-4xl">{mod.title}</h2>
+            <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">{mod.title}</h2>
             <p className="prose-site mt-4">{mod.description}</p>
           </div>
           <div className="mt-10 grid gap-4 sm:grid-cols-2">
@@ -98,8 +96,7 @@ export function ModulePage({ moduleId }: Props) {
       <section className="section-pad landing-gradient-dark text-[hsl(var(--surface-dark-fg))]">
         <div className="container-site">
           <div className="reveal max-w-3xl">
-            <p className="eyebrow border-white/15 bg-white/10 text-white/80">תוצאה</p>
-            <h2 className="mt-5 text-3xl font-extrabold leading-tight sm:text-4xl">
+            <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
               מה משתנה אחרי שהמודול עובד.
             </h2>
           </div>
@@ -120,8 +117,7 @@ export function ModulePage({ moduleId }: Props) {
       <section className="section-pad">
         <div className="container-site">
           <div className="reveal mx-auto max-w-3xl text-center">
-            <p className="eyebrow mx-auto">איך זה זורם</p>
-            <h2 className="mt-5 text-3xl font-extrabold leading-tight sm:text-4xl">
+            <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
               מאירוע ועד פעולה — בלי חורים.
             </h2>
           </div>
@@ -158,8 +154,7 @@ export function ModulePage({ moduleId }: Props) {
       <section className="section-pad">
         <div className="container-site">
           <div className="reveal mx-auto max-w-3xl text-center">
-            <p className="eyebrow mx-auto">מערכת אחת</p>
-            <h2 className="mt-5 text-3xl font-extrabold leading-tight sm:text-4xl">
+            <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
               המודולים עובדים יחד.
             </h2>
             <p className="prose-site mx-auto mt-4">
@@ -173,8 +168,7 @@ export function ModulePage({ moduleId }: Props) {
                 href={modulePath(rel.id)}
                 className="bento-card reveal group flex cursor-pointer flex-col transition hover:border-cta/30"
               >
-                <span className="text-xs font-semibold text-cta">{rel.eyebrow}</span>
-                <h3 className="mt-2 text-xl font-bold group-hover:text-cta">{rel.teaserTitle}</h3>
+                <h3 className="text-xl font-bold group-hover:text-cta">{rel.teaserTitle}</h3>
                 <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
                   {rel.teaserBody}
                 </p>
