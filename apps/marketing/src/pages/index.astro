@@ -1,55 +1,13 @@
 ---
-const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:3333/api';
----
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Kodem — AI business intelligence that turns events into insights and actions." />
-    <title>Kodem — Business Intelligence, Engine-Driven</title>
-  </head>
-  <body>
-    <header>
-      <nav>
-        <a href="/">Kodem</a>
-        <a href="/pricing">Pricing</a>
-        <a href="/signup">Sign up</a>
-      </nav>
-    </header>
-    <main>
-      <h1>Understand your business. Act with confidence.</h1>
-      <p>
-        Kodem is an engine-driven PLG platform that transforms business events
-        into insights and recommendations — not another CRUD dashboard.
-      </p>
-      <a href="/signup">Start free →</a>
-    </main>
-    <footer>
-      <p>Static marketing site — no business logic. API: {apiUrl}</p>
-    </footer>
-  </body>
-</html>
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { HomePage } from '../components/landing/LandingPage';
+import { DEFAULT_HERO_VARIANT } from '../lib/hero-variants';
 
-<style>
-  body {
-    font-family: system-ui, sans-serif;
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 2rem;
-    line-height: 1.6;
-  }
-  nav { display: flex; gap: 1.5rem; margin-bottom: 3rem; }
-  nav a:first-child { font-weight: 700; margin-right: auto; }
-  h1 { font-size: 2.5rem; line-height: 1.2; }
-  main a {
-    display: inline-block;
-    margin-top: 1rem;
-    padding: 0.75rem 1.5rem;
-    background: #111;
-    color: #fff;
-    text-decoration: none;
-    border-radius: 6px;
-  }
-  footer { margin-top: 4rem; color: #666; font-size: 0.875rem; }
-</style>
+const title = 'KODEM — מענה ללידים בוואטסאפ תוך 3 שניות';
+const description =
+  'KODEM לוכד כל ליד, מנהל שיחת מכירה בוואטסאפ, קובע פגישות ומראה כמה כל קמפיין מחזיר. מערכת אחת לעסקים בישראל.';
+---
+
+<SiteLayout title={title} description={description} path="/" homeCta>
+  <HomePage client:load heroVariant={DEFAULT_HERO_VARIANT} />
+</SiteLayout>

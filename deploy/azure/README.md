@@ -9,10 +9,10 @@ no nginx, and no certbot: Container Apps terminates TLS and handles ingress.
 There are two environments. Each one is a separate resource group with its own registry,
 database and container apps.
 
-| Environment | GitHub Environment | Resource group | App | API |
-|-------------|--------------------|----------------|-----|-----|
-| `dev` | `development` | `kodem-dev-rg` | `app.dev.kodem.co.il` | `api.dev.kodem.co.il` |
-| `prod` | `production` | `kodem-prod-rg` | `app.kodem.co.il` | `api.kodem.co.il` |
+| Environment | GitHub Environment | Resource group | App | API | Marketing |
+|-------------|--------------------|----------------|-----|-----|-----------|
+| `dev` | `development` | `kodem-dev-rg` | `app.dev.kodem.co.il` | `api.dev.kodem.co.il` | `dev.kodem.co.il` |
+| `prod` | `production` | `kodem-prod-rg` | `app.kodem.co.il` | `api.kodem.co.il` | `kodem.co.il` |
 
 `dev` and `prod` name the environment everywhere it matters — Azure resources, parameter
 files, image tags. The GitHub Environments keep the names they were created with, because
@@ -22,8 +22,8 @@ and `prod` instead is a matter of changing that input and re-running the bootstr
 so the federated credential matches.
 
 The hostnames live in `main.parameters.dev.json` and `main.parameters.prod.json`. Setting
-the `APP_CUSTOM_DOMAIN` or `API_CUSTOM_DOMAIN` variable on a GitHub Environment overrides
-the matching one.
+the `APP_CUSTOM_DOMAIN`, `API_CUSTOM_DOMAIN` or `MARKETING_CUSTOM_DOMAIN` variable on a
+GitHub Environment overrides the matching one.
 
 ## What gets created
 
@@ -36,16 +36,18 @@ images to and an identity that can already pull them.
 | Container Apps environment | `kodem-<env>-env` | Logs to the Log Analytics workspace |
 | Container app | `kodem-app` | External ingress on port 3000, bound to the app domain |
 | Container app | `kodem-api` | External ingress on port 3333, bound to the api domain |
+| Container app | `kodem-marketing` | External ingress on port 80 (static nginx), bound to the marketing domain |
 | Container app | `kodem-worker` | No ingress, pinned to one replica |
 | PostgreSQL flexible server | `kodem-<env>-pg-<hash>` | Public endpoint, TLS required, Azure services allowed |
 | Log Analytics workspace | `kodem-<env>-logs` | |
 | Managed certificate | one per custom domain | Free, issued by Container Apps, renewed automatically |
 | User-assigned identity | `kodem-<env>-identity` | Created by the bootstrap script, granted `AcrPull` |
 
-The app domain remains the entrypoint for the browser: Next.js rewrites `/api/*` to
-`http://kodem-api` over the environment's internal network, so a page load never leaves
-the environment to reach the api. The api domain publishes the same api to callers that
-are not the web app — integrations, webhooks, and anything talking to it directly.
+The app domain remains the entrypoint for the authenticated SaaS UI: Next.js rewrites
+`/api/*` to `http://kodem-api` over the environment's internal network, so a page load
+never leaves the environment to reach the api. The api domain publishes the same api to
+callers that are not the web app — integrations, webhooks, and anything talking to it
+directly. The marketing domain serves the public Astro site (landings, pricing, knowledge).
 
 Container app names deliberately have no environment suffix. They double as internal DNS
 names, and the app image bakes `API_ORIGIN=http://kodem-api` at build time, so the same
@@ -123,7 +125,8 @@ Variables:
 | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | OIDC login |
 | `AZURE_RESOURCE_GROUP` | Deployment target |
 | `AZURE_CONTAINER_REGISTRY` | Registry name, without `.azurecr.io` |
-| `APP_CUSTOM_DOMAIN`, `API_CUSTOM_DOMAIN` | Optional, override the hostnames in the parameter file |
+| `APP_CUSTOM_DOMAIN`, `API_CUSTOM_DOMAIN`, `MARKETING_CUSTOM_DOMAIN` | Optional, override the hostnames in the parameter file |
+| `PUBLIC_WHATSAPP_PHONE`, `PUBLIC_GA_MEASUREMENT_ID`, `PUBLIC_META_PIXEL_ID` | Optional, baked into the marketing image at build time |
 | `POSTGRES_LOCATION` | Optional, puts the database in another region than the rest — see below |
 | `POSTGRES_VERSION` | Optional, overrides the PostgreSQL major version (`16`) |
 | `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GITHUB_CLIENT_ID`, `OAUTH_FACEBOOK_CLIENT_ID` | Optional |
@@ -166,8 +169,9 @@ A tag push is refused unless it points at a commit on `main`. A manual run is no
 it is a deliberate act by someone who already has access to the production environment,
 and it is the only way to bring an environment up before its code has reached `main`.
 
-Both call `deploy.yml`, which lints, builds and pushes the three images to
-ACR, applies the Bicep template, and then polls `/api/health` on the app and on the api
+Both call `deploy.yml`, which lints the product apps, builds marketing, builds and pushes
+the four images (`kodem-app`, `kodem-api`, `kodem-worker`, `kodem-marketing`) to ACR,
+applies the Bicep template, and then polls health on the app, api and marketing containers
 until they pass. A custom domain that does not answer yet is reported as a warning rather
 than a failed deploy, since the revision itself is fine.
 
@@ -181,15 +185,18 @@ against DNS records that name the container app. Those records cannot exist befo
 app does, so a new environment reaches its domains on the second deploy:
 
 1. Deploy. The domains are skipped, because their `asuid` records do not resolve yet, and
-   the job summary prints the CNAME and `asuid` TXT records to create for both hostnames.
+   the job summary prints the DNS and `asuid` TXT records to create for each hostname.
    The environment is live on the generated `*.azurecontainerapps.io` FQDNs meanwhile.
-2. Create those records at the DNS provider. Point the CNAME straight at the Container
-   Apps FQDN — an intermediate CNAME (Cloudflare proxying, a traffic manager) blocks
-   certificate issuance and every later renewal. The TXT record has to stay in place for
-   as long as the domain is bound, not just at issuance.
+2. Create those records at the DNS provider. Subdomains (`app…`, `api…`, `dev.kodem.co.il`)
+   use a CNAME straight at the Container Apps FQDN — an intermediate CNAME (Cloudflare
+   proxying, a traffic manager) blocks certificate issuance and every later renewal.
+   The apex marketing domain (`kodem.co.il`) cannot be a CNAME; use an ALIAS/ANAME (or A)
+   record instead. The TXT `asuid` record has to stay in place for as long as the domain
+   is bound, not just at issuance.
 3. Deploy again. The apps register the hostnames without a certificate (`Disabled`),
-   the template issues `app-kodem-co-il` / `api-kodem-co-il`, and a second apply binds
-   each one (`SniEnabled`).
+   the template issues named certificates (`app-kodem-co-il`, `api-kodem-co-il`, and the
+   marketing host), and a second apply binds each one (`SniEnabled`). Apex marketing
+   certificates use HTTP domain validation; subdomains use CNAME validation.
 
 Nothing has to be passed for that first pass: the deploy looks up `asuid.<hostname>` and
 leaves a domain off when it does not resolve, because asking for a hostname that cannot

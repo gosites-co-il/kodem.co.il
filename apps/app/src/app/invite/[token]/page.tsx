@@ -19,6 +19,7 @@ import { useAuth } from '../../../providers/auth-provider';
 export default function InvitePage() {
   const params = useParams<{ token: string }>();
   const token = decodeURIComponent(params.token ?? '');
+  const invitePath = `/invite/${encodeURIComponent(token)}`;
   const router = useRouter();
   const { isAuthenticated, isLoading, refreshSession } = useAuth();
   const [invite, setInvite] = useState<InvitePublicView | null>(null);
@@ -38,7 +39,7 @@ export default function InvitePage() {
   async function accept() {
     if (!isAuthenticated) {
       router.push(
-        `${ROUTES.login}?next=${encodeURIComponent(`/invite/${encodeURIComponent(token)}`)}`,
+        `${ROUTES.loginEmail}?next=${encodeURIComponent(invitePath)}`,
       );
       return;
     }
@@ -55,15 +56,23 @@ export default function InvitePage() {
     }
   }
 
+  const status = invite?.status;
+  const isPending = status === 'pending';
+  const isExpired = status === 'expired';
+  const isAccepted = status === 'accepted';
+  const isInvalid = Boolean(error) && !invite;
+
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>הזמנה לסביבת עבודה</CardTitle>
           <CardDescription>
-            {invite
-              ? `הוזמנתם ל־${invite.workspaceName} בתפקיד ${invite.role}`
-              : 'טוענים פרטי הזמנה…'}
+            {isInvalid
+              ? 'ההזמנה אינה תקפה או שפגה תוקפה.'
+              : invite
+                ? `הוזמנתם ל־${invite.workspaceName} בתפקיד ${invite.role}`
+                : 'טוענים פרטי הזמנה…'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -75,17 +84,35 @@ export default function InvitePage() {
               <p className="text-sm text-muted-foreground" dir="ltr">
                 {invite.email}
               </p>
-              <p className="text-xs text-muted-foreground">
-                סטטוס: {invite.status}
-              </p>
-              {invite.status === 'pending' ? (
-                <Button
-                  className="w-full"
-                  disabled={busy || isLoading}
-                  onClick={() => void accept()}
-                >
-                  {isAuthenticated ? 'קבלת הזמנה' : 'התחברות לקבלה'}
-                </Button>
+              {isExpired ? (
+                <p className="text-sm text-muted-foreground">
+                  תוקף ההזמנה פג. בקשו הזמנה חדשה מבעל הסביבה.
+                </p>
+              ) : null}
+              {isAccepted ? (
+                <p className="text-sm text-muted-foreground">
+                  ההזמנה כבר התקבלה.
+                </p>
+              ) : null}
+              {isPending ? (
+                <div className="space-y-2">
+                  <Button
+                    className="w-full"
+                    disabled={busy || isLoading}
+                    onClick={() => void accept()}
+                  >
+                    {isAuthenticated ? 'קבלת הזמנה' : 'התחברות לקבלה'}
+                  </Button>
+                  {!isAuthenticated ? (
+                    <Button asChild variant="outline" className="w-full">
+                      <Link
+                        href={`${ROUTES.register}?next=${encodeURIComponent(invitePath)}`}
+                      >
+                        יצירת חשבון לקבלה
+                      </Link>
+                    </Button>
+                  ) : null}
+                </div>
               ) : null}
             </>
           ) : null}

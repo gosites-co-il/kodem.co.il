@@ -1,0 +1,214 @@
+@import 'tailwindcss';
+@config '../../tailwind.config.js';
+@plugin 'tailwindcss-animate';
+
+@source '../**/*.{astro,html,js,jsx,ts,tsx}';
+@source '../../../../libs/design-system/src/**/*.{ts,tsx}';
+
+@layer base {
+  :root {
+    /* KODEM site — ink + teal (Israeli tech, not purple/cream) */
+    --background: 210 33% 98%;
+    --foreground: 222 47% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 8%;
+    --primary: 222 55% 16%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 94%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 30% 95%;
+    --muted-foreground: 215 16% 38%;
+    --accent: 210 40% 94%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214 28% 88%;
+    --input: 214 28% 88%;
+    --ring: 173 80% 32%;
+    --radius: 1rem;
+
+    --brand: 222 55% 18%;
+    --brand-foreground: 0 0% 100%;
+    --brand-muted: 210 50% 95%;
+    --cta: 173 80% 32%;
+    --cta-foreground: 0 0% 100%;
+    --glow: 199 89% 48%;
+
+    --surface-dark: 222 47% 7%;
+    --surface-dark-fg: 210 40% 98%;
+    --surface-mid: 217 33% 12%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+
+    .reveal {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+
+    .motion-ready .reveal:not(.is-visible) {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+  }
+
+  body {
+    @apply min-h-screen bg-background text-foreground antialiased;
+    font-family: Assistant, system-ui, sans-serif;
+    text-align: start;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  ::selection {
+    background: hsl(173 80% 32% / 0.25);
+  }
+}
+
+@layer components {
+  .site-shell {
+    @apply relative isolate overflow-x-clip;
+  }
+
+  .site-atmosphere {
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(ellipse 80% 50% at 85% -10%, hsl(199 89% 48% / 0.14), transparent 55%),
+      radial-gradient(ellipse 60% 45% at 0% 20%, hsl(173 80% 32% / 0.1), transparent 50%),
+      radial-gradient(ellipse 50% 40% at 50% 100%, hsl(222 55% 18% / 0.06), transparent 55%),
+      hsl(var(--background));
+  }
+
+  .site-atmosphere::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.35;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
+    mix-blend-mode: soft-light;
+  }
+
+  .site-grid-bg {
+    background-image:
+      linear-gradient(hsl(222 47% 11% / 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(222 47% 11% / 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black, transparent);
+  }
+
+  .glass-panel {
+    @apply border border-white/40 bg-white/70 shadow-soft backdrop-blur-xl;
+  }
+
+  .glass-panel-dark {
+    @apply border border-white/10 bg-white/5 shadow-soft backdrop-blur-xl;
+  }
+
+  .page-hero {
+    @apply relative overflow-hidden pb-16 pt-10 sm:pb-20 sm:pt-14;
+  }
+
+  .section-pad {
+    @apply py-16 sm:py-20 lg:py-24;
+  }
+
+  .container-site {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6;
+  }
+
+  .eyebrow {
+    @apply inline-flex items-center gap-2 rounded-full border border-border/80 bg-card/80 px-3 py-1 text-xs font-semibold tracking-wide text-muted-foreground shadow-sm backdrop-blur;
+  }
+
+  .display-title {
+    @apply text-4xl font-extrabold leading-[1.12] tracking-tight sm:text-5xl lg:text-6xl;
+  }
+
+  .prose-site {
+    @apply text-base leading-relaxed text-muted-foreground sm:text-lg;
+  }
+
+  .bento-card {
+    @apply relative overflow-hidden rounded-3xl border border-border/80 bg-card p-6 shadow-card transition duration-300 hover:-translate-y-0.5 hover:shadow-soft sm:p-8;
+  }
+
+  .bento-card-dark {
+    @apply relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-6 text-[hsl(var(--surface-dark-fg))] shadow-soft sm:p-8;
+  }
+
+  .reveal {
+    /* Visible by default (no-JS / before hydrate). Hidden only when motion-ready. */
+  }
+
+  .motion-ready .reveal:not(.is-visible) {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  .motion-ready .reveal {
+    transition:
+      opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .motion-ready .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@layer utilities {
+  .landing-gradient-dark {
+    background:
+      radial-gradient(ellipse 80% 60% at 80% -10%, hsl(199 89% 48% / 0.28), transparent 55%),
+      radial-gradient(ellipse 55% 45% at 5% 90%, hsl(173 80% 32% / 0.22), transparent 50%),
+      linear-gradient(165deg, hsl(222 47% 7%), hsl(217 33% 12%));
+  }
+
+  .landing-gradient-hero {
+    background:
+      radial-gradient(ellipse 90% 70% at 70% -15%, hsl(199 89% 48% / 0.16), transparent 55%),
+      radial-gradient(ellipse 50% 40% at 0% 50%, hsl(173 80% 32% / 0.1), transparent 50%),
+      transparent;
+  }
+
+  .text-gradient-brand {
+    background: linear-gradient(135deg, hsl(199 89% 42%), hsl(173 80% 36%));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .text-gradient-light {
+    background: linear-gradient(135deg, #fff 20%, hsl(173 80% 72%));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}

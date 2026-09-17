@@ -1,0 +1,12 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { ProductPage } from '../components/pages/ProductPage';
+---
+
+<SiteLayout
+  title="המוצר — KODEM"
+  description="CRM, אוטומציות ואינטגרציות עם AI בוואטסאפ — מערכת אחת ללידים, משפך וסגירות לעסקים בישראל."
+  path="/product"
+>
+  <ProductPage client:load />
+</SiteLayout>

@@ -28,7 +28,7 @@ module.exports = {
         'accordion-up': 'accordion-up 0.2s ease-out',
       },
       fontFamily: {
-        sans: ['var(--font-heebo)', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-assistant)', 'system-ui', 'sans-serif'],
       },
       colors: {
         background: 'hsl(var(--background))',

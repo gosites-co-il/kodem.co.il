@@ -141,3 +141,4 @@ libs/database/src/generated/
 .nx/workspace-data
 vite.config.*.timestamp*
 vitest.config.*.timestamp*
+.cursor/skills/

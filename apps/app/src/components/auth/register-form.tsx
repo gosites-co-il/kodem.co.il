@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@kodem/design-system/components/ui/button';
 import { Input } from '@kodem/design-system/components/ui/input';
 import { Label } from '@kodem/design-system/components/ui/label';
@@ -14,7 +14,9 @@ import { AuthShell } from './auth-shell';
 
 export function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setSession } = useAuth();
+  const nextParam = searchParams.get('next');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,7 +30,7 @@ export function RegisterForm() {
 
     try {
       const result = await api.register({ email, name, password });
-      const nextRoute = await completeAuthFlow(result);
+      const nextRoute = await completeAuthFlow(result, { next: nextParam });
       setSession({
         user: result.user,
         workspace: result.workspace,
@@ -45,6 +47,10 @@ export function RegisterForm() {
     }
   }
 
+  const loginHref = nextParam
+    ? `${ROUTES.loginEmail}?next=${encodeURIComponent(nextParam)}`
+    : ROUTES.login;
+
   return (
     <AuthShell
       title="יצירת חשבון"
@@ -53,7 +59,7 @@ export function RegisterForm() {
         <>
           כבר יש לכם חשבון?{' '}
           <Link
-            href={ROUTES.login}
+            href={loginHref}
             className="font-medium text-foreground underline-offset-4 hover:underline"
           >
             התחברו

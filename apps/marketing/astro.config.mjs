@@ -1,8 +1,23 @@
 import { defineConfig } from 'astro/config';
+import react from '@astrojs/react';
+import tailwindcss from '@tailwindcss/vite';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 export default defineConfig({
   srcDir: 'src',
   outDir: '../../dist/apps/marketing',
   publicDir: 'public',
   server: { port: 4321 },
+  integrations: [react()],
+  vite: {
+    plugins: [tailwindcss()],
+    resolve: {
+      alias: {
+        '@kodem/design-system': path.join(root, 'libs/design-system/src'),
+      },
+    },
+  },
 });

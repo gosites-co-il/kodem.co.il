@@ -52,20 +52,21 @@ Module/API → Event → Worker → Engines → BKM artifacts → Module/UI
 cp .env.example .env   # edit POSTGRES_PASSWORD and JWT_SECRET
 docker compose up -d --build
 curl http://localhost:3000/api/health
+curl http://localhost:4321/health
 ```
 
 ### Deploy (CI/CD)
 
 Target is **Azure Container Apps**, images in **Azure Container Registry**, data in **Azure Database for PostgreSQL Flexible Server**. Full runbook: [`deploy/azure/README.md`](deploy/azure/README.md).
 
-| Trigger | Workflow | Environment | GitHub Environment | App | API |
-|---------|----------|-------------|--------------------|-----|-----|
-| Push to `dev` | `deploy-dev.yml` | `dev` | `development` | `app.dev.kodem.co.il` | `api.dev.kodem.co.il` |
-| Tag `v-*` on `main` | `deploy-prod.yml` | `prod` | `production` | `app.kodem.co.il` | `api.kodem.co.il` |
+| Trigger | Workflow | Environment | GitHub Environment | App | API | Marketing |
+|---------|----------|-------------|--------------------|-----|-----|-----------|
+| Push to `dev` | `deploy-dev.yml` | `dev` | `development` | `app.dev.kodem.co.il` | `api.dev.kodem.co.il` | `dev.kodem.co.il` |
+| Tag `v-*` on `main` | `deploy-prod.yml` | `prod` | `production` | `app.kodem.co.il` | `api.kodem.co.il` | `kodem.co.il` |
 
-Both call `deploy.yml`: lint → build/push three images to ACR → `az deployment group create` with `deploy/azure/main.bicep` → health check. `dev` / `prod` name the Azure resource suffix and the Bicep parameter file; the GitHub Environment holding the credentials is passed separately as `github_environment`, since GitHub Environments cannot be renamed. The hostnames live in `deploy/azure/main.parameters.<env>.json`.
+Both call `deploy.yml`: lint + marketing build → build/push four images to ACR → `az deployment group create` with `deploy/azure/main.bicep` → health check. `dev` / `prod` name the Azure resource suffix and the Bicep parameter file; the GitHub Environment holding the credentials is passed separately as `github_environment`, since GitHub Environments cannot be renamed. The hostnames live in `deploy/azure/main.parameters.<env>.json`.
 
-**GitHub Environment variables**: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_CONTAINER_REGISTRY`, optional `APP_CUSTOM_DOMAIN`, `API_CUSTOM_DOMAIN`, `POSTGRES_LOCATION`, `POSTGRES_VERSION` and `OAUTH_*_CLIENT_ID`.
+**GitHub Environment variables**: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_CONTAINER_REGISTRY`, optional `APP_CUSTOM_DOMAIN`, `API_CUSTOM_DOMAIN`, `MARKETING_CUSTOM_DOMAIN`, `PUBLIC_WHATSAPP_PHONE`, `PUBLIC_GA_MEASUREMENT_ID`, `PUBLIC_META_PIXEL_ID`, `POSTGRES_LOCATION`, `POSTGRES_VERSION` and `OAUTH_*_CLIENT_ID`.
 
 `POSTGRES_LOCATION` exists because a subscription is not allowed to provision flexible servers in every region; when it cannot, ARM reports `The value of the 'Version' should be in: []`. The deploy job recognises that message and prints what to do about it.
 
@@ -90,4 +91,5 @@ git push origin v-1.0.0
 - Prisma pinned to v6.
 - If `npx nx` fails (missing `.nx/nxw.js`), use `node node_modules/nx/dist/bin/nx.js`.
 - Next.js app image bakes `API_ORIGIN` at Docker build time: `http://api:3333` for Compose, `http://kodem-api` for Container Apps (the api container app name is its internal DNS name). The public api domain is for direct callers; the web app keeps proxying `/api/*` internally.
+- Marketing image bakes `PUBLIC_SITE_URL` / `PUBLIC_API_URL` (and optional WhatsApp / analytics IDs) at Docker build time from the environment hostnames.
 - A new Azure environment reaches its custom domains on the second deploy: the first one skips a hostname whose `asuid` DNS record does not resolve yet, since those records have to name a container app that does not exist before it. See [`deploy/azure/README.md`](deploy/azure/README.md).

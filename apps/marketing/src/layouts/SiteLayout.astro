@@ -1,0 +1,76 @@
+---
+import '../styles/global.css';
+import { SiteHeader } from '../components/site/SiteHeader';
+import { SiteFooter } from '../components/site/SiteFooter';
+import { RevealObserver } from '../components/site/RevealObserver';
+import { SITE_CONFIG } from '../lib/site-config';
+
+interface Props {
+  title: string;
+  description: string;
+  path?: string;
+  ogImage?: string;
+  homeCta?: boolean;
+}
+
+const {
+  title,
+  description,
+  path = Astro.url.pathname,
+  ogImage = `${SITE_CONFIG.siteUrl}/og-default.png`,
+  homeCta = false,
+} = Astro.props;
+
+const canonical = `${SITE_CONFIG.siteUrl}${path === '/' ? '/' : path.replace(/\/$/, '')}`;
+---
+
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="he_IL" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:site_name" content="KODEM" />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    {
+      SITE_CONFIG.gaMeasurementId ? (
+        <>
+          <script
+            async
+            src={`https://www.googletagmanager.com/gtag/js?id=${SITE_CONFIG.gaMeasurementId}`}
+          />
+          <script is:inline define:vars={{ gaId: SITE_CONFIG.gaMeasurementId }}>
+            {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config',gaId);`}
+          </script>
+        </>
+      ) : null
+    }
+  </head>
+  <body class="site-shell">
+    <div class="site-atmosphere" aria-hidden="true"></div>
+    <SiteHeader client:load currentPath={path} homeCta={homeCta} />
+    <main>
+      <slot />
+    </main>
+    <SiteFooter client:load />
+    <RevealObserver client:load />
+  </body>
+</html>
