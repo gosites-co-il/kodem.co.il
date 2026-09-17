@@ -160,12 +160,20 @@ git push origin v-1.0.0
 
 Both workflows can also be started by hand from **Actions → Deploy Dev / Deploy
 Production → Run workflow**, picking the branch or tag to deploy; the production one then
-asks for the image tag to build. The button only appears once the workflow file is on the
-default branch. Both call `deploy.yml`, which lints the product apps, builds marketing,
-builds and pushes the four images (`kodem-app`, `kodem-api`, `kodem-worker`,
-`kodem-marketing`) to ACR, applies the Bicep template, and then polls health on the app,
-api and marketing containers until they pass. A custom domain that does not answer yet is
-reported as a warning rather than a failed deploy, since the revision itself is fine.
+asks for the image tag to build. GitHub only shows that button for a workflow that is on
+the repository's default branch, and it runs the workflow file as it exists at whichever
+ref is picked, so both branches have to be up to date before a manual run does what the
+current code says.
+
+A tag push is refused unless it points at a commit on `main`. A manual run is not, since
+it is a deliberate act by someone who already has access to the production environment,
+and it is the only way to bring an environment up before its code has reached `main`.
+
+Both call `deploy.yml`, which lints the product apps, builds marketing, builds and pushes
+the four images (`kodem-app`, `kodem-api`, `kodem-worker`, `kodem-marketing`) to ACR,
+applies the Bicep template, and then polls health on the app, api and marketing containers
+until they pass. A custom domain that does not answer yet is reported as a warning rather
+than a failed deploy, since the revision itself is fine.
 
 Because the whole environment is described by the template, the first run provisions it
 and every later run is an in-place update.
@@ -185,19 +193,23 @@ app does, so a new environment reaches its domains on the second deploy:
    The apex marketing domain (`kodem.co.il`) cannot be a CNAME; use an ALIAS/ANAME (or A)
    record instead. The TXT `asuid` record has to stay in place for as long as the domain
    is bound, not just at issuance.
-3. Deploy again. The apps register the hostnames, the certificates are issued, and
-   Container Apps binds each one to the matching hostname.
+3. Deploy again. The apps register the hostnames without a certificate (`Disabled`),
+   the template issues named certificates (`app-kodem-co-il`, `api-kodem-co-il`, and the
+   marketing host), and a second apply binds each one (`SniEnabled`). Apex marketing
+   certificates use HTTP domain validation; subdomains use CNAME validation.
 
 Nothing has to be passed for that first pass: the deploy looks up `asuid.<hostname>` and
 leaves a domain off when it does not resolve, because asking for a hostname that cannot
 be validated fails the whole deployment. A hostname already bound to an app stays bound
 whatever the lookup says, so a resolver hiccup cannot take a live domain down.
 
-The hostnames are bound with `bindingType: 'Auto'`, which is what lets one deploy both
-register a hostname and issue its certificate: Azure will not issue a certificate for a
-hostname that is not registered on an app yet, and the older `SniEnabled` binding will
-not register a hostname without being handed a certificate id. `Auto` registers the
-hostname with no certificate and picks up the matching certificate once it exists.
+`bindingType: 'Auto'` is not used. Auto issues its own certificate under
+`<hostname>-kodem-pr-…`, and Azure allows only one managed certificate per hostname in
+the environment, so declaring the named certificates at the same time fails with
+`DuplicateManagedCertificateInEnvironment` or
+`ExistingManagedCertificateOperationInProgress`. The named certificates stay; leftover
+Auto certificates from an earlier attempt are unbound and deleted before those are
+issued.
 
 The `custom_domains` input on a manual run turns the domains off outright, which is a way
 back to the generated FQDNs if a certificate goes wrong. The template owns the ingress

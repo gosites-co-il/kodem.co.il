@@ -27,6 +27,15 @@ param apiCustomDomain string = ''
 @description('Custom domain for the marketing site, e.g. kodem.co.il (prod) or dev.kodem.co.il (dev). Same DNS prerequisites as appCustomDomain; apex domains use HTTP certificate validation.')
 param marketingCustomDomain string = ''
 
+@description('Bind the issued app managed certificate. The first apply of a hostname registers it with no certificate (Disabled) so one can be issued under the stable name; a later apply with this set attaches it (SniEnabled).')
+param bindAppCertificate bool = false
+
+@description('Bind the issued api managed certificate. Same two-step as bindAppCertificate.')
+param bindApiCertificate bool = false
+
+@description('Bind the issued marketing managed certificate. Same two-step as bindAppCertificate.')
+param bindMarketingCertificate bool = false
+
 @description('PostgreSQL administrator login.')
 param postgresAdminUser string = 'kodem'
 
@@ -235,14 +244,25 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
         // Turning this off makes Envoy answer those hops with a redirect to a
         // hostname that only resolves inside Azure.
         allowInsecure: true
+        // Disabled first, then SniEnabled with our named certificate. Auto is not
+        // used: it issues a second certificate under <hostname>-kodem-pr-… and
+        // Azure allows only one per hostname in the environment.
         customDomains: empty(apiCustomDomain)
           ? []
-          : [
-              {
-                name: apiCustomDomain
-                bindingType: 'Auto'
-              }
-            ]
+          : bindApiCertificate
+            ? [
+                {
+                  name: apiCustomDomain
+                  bindingType: 'SniEnabled'
+                  certificateId: resourceId('Microsoft.App/managedEnvironments/managedCertificates', containerEnv.name, replace(apiCustomDomain, '.', '-'))
+                }
+              ]
+            : [
+                {
+                  name: apiCustomDomain
+                  bindingType: 'Disabled'
+                }
+              ]
       }
       registries: registryConfig
       secrets: [
@@ -403,12 +423,20 @@ resource web 'Microsoft.App/containerApps@2025-07-01' = {
         allowInsecure: false
         customDomains: empty(appCustomDomain)
           ? []
-          : [
-              {
-                name: appCustomDomain
-                bindingType: 'Auto'
-              }
-            ]
+          : bindAppCertificate
+            ? [
+                {
+                  name: appCustomDomain
+                  bindingType: 'SniEnabled'
+                  certificateId: resourceId('Microsoft.App/managedEnvironments/managedCertificates', containerEnv.name, replace(appCustomDomain, '.', '-'))
+                }
+              ]
+            : [
+                {
+                  name: appCustomDomain
+                  bindingType: 'Disabled'
+                }
+              ]
       }
       registries: registryConfig
     }
@@ -452,12 +480,10 @@ resource web 'Microsoft.App/containerApps@2025-07-01' = {
   }
 }
 
-// Managed certificates are issued against DNS, and Azure refuses to issue one for a
-// hostname that is not registered on an app yet — while 'SniEnabled' refuses to
-// register a hostname without naming a certificate. 'Auto' breaks that cycle: the app
-// registers the hostname with no certificate, the certificate is created afterwards,
-// and Container Apps binds it to the matching hostname on its own.
-resource appCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2025-07-01' = if (!empty(appCustomDomain)) {
+// Named certificates (app-kodem-co-il, api-kodem-co-il, marketing host). Issued only
+// after the hostname is on the app (Disabled); bound on a later apply (SniEnabled) so
+// the app does not have to name a certificate that does not exist yet.
+resource appCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2025-07-01' = if (!empty(appCustomDomain) && !bindAppCertificate) {
   parent: containerEnv
   name: replace(appCustomDomain, '.', '-')
   location: location
@@ -470,7 +496,7 @@ resource appCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2
   ]
 }
 
-resource apiCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2025-07-01' = if (!empty(apiCustomDomain)) {
+resource apiCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2025-07-01' = if (!empty(apiCustomDomain) && !bindApiCertificate) {
   parent: containerEnv
   name: replace(apiCustomDomain, '.', '-')
   location: location
@@ -498,12 +524,20 @@ resource marketing 'Microsoft.App/containerApps@2025-07-01' = {
         allowInsecure: false
         customDomains: empty(marketingCustomDomain)
           ? []
-          : [
-              {
-                name: marketingCustomDomain
-                bindingType: 'Auto'
-              }
-            ]
+          : bindMarketingCertificate
+            ? [
+                {
+                  name: marketingCustomDomain
+                  bindingType: 'SniEnabled'
+                  certificateId: resourceId('Microsoft.App/managedEnvironments/managedCertificates', containerEnv.name, replace(marketingCustomDomain, '.', '-'))
+                }
+              ]
+            : [
+                {
+                  name: marketingCustomDomain
+                  bindingType: 'Disabled'
+                }
+              ]
       }
       registries: registryConfig
     }
@@ -538,7 +572,7 @@ resource marketing 'Microsoft.App/containerApps@2025-07-01' = {
   }
 }
 
-resource marketingCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2025-07-01' = if (!empty(marketingCustomDomain)) {
+resource marketingCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2025-07-01' = if (!empty(marketingCustomDomain) && !bindMarketingCertificate) {
   parent: containerEnv
   name: replace(marketingCustomDomain, '.', '-')
   location: location
