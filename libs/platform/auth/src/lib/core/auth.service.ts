@@ -47,7 +47,39 @@ export class AuthService {
     const user = await this.userService.createWithPassword(input);
     const resolved = await this.workspaceResolver.resolveForUser(user);
     await this.sendEmailVerification(user);
+    await this.notifyAdminOfSignup(user, 'password');
     return this.issueSession(user, resolved);
+  }
+
+  /** Prod-only alert to ops when a brand-new account is created. */
+  async notifyAdminOfSignup(
+    user: User,
+    method: 'password' | 'oauth',
+  ): Promise<void> {
+    if ((process.env['FEATURE_FLAG_ENV'] ?? '') !== 'production') {
+      return;
+    }
+
+    const to =
+      process.env['SIGNUP_ADMIN_EMAIL']?.trim() || 'admin@kodem.co.il';
+
+    try {
+      await this.notifications.notify({
+        type: 'auth.signup',
+        to,
+        subject: `New Kodem signup: ${user.email}`,
+        userId: user.id,
+        data: {
+          email: user.email,
+          name: user.name,
+          userId: user.id,
+          method,
+          createdAt: user.createdAt.toISOString(),
+        },
+      });
+    } catch (err) {
+      console.error('[AuthService] Failed to notify admin of signup', err);
+    }
   }
 
   async login(

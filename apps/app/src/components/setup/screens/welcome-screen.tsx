@@ -6,6 +6,7 @@ import {
   SetupShell,
 } from '../setup-shell';
 import type { SetupScreenProps } from '../setup-journey';
+import { ArrowLeft } from 'lucide-react';
 
 export function WelcomeScreen({ advance, isSubmitting }: SetupScreenProps) {
   return (
@@ -17,6 +18,7 @@ export function WelcomeScreen({ advance, isSubmitting }: SetupScreenProps) {
       <SetupPrimaryButton
         disabled={isSubmitting}
         onClick={() => void advance('welcome')}
+        icon={ArrowLeft}
       >
         {isSubmitting ? 'מתחיל…' : 'התחל'}
       </SetupPrimaryButton>

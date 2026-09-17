@@ -1,11 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import type { SetupStateResponse, SetupStepId } from '@kodem/contracts';
 import { resolveSetupStepId } from '@kodem/contracts';
 import { api, isApiError } from '../../lib/api';
 import { ROUTES } from '../../lib/constants';
+import {
+  isSetupStartOverPath,
+  setupHrefForState,
+  setupStartOverHref,
+} from '../../lib/setup/routes';
 import { useAuth } from '../../providers/auth-provider';
 import { SetupShell } from './setup-shell';
 import { SetupFrame } from './setup-frame';
@@ -13,51 +18,122 @@ import type { SetupStepperStep } from './setup-stepper';
 import { IdentityScreen } from './screens/identity-screen';
 import { BusinessDiscoveryScreen } from './screens/business-discovery-screen';
 import { BusinessUnderstandingScreen } from './screens/business-understanding-screen';
-import { WorkspaceCreationScreen } from './screens/workspace-creation-screen';
 import { ConnectionsScreen } from './screens/connections-screen';
-import { ModulesScreen } from './screens/modules-screen';
-import { AiScreen } from './screens/ai-screen';
-import { PreparationScreen } from './screens/preparation-screen';
 import { ReadyScreen } from './screens/ready-screen';
 
-/** Provisional labels for the horizontal stepper (steps 2+ still evolving). */
+/** Provisional labels for the horizontal stepper. */
 const SETUP_STEPPER_STEPS: readonly SetupStepperStep[] = [
   { id: 'welcome', label: 'זהות' },
-  { id: 'business_discovery', label: 'גילוי' },
+  { id: 'business_discovery', label: 'פרטים' },
   { id: 'business_understanding', label: 'פרופיל' },
-  { id: 'workspace_creation', label: 'סביבה' },
   { id: 'connections', label: 'חיבורים' },
-  { id: 'modules', label: 'מודולים' },
-  { id: 'ai', label: 'AI' },
-  { id: 'preparation', label: 'הכנה' },
-  { id: 'ready', label: 'מוכן' },
+  { id: 'ready', label: 'מתחילים לעבוד' },
 ];
+
+/** Brand panel copy per setup step (right/start panel). */
+const SETUP_BRAND_COPY: Record<
+  string,
+  { title: string; subtitle: string }
+> = {
+  welcome: {
+    title: 'בונים את סביבת העבודה',
+    subtitle: 'שם הסביבה וכתובת ייחודית — ואפשר להמשיך.',
+  },
+  business_discovery: {
+    title: 'מזהים את העסק',
+    subtitle: 'סורקים את האתר והנוכחות הדיגיטלית — וממלאים את הפרטים בשבילכם.',
+  },
+  business_understanding: {
+    title: 'מבינים את העסק',
+    subtitle: 'מרכיבים תמונה ברורה מהמידע שנאסף — לבדיקה ולאישור שלכם.',
+  },
+  connections: {
+    title: 'מחברים כלים',
+    subtitle: 'חברו מערכות שכבר עובדים איתן — או דלגו והמשיכו.',
+  },
+  ready: {
+    title: 'מתחילים לעבוד',
+    subtitle: 'מסיימים לחשב ומיד אפשר להיכנס לסביבת העבודה.',
+  },
+};
 
 export function SetupJourney() {
   const router = useRouter();
+  const pathname = usePathname();
   const { setSession } = useAuth();
   const [state, setState] = useState<SetupStateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  /** Bumps on start-over so IdentityScreen remounts even if URL stays /setup/welcome. */
+  const [identityEpoch, setIdentityEpoch] = useState(0);
+  const loadGeneration = useRef(0);
 
   const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
     try {
       const next = await api.getSetup();
+      if (generation !== loadGeneration.current) return;
       setState(next);
       setError(null);
     } catch (err) {
+      if (generation !== loadGeneration.current) return;
       setError(
         isApiError(err) ? err.message : 'לא ניתן לטעון את ההגדרה.',
       );
     } finally {
-      setIsLoading(false);
+      if (generation === loadGeneration.current) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Visiting /setup/start-over ensures a manual identity reset.
+  useEffect(() => {
+    if (!state || isLoading || isSubmitting) return;
+    if (!isSetupStartOverPath(pathname)) return;
+    if (
+      resolveSetupStepId(state.step) === 'welcome' &&
+      state.setup.identityMode === 'manual'
+    ) {
+      return;
+    }
+    void startOver();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- startOver closes over latest setters
+  }, [pathname, state, isLoading, isSubmitting]);
+
+  // Keep the URL in sync with the server-authoritative setup step.
+  useEffect(() => {
+    if (!state) return;
+
+    // /setup/start-over is owned by the start-over effect until manual welcome is ready.
+    if (
+      isSetupStartOverPath(pathname) &&
+      (resolveSetupStepId(state.step) !== 'welcome' ||
+        state.setup.identityMode !== 'manual')
+    ) {
+      return;
+    }
+
+    const step = resolveSetupStepId(state.step);
+    const href = setupHrefForState(step, state.setup);
+    if (pathname !== href) {
+      router.replace(href);
+    }
+  }, [state, pathname, router]);
+
+  function applyState(next: SetupStateResponse | null) {
+    if (!next) return null;
+    setState(next);
+    router.replace(
+      setupHrefForState(resolveSetupStepId(next.step), next.setup),
+    );
+    return next;
+  }
 
   async function advance(
     step: SetupStepId,
@@ -67,8 +143,7 @@ export function SetupJourney() {
     setError(null);
     try {
       const next = await api.advanceSetupStep({ step, data });
-      setState(next);
-      return next;
+      return applyState(next);
     } catch (err) {
       setError(isApiError(err) ? err.message : 'לא ניתן לשמור.');
       return null;
@@ -81,13 +156,13 @@ export function SetupJourney() {
     businessName: string;
     workspaceName: string;
     slug: string;
+    websiteUrl?: string;
   }) {
     setIsSubmitting(true);
     setError(null);
     try {
       const next = await api.saveSetupIdentity(payload);
-      setState(next);
-      return next;
+      return applyState(next);
     } catch (err) {
       setError(isApiError(err) ? err.message : 'לא ניתן לשמור את הזהות.');
       return null;
@@ -101,10 +176,53 @@ export function SetupJourney() {
     setError(null);
     try {
       const next = await api.restartDiscovery();
-      setState(next);
-      return next;
+      return applyState(next);
     } catch (err) {
       setError(isApiError(err) ? err.message : 'לא ניתן לחזור לשלב הקודם.');
+      return null;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function goBack(fromStep: SetupStepId) {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const next = await api.goBackSetup(fromStep);
+      return applyState(next);
+    } catch (err) {
+      setError(isApiError(err) ? err.message : 'לא ניתן לחזור אחורה.');
+      return null;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function startOver() {
+    setIsSubmitting(true);
+    setError(null);
+    // Drop any in-flight getSetup() so it cannot overwrite the reset.
+    loadGeneration.current += 1;
+    try {
+      const next = await api.startOverSetup();
+      try {
+        const me = await api.me();
+        setSession({
+          user: me.user,
+          workspace: me.workspace,
+          role: me.role,
+        });
+      } catch {
+        // Session refresh is best-effort; setup state still applies.
+      }
+      if (!next) return null;
+      setIdentityEpoch((n) => n + 1);
+      setState(next);
+      router.replace(setupStartOverHref());
+      return next;
+    } catch (err) {
+      setError(isApiError(err) ? err.message : 'לא ניתן להתחיל מחדש.');
       return null;
     } finally {
       setIsSubmitting(false);
@@ -116,8 +234,7 @@ export function SetupJourney() {
     setError(null);
     try {
       const next = await api.discoverWebsite(websiteUrl);
-      setState(next);
-      return next;
+      return applyState(next);
     } catch (err) {
       setError(
         isApiError(err)
@@ -149,8 +266,16 @@ export function SetupJourney() {
   }
 
   function frame(activeStepId: string, children: ReactNode) {
+    const brand = SETUP_BRAND_COPY[activeStepId] ?? SETUP_BRAND_COPY.welcome;
     return (
-      <SetupFrame steps={SETUP_STEPPER_STEPS} activeStepId={activeStepId}>
+      <SetupFrame
+        steps={SETUP_STEPPER_STEPS}
+        activeStepId={activeStepId}
+        brandTitle={brand.title}
+        brandSubtitle={brand.subtitle}
+        onStartOver={() => void startOver()}
+        startOverDisabled={isSubmitting || isLoading}
+      >
         {children}
       </SetupFrame>
     );
@@ -195,6 +320,7 @@ export function SetupJourney() {
     onRefresh: load,
     restartDiscovery,
     retryDiscovery,
+    goBack,
   };
 
   switch (step) {
@@ -202,6 +328,7 @@ export function SetupJourney() {
       return frame(
         'welcome',
         <IdentityScreen
+          key={`identity-${state.workspace.id}-${identityEpoch}-${state.setup.identityMode ?? 'email'}-${state.workspace.slug}`}
           {...screenProps}
           onIdentitySaved={async (payload) => {
             await saveIdentity(payload);
@@ -218,19 +345,8 @@ export function SetupJourney() {
         'business_understanding',
         <BusinessUnderstandingScreen {...screenProps} />,
       );
-    case 'workspace_creation':
-      return frame(
-        'workspace_creation',
-        <WorkspaceCreationScreen {...screenProps} />,
-      );
     case 'connections':
       return frame('connections', <ConnectionsScreen {...screenProps} />);
-    case 'modules':
-      return frame('modules', <ModulesScreen {...screenProps} />);
-    case 'ai':
-      return frame('ai', <AiScreen {...screenProps} />);
-    case 'preparation':
-      return frame('preparation', <PreparationScreen {...screenProps} />);
     case 'ready':
       return frame(
         'ready',
@@ -269,4 +385,5 @@ export type SetupScreenProps = {
   onRefresh: () => Promise<void>;
   restartDiscovery: () => Promise<SetupStateResponse | null>;
   retryDiscovery: (websiteUrl: string) => Promise<SetupStateResponse | null>;
+  goBack: (fromStep: SetupStepId) => Promise<SetupStateResponse | null>;
 };

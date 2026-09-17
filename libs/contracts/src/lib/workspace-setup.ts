@@ -7,31 +7,30 @@ export type SetupStepId =
   | 'welcome'
   | 'business_discovery'
   | 'business_understanding'
-  | 'workspace_creation'
   | 'connections'
-  | 'modules'
-  | 'ai'
-  | 'preparation'
   | 'ready';
 
 export const SETUP_STEPS: readonly SetupStepId[] = [
   'welcome',
   'business_discovery',
   'business_understanding',
-  'workspace_creation',
   'connections',
-  'modules',
-  'ai',
-  'preparation',
   'ready',
 ] as const;
+
+/** Bump when SETUP_STEPS order/membership changes (for onboardingStep remaps). */
+export const SETUP_JOURNEY_VERSION = 3;
 
 /** @deprecated Use business_understanding */
 export type LegacySetupStepId =
   | SetupStepId
   | 'business'
   | 'discovery'
-  | 'business_confirmation';
+  | 'business_confirmation'
+  | 'workspace_creation'
+  | 'modules'
+  | 'ai'
+  | 'preparation';
 
 export type IntegrationId =
   | 'google_workspace'
@@ -60,11 +59,27 @@ export type ModuleId =
   | 'automation'
   | 'external_ai';
 
+/** Background channels kicked off from corporate-email identity. */
+export type EarlyDiscoverySourceId =
+  | 'website'
+  | 'facebook'
+  | 'instagram'
+  | 'tiktok'
+  | 'google_business'
+  | 'linkedin'
+  | 'twitter';
+
+export type SetupSocialChannel = Exclude<EarlyDiscoverySourceId, 'website'>;
+
 export interface SetupBusinessData {
   name?: string;
   websiteUrl?: string;
   industry?: string;
   businessSize?: string;
+  /** Primary business address (from discovery or user). */
+  address?: string;
+  /** Social / listing URLs keyed by channel. */
+  socials?: Partial<Record<SetupSocialChannel, string>>;
 }
 
 export interface DiscoveredBusinessInfo {
@@ -121,7 +136,28 @@ export interface SetupDiscoveryFinding {
   status: 'pending' | 'running' | 'completed';
 }
 
+export interface EarlyDiscoverySource {
+  id: EarlyDiscoverySourceId;
+  label: string;
+  status: 'pending' | 'running' | 'found' | 'not_found' | 'failed';
+  url?: string;
+}
+
+export interface EarlyDiscoveryState {
+  startedAt: string;
+  websiteUrl: string;
+  sources: EarlyDiscoverySource[];
+}
+
 export interface WorkspaceSetupData {
+  /** Tracks SETUP_JOURNEY_VERSION for onboardingStep remaps. */
+  setupJourneyVersion?: number;
+  /**
+   * How the welcome/identity step collects defaults.
+   * - `email_assisted` (default): peek corporate email → slug/website + early discovery
+   * - `manual`: blank form — start-over and future “new workspace” flows
+   */
+  identityMode?: 'email_assisted' | 'manual';
   business?: SetupBusinessData;
   discovered?: DiscoveredBusinessInfo;
   businessReport?: BusinessReportDraft;
@@ -130,6 +166,8 @@ export interface WorkspaceSetupData {
   businessApproved?: boolean;
   /** Set when step 1 identity (business + workspace + slug) is saved. */
   identityComplete?: boolean;
+  /** Corporate-domain background discovery for stage 2. */
+  earlyDiscovery?: EarlyDiscoveryState;
   connections?: SetupConnectionsData;
   modules?: SetupModulesData;
   ai?: SetupAiData;
@@ -149,5 +187,5 @@ export interface AdvanceSetupInput {
   step: SetupStepId;
   data?: Partial<WorkspaceSetupData>;
   /** Server-side action — does not advance the step index. */
-  action?: 'restart_discovery';
+  action?: 'restart_discovery' | 'go_back' | 'start_over';
 }

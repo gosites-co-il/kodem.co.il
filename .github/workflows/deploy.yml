@@ -233,6 +233,14 @@ jobs:
           OAUTH_GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
           OAUTH_FACEBOOK_CLIENT_ID: ${{ vars.OAUTH_FACEBOOK_CLIENT_ID }}
           OAUTH_FACEBOOK_CLIENT_SECRET: ${{ secrets.OAUTH_FACEBOOK_CLIENT_SECRET }}
+          MAIL_PROVIDER: ${{ vars.MAIL_PROVIDER }}
+          MAIL_FROM: ${{ vars.MAIL_FROM }}
+          SMTP_HOST: ${{ vars.SMTP_HOST }}
+          SMTP_PORT: ${{ vars.SMTP_PORT }}
+          SMTP_SECURE: ${{ vars.SMTP_SECURE }}
+          SMTP_USER: ${{ vars.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SIGNUP_ADMIN_EMAIL: ${{ vars.SIGNUP_ADMIN_EMAIL }}
         run: |
           set -euo pipefail
 
@@ -404,6 +412,14 @@ jobs:
                 githubClientSecret="$OAUTH_GITHUB_CLIENT_SECRET" \
                 facebookClientId="$OAUTH_FACEBOOK_CLIENT_ID" \
                 facebookClientSecret="$OAUTH_FACEBOOK_CLIENT_SECRET" \
+                mailProvider="${MAIL_PROVIDER:-stub}" \
+                mailFrom="${MAIL_FROM:-noreply@kodem.co.il}" \
+                smtpHost="${SMTP_HOST:-}" \
+                smtpPort="${SMTP_PORT:-587}" \
+                smtpSecure="${SMTP_SECURE:-false}" \
+                smtpUser="${SMTP_USER:-}" \
+                smtpPass="${SMTP_PASS:-}" \
+                signupAdminEmail="${SIGNUP_ADMIN_EMAIL:-admin@kodem.co.il}" \
                 appCustomDomain="$APP_DOMAIN" \
                 apiCustomDomain="$API_DOMAIN" \
                 marketingCustomDomain="$MARKETING_DOMAIN" \

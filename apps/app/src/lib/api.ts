@@ -314,10 +314,22 @@ export const api = {
     }>(`/workspace/setup/slug-availability?${query.toString()}`);
   },
 
+  suggestSetupIdentity() {
+    return request<{
+      source: 'corporate_email' | 'none';
+      domain?: string;
+      slug?: string;
+      websiteUrl?: string;
+      businessName?: string;
+      discoveryStarted?: boolean;
+    }>('/workspace/setup/identity-suggest');
+  },
+
   saveSetupIdentity(body: {
     businessName: string;
     workspaceName: string;
     slug: string;
+    websiteUrl?: string;
   }) {
     return request<SetupStateResponse>('/workspace/setup/identity', {
       method: 'POST',
@@ -345,6 +357,26 @@ export const api = {
       body: JSON.stringify({
         step: 'business_discovery',
         action: 'restart_discovery',
+      }),
+    });
+  },
+
+  startOverSetup() {
+    return request<SetupStateResponse>('/workspace/setup/step', {
+      method: 'POST',
+      body: JSON.stringify({
+        step: 'welcome',
+        action: 'start_over',
+      }),
+    });
+  },
+
+  goBackSetup(step: string) {
+    return request<SetupStateResponse>('/workspace/setup/step', {
+      method: 'POST',
+      body: JSON.stringify({
+        step,
+        action: 'go_back',
       }),
     });
   },

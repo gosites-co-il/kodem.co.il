@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '@kodem/design-system/lib/utils';
 import { AuthBrandLogo } from '../auth/auth-brand-logo';
+import { SetupStartOverProvider } from './setup-shell';
 import { SetupStepper, type SetupStepperStep } from './setup-stepper';
 
 /**
@@ -14,7 +15,9 @@ export function SetupFrame({
   steps,
   activeStepId,
   brandTitle = 'בונים את סביבת העבודה',
-  brandSubtitle = 'שם העסק, שם הסביבה, וכתובת ייחודית — ואפשר להמשיך.',
+  brandSubtitle = 'שם הסביבה וכתובת ייחודית — ואפשר להמשיך.',
+  onStartOver,
+  startOverDisabled,
   className,
 }: {
   children: ReactNode;
@@ -22,6 +25,8 @@ export function SetupFrame({
   activeStepId: string;
   brandTitle?: string;
   brandSubtitle?: string;
+  onStartOver?: () => void;
+  startOverDisabled?: boolean;
   className?: string;
 }) {
   return (
@@ -69,17 +74,20 @@ export function SetupFrame({
         className={cn(
           'relative z-10 flex w-full flex-1 flex-col bg-card',
           'min-h-[70vh] shadow-xl',
-          'lg:w-[62.5%] lg:min-h-screen lg:rounded-s-[2rem]',
+          'lg:h-screen lg:w-[62.5%] lg:min-h-0 lg:rounded-s-[2rem]',
           'lg:shadow-[24px_0_60px_rgba(11,17,30,0.18)]',
         )}
       >
-        <div className="border-b border-border px-5 py-4 sm:px-8">
+        <div className="shrink-0 border-b border-border px-5 py-4 sm:px-8">
           <SetupStepper steps={steps} activeStepId={activeStepId} />
         </div>
-        <div className="flex flex-1 flex-col px-5 py-8 sm:px-8 sm:py-10">
-          <div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
-            {children}
-          </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-8 sm:px-8 sm:py-10">
+          <SetupStartOverProvider
+            onStartOver={onStartOver}
+            disabled={startOverDisabled}
+          >
+            <div className="flex w-full flex-col">{children}</div>
+          </SetupStartOverProvider>
         </div>
       </section>
     </div>

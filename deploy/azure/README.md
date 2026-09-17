@@ -130,6 +130,9 @@ Variables:
 | `POSTGRES_LOCATION` | Optional, puts the database in another region than the rest — see below |
 | `POSTGRES_VERSION` | Optional, overrides the PostgreSQL major version (`16`) |
 | `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GITHUB_CLIENT_ID`, `OAUTH_FACEBOOK_CLIENT_ID` | Optional |
+| `MAIL_PROVIDER` | Optional (`stub` default, set `smtp` for real mail) |
+| `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER` | Optional SMTP settings |
+| `SIGNUP_ADMIN_EMAIL` | Optional; prod signup alerts (default `admin@kodem.co.il`) |
 
 Secrets:
 
@@ -138,6 +141,7 @@ Secrets:
 | `POSTGRES_ADMIN_PASSWORD` | Flexible server administrator password |
 | `JWT_SECRET` | API token signing key |
 | `OAUTH_GOOGLE_CLIENT_SECRET`, `OAUTH_GITHUB_CLIENT_SECRET`, `OAUTH_FACEBOOK_CLIENT_SECRET` | Optional |
+| `SMTP_PASS` | Optional SMTP password when `MAIL_PROVIDER=smtp` |
 
 OAuth values left unset fall back to placeholders so the api still boots. Secrets cannot
 be named with a `GITHUB_` prefix, which is why the OAuth ones use `OAUTH_`.

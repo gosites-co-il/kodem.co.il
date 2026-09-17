@@ -123,6 +123,20 @@ export class DiscoveryOrchestrator {
       } catch {
         asset.status = 'failed';
         processed.push(asset);
+        processedCount += 1;
+        await publisher?.publish({
+          type: 'asset.processed',
+          payload: {
+            asset: {
+              id: asset.id,
+              type: asset.type,
+              url: asset.url,
+              status: asset.status,
+            },
+            factCount: 0,
+            newAssetCount: 0,
+          },
+        });
         continue;
       }
 

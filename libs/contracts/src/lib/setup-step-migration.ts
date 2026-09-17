@@ -1,11 +1,15 @@
 import type { SetupStepId, WorkspaceSetupData } from './workspace-setup';
-import { SETUP_STEPS } from './workspace-setup';
+import { SETUP_JOURNEY_VERSION, SETUP_STEPS } from './workspace-setup';
 
 const BUSINESS_DISCOVERY_INDEX = SETUP_STEPS.indexOf('business_discovery');
 const BUSINESS_UNDERSTANDING_INDEX = SETUP_STEPS.indexOf(
   'business_understanding',
 );
-const WORKSPACE_CREATION_INDEX = SETUP_STEPS.indexOf('workspace_creation');
+const CONNECTIONS_INDEX = SETUP_STEPS.indexOf('connections');
+const READY_INDEX = SETUP_STEPS.indexOf('ready');
+
+/** Old index of workspace_creation before it was removed (9-step → 8-step). */
+const LEGACY_WORKSPACE_CREATION_INDEX = 3;
 
 function hasBusinessReport(setup: WorkspaceSetupData): boolean {
   return Boolean(setup.businessReport);
@@ -22,6 +26,10 @@ const LEGACY_STEP_ALIASES: Record<string, SetupStepId> = {
   business: 'business_discovery',
   discovery: 'ready',
   business_confirmation: 'business_understanding',
+  workspace_creation: 'connections',
+  modules: 'ready',
+  ai: 'ready',
+  preparation: 'ready',
 };
 
 /** Normalize API step id (handles legacy step names from older builds). */
@@ -36,27 +44,53 @@ export function resolveSetupStepId(step: string | undefined): SetupStepId {
 }
 
 /**
- * Map stored onboardingStep index from the legacy 8-step journey
- * to the current journey when needed.
+ * Remap stored onboardingStep across journey version bumps.
+ * v1 (9): … workspace_creation(3), connections(4), modules(5), ai(6), prep(7), ready(8)
+ * v2 (8): … connections(3), modules(4), ai(5), prep(6), ready(7)
+ * v3 (5): … connections(3), ready(4)
+ */
+function remapJourneyIndex(raw: number, fromVersion: number): number {
+  let index = Math.max(0, raw);
+
+  if (fromVersion < 2) {
+    if (index === LEGACY_WORKSPACE_CREATION_INDEX) {
+      index = CONNECTIONS_INDEX;
+    } else if (index > LEGACY_WORKSPACE_CREATION_INDEX) {
+      index -= 1;
+    }
+  }
+
+  if (fromVersion < 3) {
+    // Collapse modules / ai / preparation / ready → ready
+    if (index >= 4) {
+      index = READY_INDEX;
+    }
+  }
+
+  return index;
+}
+
+/**
+ * Map stored onboardingStep index from older journeys to the current one.
  */
 export function migrateLegacyStepIndex(
   index: number,
   setup: WorkspaceSetupData,
 ): number {
-  const raw = Math.max(0, index);
+  const fromVersion = setup.setupJourneyVersion ?? 1;
+  let raw = remapJourneyIndex(Math.max(0, index), fromVersion);
 
   // Step 1 (identity) is required before any later questionnaire step.
   if (!setup.identityComplete) {
     return 0;
   }
 
-  // Explicit approval flag survives slimAfterBusinessApproval (report removed).
+  // Explicit approval flag — skip ahead to connections (post-profile).
   if (setup.businessApproved) {
-    return Math.max(raw, WORKSPACE_CREATION_INDEX);
+    return Math.max(raw, CONNECTIONS_INDEX);
   }
 
   // Understanding requires a report — otherwise stay on (or return to) discovery.
-  // Do not use confirmedProfile.businessName alone: getState always drafts a name.
   if (
     raw >= BUSINESS_UNDERSTANDING_INDEX &&
     !hasBusinessReport(setup) &&
@@ -80,12 +114,12 @@ export function migrateLegacyStepIndex(
     const legacyToNew: Record<number, number> = {
       0: 0,
       1: hasOldBusiness && hasBusinessReport(setup) ? 2 : 1,
-      2: 4,
-      3: 5,
-      4: 6,
-      5: 7,
-      6: 8,
-      7: 8,
+      2: CONNECTIONS_INDEX,
+      3: CONNECTIONS_INDEX,
+      4: READY_INDEX,
+      5: READY_INDEX,
+      6: READY_INDEX,
+      7: READY_INDEX,
     };
     if (legacyToNew[raw] !== undefined) {
       return legacyToNew[raw];

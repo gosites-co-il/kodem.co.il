@@ -3,6 +3,7 @@ import type {
   NotificationPayload,
 } from '@kodem/contracts';
 import { NotificationOutboxRepository as DbNotificationOutboxRepository } from '@kodem/database';
+import nodemailer from 'nodemailer';
 
 export interface NotificationOutboxRepository {
   enqueue(input: {
@@ -19,10 +20,50 @@ export interface NotificationChannel {
   deliver(payload: NotificationPayload): Promise<void>;
 }
 
+function formatEmailBody(payload: NotificationPayload): string {
+  const lines = Object.entries(payload.data).map(
+    ([key, value]) => `${key}: ${String(value ?? '')}`,
+  );
+  return lines.length > 0 ? lines.join('\n') : payload.type;
+}
+
 export class EmailChannel implements NotificationChannel {
   async deliver(payload: NotificationPayload): Promise<void> {
     const subject = payload.subject ?? payload.type;
-    // Stub delivery — replace with real email provider later.
+    const body = formatEmailBody(payload);
+    const provider = (process.env['MAIL_PROVIDER'] ?? 'stub').toLowerCase();
+    const from = process.env['MAIL_FROM'] ?? 'noreply@kodem.co.il';
+
+    if (provider === 'smtp') {
+      const host = process.env['SMTP_HOST'];
+      const port = Number(process.env['SMTP_PORT'] ?? '587');
+      if (!host) {
+        throw new Error('SMTP_HOST is required when MAIL_PROVIDER=smtp');
+      }
+
+      const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: process.env['SMTP_SECURE'] === 'true',
+        auth:
+          process.env['SMTP_USER'] && process.env['SMTP_PASS']
+            ? {
+                user: process.env['SMTP_USER'],
+                pass: process.env['SMTP_PASS'],
+              }
+            : undefined,
+      });
+
+      await transporter.sendMail({
+        from,
+        to: payload.to,
+        subject,
+        text: body,
+      });
+      return;
+    }
+
+    // Stub delivery — logs until SMTP is configured.
     console.log(
       `[EmailChannel] to=${payload.to} subject=${subject} type=${payload.type}`,
       payload.data,

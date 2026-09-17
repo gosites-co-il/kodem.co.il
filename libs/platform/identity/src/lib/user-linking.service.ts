@@ -6,7 +6,9 @@ export class UserLinkingService {
   private readonly userService = new UserService();
   private readonly oauthRepo = new OAuthAccountRepository();
 
-  async resolveFromOAuth(profile: OAuthProfile): Promise<User> {
+  async resolveFromOAuth(
+    profile: OAuthProfile,
+  ): Promise<{ user: User; isNewUser: boolean }> {
     const linked = await this.oauthRepo.findByProvider(
       profile.provider,
       profile.providerUserId,
@@ -17,7 +19,10 @@ export class UserLinkingService {
       if (!user) {
         throw new Error('OAuth account references missing user');
       }
-      return this.userService.ensureEmailVerified(user.id);
+      return {
+        user: await this.userService.ensureEmailVerified(user.id),
+        isNewUser: false,
+      };
     }
 
     const byEmail = await this.userService.findByEmail(profile.email);
@@ -28,7 +33,10 @@ export class UserLinkingService {
         byEmail.id,
         profile.email,
       );
-      return this.userService.ensureEmailVerified(byEmail.id);
+      return {
+        user: await this.userService.ensureEmailVerified(byEmail.id),
+        isNewUser: false,
+      };
     }
 
     const user = await this.userService.createOAuthUser({
@@ -43,6 +51,6 @@ export class UserLinkingService {
       profile.email,
     );
 
-    return user;
+    return { user, isNewUser: true };
   }
 }

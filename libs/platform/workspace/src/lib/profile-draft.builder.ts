@@ -49,8 +49,16 @@ export function buildProfileDraftFromSetup(
     timezone: 'Asia/Jerusalem',
     emails: pick(discovered?.emails) ?? (discovered?.email ? [discovered.email] : []),
     phones: pick(discovered?.phones) ?? (discovered?.phone ? [discovered.phone] : []),
-    addresses: pick(discovered?.addresses) ?? [],
-    socialProfiles: pick(discovered?.socialProfiles) ?? [],
+    addresses: business?.address?.trim()
+      ? [business.address.trim()]
+      : (pick(discovered?.addresses) ?? []),
+    socialProfiles: (() => {
+      const fromBusiness = Object.values(business?.socials ?? {})
+        .map((url) => url?.trim())
+        .filter((url): url is string => !!url);
+      if (fromBusiness.length > 0) return fromBusiness;
+      return pick(discovered?.socialProfiles) ?? [];
+    })(),
     services: pick(discovered?.services) ?? [],
     products: pick(discovered?.products) ?? [],
     fieldStatus: {},

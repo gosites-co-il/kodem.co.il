@@ -429,6 +429,10 @@ export class WorkspaceModuleRepository {
     return rows.map(mapWorkspaceModuleRow);
   }
 
+  async deleteByWorkspace(workspaceId: WorkspaceId): Promise<void> {
+    await this.db.workspaceModule.deleteMany({ where: { workspaceId } });
+  }
+
   async upsert(input: {
     workspaceId: WorkspaceId;
     moduleId: ModuleId;

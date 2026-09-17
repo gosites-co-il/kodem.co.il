@@ -5,3 +5,12 @@ export function assertNever(value: never): never {
 export function isDefined<T>(value: T | null | undefined): value is T {
   return value !== null && value !== undefined;
 }
+
+export {
+  corporateEmailIdentityHints,
+  domainLabelForSlug,
+  isFreeEmailDomain,
+  parseEmailDomain,
+  websiteUrlFromEmailDomain,
+} from './lib/email-domain';
+

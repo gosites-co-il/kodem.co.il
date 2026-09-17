@@ -68,6 +68,31 @@ param facebookClientId string = ''
 @description('Facebook OAuth client secret. Leave empty to boot with a placeholder.')
 param facebookClientSecret string = ''
 
+@description('Admin inbox for new-user signup alerts (used when FEATURE_FLAG_ENV=production).')
+param signupAdminEmail string = 'admin@kodem.co.il'
+
+@description('Outbound mail From address.')
+param mailFrom string = 'noreply@kodem.co.il'
+
+@allowed(['stub', 'smtp'])
+@description('Mail provider. Use smtp with SMTP_* for real delivery.')
+param mailProvider string = 'stub'
+
+@description('SMTP host when mailProvider=smtp.')
+param smtpHost string = ''
+
+@description('SMTP port.')
+param smtpPort string = '587'
+
+@description('SMTP TLS (true for port 465).')
+param smtpSecure string = 'false'
+
+param smtpUser string = ''
+
+@secure()
+@description('SMTP password.')
+param smtpPass string = ''
+
 @description('Region for the PostgreSQL flexible server. Defaults to the region of everything else; override it when the subscription is not allowed to provision flexible servers there. See "PostgreSQL is not available in this region" in deploy/azure/README.md.')
 param postgresLocation string = location
 
@@ -286,6 +311,10 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
           name: 'facebook-client-secret'
           value: empty(facebookClientSecret) ? 'facebook-client-secret' : facebookClientSecret
         }
+        {
+          name: 'smtp-pass'
+          value: empty(smtpPass) ? 'smtp-pass' : smtpPass
+        }
       ]
     }
     template: {
@@ -303,6 +332,14 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
             { name: 'APP_URL', value: resolvedAppUrl }
             { name: 'COOKIE_SECURE', value: 'true' }
             { name: 'FEATURE_FLAG_ENV', value: environmentName == 'prod' ? 'production' : 'development' }
+            { name: 'SIGNUP_ADMIN_EMAIL', value: environmentName == 'prod' ? signupAdminEmail : '' }
+            { name: 'MAIL_FROM', value: mailFrom }
+            { name: 'MAIL_PROVIDER', value: mailProvider }
+            { name: 'SMTP_HOST', value: smtpHost }
+            { name: 'SMTP_PORT', value: smtpPort }
+            { name: 'SMTP_SECURE', value: smtpSecure }
+            { name: 'SMTP_USER', value: smtpUser }
+            { name: 'SMTP_PASS', secretRef: 'smtp-pass' }
             { name: 'DATABASE_URL', secretRef: 'database-url' }
             { name: 'JWT_SECRET', secretRef: 'jwt-secret' }
             { name: 'GOOGLE_CLIENT_ID', value: empty(googleClientId) ? 'google-client-id' : googleClientId }

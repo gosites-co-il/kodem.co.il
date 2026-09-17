@@ -9,6 +9,7 @@ const MERGE_SOURCE_PRIORITY: Record<BusinessFactSource, number> = {
   instagram: 60,
   linkedin: 58,
   tiktok: 55,
+  twitter: 52,
   ai_extraction: 50,
   regex: 40,
   sitemap: 35,

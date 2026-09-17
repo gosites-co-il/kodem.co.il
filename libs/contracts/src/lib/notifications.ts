@@ -2,6 +2,7 @@ export type NotificationType =
   | 'workspace.invite'
   | 'auth.password_reset'
   | 'auth.email_verification'
+  | 'auth.signup'
   | 'billing.subscription_changed'
   | 'system.notification';
 

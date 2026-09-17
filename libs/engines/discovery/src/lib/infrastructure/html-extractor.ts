@@ -36,6 +36,53 @@ export function extractOpenGraph(html: string): Record<string, string> {
   return og;
 }
 
+/** Prefer og:image, then apple-touch-icon, then favicon link tags. */
+export function extractBrandLogoUrl(
+  html: string,
+  baseUrl: string,
+): string | undefined {
+  const ogImage = extractOpenGraph(html)['og:image']?.trim();
+  if (ogImage) {
+    const absolute = toAbsoluteUrl(ogImage, baseUrl);
+    if (absolute) return absolute;
+  }
+
+  const linkPattern = /<link\b[^>]*>/gi;
+  const candidates: { priority: number; href: string }[] = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = linkPattern.exec(html)) !== null) {
+    const tag = match[0];
+    const rel = tag.match(/\brel=["']([^"']+)["']/i)?.[1]?.toLowerCase().trim();
+    const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1]?.trim();
+    if (!rel || !href || href.startsWith('data:')) continue;
+
+    let priority = 99;
+    if (rel.includes('apple-touch-icon')) priority = 1;
+    else if (rel === 'shortcut icon' || rel === 'icon') priority = 2;
+    else if (rel.split(/\s+/).includes('icon')) priority = 3;
+    if (priority === 99) continue;
+
+    candidates.push({ priority, href });
+  }
+
+  candidates.sort((a, b) => a.priority - b.priority);
+  for (const candidate of candidates) {
+    const absolute = toAbsoluteUrl(candidate.href, baseUrl);
+    if (absolute) return absolute;
+  }
+
+  return undefined;
+}
+
+function toAbsoluteUrl(value: string, baseUrl: string): string | undefined {
+  try {
+    return new URL(value, baseUrl).toString();
+  } catch {
+    return undefined;
+  }
+}
+
 export function extractJsonLd(html: string): unknown[] {
   const results: unknown[] = [];
   const pattern =

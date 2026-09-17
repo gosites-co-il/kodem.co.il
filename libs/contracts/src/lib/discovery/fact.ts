@@ -36,6 +36,7 @@ export type BusinessFactSource =
   | 'instagram'
   | 'linkedin'
   | 'tiktok'
+  | 'twitter'
   | 'ai_extraction'
   | 'regex'
   | 'user_input'

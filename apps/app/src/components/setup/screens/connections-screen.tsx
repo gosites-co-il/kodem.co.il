@@ -7,8 +7,7 @@ import { Button } from '@kodem/design-system/components/ui/button';
 import { INTEGRATIONS } from '../../../lib/setup/constants';
 import {
   SetupHeadline,
-  SetupPrimaryButton,
-  SetupSecondaryButton,
+  SetupNavButtons,
   SetupShell,
 } from '../setup-shell';
 import type { SetupScreenProps } from '../setup-journey';
@@ -18,6 +17,7 @@ export function ConnectionsScreen({
   advance,
   isSubmitting,
   error,
+  goBack,
 }: SetupScreenProps) {
   const [connected, setConnected] = useState<IntegrationId[]>(
     state.setup.connections?.connected ?? [],
@@ -85,30 +85,34 @@ export function ConnectionsScreen({
 
       {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
 
-      <div className="mt-8 space-y-2">
-        <SetupPrimaryButton
-          disabled={isSubmitting}
-          onClick={() =>
-            void advance('connections', {
-              connections: { connected, skipped },
-            })
-          }
-        >
-          {isSubmitting ? 'שומר…' : 'המשך'}
-        </SetupPrimaryButton>
-        <div className="text-center">
-          <SetupSecondaryButton
+      <SetupNavButtons
+        continueDisabled={isSubmitting}
+        continueLabel={isSubmitting ? 'שומר…' : 'המשך'}
+        onContinue={() =>
+          void advance('connections', {
+            connections: { connected, skipped },
+          })
+        }
+        onBack={() => void goBack('connections')}
+        backDisabled={isSubmitting}
+        secondary={
+          <button
+            type="button"
             disabled={isSubmitting}
             onClick={() =>
               void advance('connections', {
-                connections: { connected: [], skipped: INTEGRATIONS.map((i) => i.id) },
+                connections: {
+                  connected: [],
+                  skipped: INTEGRATIONS.map((i) => i.id),
+                },
               })
             }
+            className="text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-50"
           >
             דלג על הכול
-          </SetupSecondaryButton>
-        </div>
-      </div>
+          </button>
+        }
+      />
     </SetupShell>
   );
 }

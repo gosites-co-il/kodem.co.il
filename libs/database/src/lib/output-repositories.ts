@@ -34,6 +34,10 @@ export class BusinessProfileRepository {
     if (!row) return null;
     return mapProfileRowToDomain(row);
   }
+
+  async deleteByWorkspace(workspaceId: WorkspaceId): Promise<void> {
+    await this.db.businessProfile.deleteMany({ where: { workspaceId } });
+  }
 }
 
 export class BusinessReportRepository {
@@ -55,6 +59,10 @@ export class BusinessReportRepository {
     if (!row) return null;
     return mapBusinessReportRowToDomain(row);
   }
+
+  async deleteByWorkspace(workspaceId: WorkspaceId): Promise<void> {
+    await this.db.businessReport.deleteMany({ where: { workspaceId } });
+  }
 }
 
 export class InsightRepository {
@@ -73,6 +81,10 @@ export class InsightRepository {
     });
     return rows.map(mapInsightRowToDomain);
   }
+
+  async deleteByWorkspace(workspaceId: WorkspaceId): Promise<void> {
+    await this.db.insightRecord.deleteMany({ where: { workspaceId } });
+  }
 }
 
 export class RecommendationRepository {
@@ -90,5 +102,9 @@ export class RecommendationRepository {
       orderBy: { priority: 'asc' },
     });
     return rows.map(mapRecommendationRowToDomain);
+  }
+
+  async deleteByWorkspace(workspaceId: WorkspaceId): Promise<void> {
+    await this.db.recommendationRecord.deleteMany({ where: { workspaceId } });
   }
 }

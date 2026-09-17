@@ -6,6 +6,7 @@ import type {
   ProviderFetchContext,
 } from '@kodem/contracts';
 import {
+  extractBrandLogoUrl,
   extractEmails,
   extractJsonLd,
   extractLinks,
@@ -80,10 +81,20 @@ export class WebsiteProvider implements DiscoveryProvider {
       }
     }
 
-    appendFact(
-      facts,
-      createFact('logo', og['og:image'], 'open_graph', 0.74, factOptions),
-    );
+    {
+      const logoUrl = extractBrandLogoUrl(html, asset.url);
+      const fromOg = Boolean(og['og:image']?.trim());
+      appendFact(
+        facts,
+        createFact(
+          'logo',
+          logoUrl,
+          fromOg ? 'open_graph' : 'website',
+          fromOg ? 0.74 : 0.55,
+          factOptions,
+        ),
+      );
+    }
 
     appendFact(
       facts,

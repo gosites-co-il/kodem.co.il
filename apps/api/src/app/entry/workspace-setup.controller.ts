@@ -59,12 +59,26 @@ export class WorkspaceSetupController {
     };
   }
 
+  @Get('identity-suggest')
+  @UseGuards(JwtAuthGuard)
+  async identitySuggest(@CurrentContext() context: PlatformContext) {
+    return this.setupService.suggestIdentityFromEmail(
+      context.workspace.id,
+      context.user.email,
+    );
+  }
+
   @Post('identity')
   @UseGuards(JwtAuthGuard)
   async saveIdentity(
     @CurrentContext() context: PlatformContext,
     @Body()
-    body: { businessName?: string; workspaceName?: string; slug?: string },
+    body: {
+      businessName?: string;
+      workspaceName?: string;
+      slug?: string;
+      websiteUrl?: string;
+    },
   ) {
     if (
       !body.businessName?.trim() ||
@@ -90,6 +104,7 @@ export class WorkspaceSetupController {
         businessName: body.businessName,
         workspaceName: body.workspaceName,
         slug: body.slug,
+        websiteUrl: body.websiteUrl,
       });
     } catch (error) {
       throw new BadRequestException(

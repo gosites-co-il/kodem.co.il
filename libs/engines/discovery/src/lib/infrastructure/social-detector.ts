@@ -40,6 +40,12 @@ const SOCIAL_PATTERNS: SocialPattern[] = [
     test: /(^|\.)google\.com\/maps|(^|\.)business\.google\.com/i,
     normalize: (url) => normalizeUrl(url),
   },
+  {
+    type: 'TWITTER',
+    priority: 55,
+    test: /(^|\.)(?:twitter|x)\.com\//i,
+    normalize: (url) => normalizeUrl(url),
+  },
 ];
 
 export function detectSocialAssets(
