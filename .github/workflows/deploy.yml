@@ -12,6 +12,7 @@ on:
         required: true
         type: string
       image_tag:
+        description: Extra alias pushed to ACR (dev, prod, v-1.0.0). The running revision is always the git SHA, because Container Apps will not pull a new image that reuses a tag.
         required: true
         type: string
       extra_tags:
@@ -217,7 +218,6 @@ jobs:
           RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           AZURE_ENV: ${{ inputs.environment }}
           GITHUB_ENV_NAME: ${{ inputs.github_environment }}
-          IMAGE_TAG: ${{ inputs.image_tag }}
           CONTAINER_REGISTRY: ${{ vars.AZURE_CONTAINER_REGISTRY }}
           CUSTOM_DOMAINS: ${{ inputs.custom_domains }}
           APP_CUSTOM_DOMAIN: ${{ vars.APP_CUSTOM_DOMAIN }}
@@ -395,7 +395,7 @@ jobs:
               --parameters "deploy/azure/main.parameters.$AZURE_ENV.json" \
               --parameters \
                 containerRegistryName="$CONTAINER_REGISTRY" \
-                imageTag="$IMAGE_TAG" \
+                imageTag="$GITHUB_SHA" \
                 postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
                 jwtSecret="$JWT_SECRET" \
                 googleClientId="$OAUTH_GOOGLE_CLIENT_ID" \
@@ -584,7 +584,7 @@ jobs:
             echo "### Deployed to Azure Container Apps"
             echo ""
             echo "- Environment: \`${{ inputs.environment }}\` (GitHub Environment \`${{ inputs.github_environment }}\`)"
-            echo "- Image tag: \`${{ inputs.image_tag }}\`"
+            echo "- Image: \`${{ github.sha }}\` (also tagged \`${{ inputs.image_tag }}\`)"
             echo "- App: ${{ steps.infra.outputs.app_url }}"
             echo "- API: ${{ steps.infra.outputs.api_url }}"
             echo "- Marketing: ${{ steps.infra.outputs.marketing_url }}"

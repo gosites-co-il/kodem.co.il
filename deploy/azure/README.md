@@ -146,7 +146,7 @@ be named with a `GITHUB_` prefix, which is why the OAuth ones use `OAUTH_`.
 
 | Trigger | Workflow | Environment |
 |---------|----------|-------------|
-| Push to `dev` | `deploy-dev.yml` | `dev`, image tag `dev` |
+| Push to `dev` | `deploy-dev.yml` | `dev`, running image is the git SHA (also tagged `dev`) |
 | Tag `v-*` on `main` | `deploy-prod.yml` | `prod`, image tag `v-x.y.z` |
 | Manual run | either, from the Actions tab | as above |
 
@@ -172,7 +172,9 @@ and it is the only way to bring an environment up before its code has reached `m
 Both call `deploy.yml`, which lints the product apps, builds marketing, builds and pushes
 the four images (`kodem-app`, `kodem-api`, `kodem-worker`, `kodem-marketing`) to ACR,
 applies the Bicep template, and then polls health on the app, api and marketing containers
-until they pass. A custom domain that does not answer yet is reported as a warning rather
+until they pass. The running Container Apps revision is the git SHA, not the `dev` /
+`prod` alias — reusing those tags does not make Azure pull a new image. A custom domain
+that does not answer yet is reported as a warning rather
 than a failed deploy, since the revision itself is fine.
 
 Because the whole environment is described by the template, the first run provisions it
