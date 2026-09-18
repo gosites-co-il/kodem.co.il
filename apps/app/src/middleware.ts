@@ -14,8 +14,8 @@ const publicPaths = [
 
 const authRequiredPaths = [
   ROUTES.entry,
-  ROUTES.workspaceSelect,
-  ROUTES.workspaceSettings,
+  // Covers /workspace/select, /settings, /integrations, etc.
+  '/workspace',
   ROUTES.setup,
   ROUTES.onboarding,
   ROUTES.dashboard,

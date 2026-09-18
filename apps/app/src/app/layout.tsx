@@ -3,6 +3,7 @@ import Script from 'next/script';
 import { Assistant } from 'next/font/google';
 import './global.css';
 import { getThemeInitScript } from '@kodem/design-system/lib/theme-script';
+import { AppCookieBanner } from '../components/app/app-cookie-banner';
 import { AuthProvider } from '../providers/auth-provider';
 import { ThemeProvider } from '../providers/theme-provider';
 
@@ -29,7 +30,10 @@ export default function RootLayout({
           {getThemeInitScript()}
         </Script>
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            {children}
+            <AppCookieBanner />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

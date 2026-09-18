@@ -84,6 +84,13 @@ export class ConnectionsOAuthController {
         parsed.integrationId,
         parsed.userId as UserId,
         input.code,
+        {
+          accessMode:
+            parsed.accessMode === 'readonly' || parsed.accessMode === 'full'
+              ? parsed.accessMode
+              : undefined,
+          connectionId: parsed.connectionId,
+        },
       );
       if (!result.success) {
         return input.res.redirect(

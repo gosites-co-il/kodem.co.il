@@ -141,12 +141,19 @@ async function request<T>(
   }
 
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { message?: string };
+    const body = (await res.json().catch(() => ({}))) as {
+      message?: string | string[];
+    };
+    const rawMessage = Array.isArray(body.message)
+      ? body.message.join(', ')
+      : body.message;
     const message =
-      body.message ??
-      (res.status === 500
-        ? 'השרת לא זמין. ודאו שה-API פועל (npm run dev:api).'
-        : res.statusText);
+      res.status === 401
+        ? 'יש להתחבר מחדש כדי להמשיך.'
+        : (rawMessage ??
+          (res.status === 500
+            ? 'השרת לא זמין. ודאו שה-API פועל (npm run dev:api).'
+            : res.statusText));
     throw createApiError(res.status, message);
   }
 
@@ -618,10 +625,19 @@ export const api = {
     return request<{ catalog: ConnectionCatalogItem[] }>('/connections');
   },
 
-  connectIntegration(integrationId: string) {
+  connectIntegration(
+    integrationId: string,
+    body?: {
+      capabilities?: import('@kodem/contracts').ConnectionCapability[];
+      accessMode?: 'full' | 'readonly';
+    },
+  ) {
     return request<ConnectionActionResult>(
       `/connections/${integrationId}/connect`,
-      { method: 'POST' },
+      {
+        method: 'POST',
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      },
     );
   },
 
@@ -663,6 +679,13 @@ export const api = {
   testConnection(id: string) {
     return request<ConnectionActionResult>(`/connections/${id}/test`, {
       method: 'POST',
+    });
+  },
+
+  setConnectionActive(id: string, active: boolean) {
+    return request<ConnectionActionResult>(`/connections/${id}/active`, {
+      method: 'POST',
+      body: JSON.stringify({ active }),
     });
   },
 

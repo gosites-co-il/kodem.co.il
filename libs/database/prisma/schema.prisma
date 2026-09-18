@@ -468,7 +468,7 @@ model WorkspaceConnection {
   credential  ConnectionCredential?
   channelBindings ChannelConnectionBinding[]
 
-  @@unique([workspaceId, integrationId])
+  @@index([workspaceId, integrationId])
   @@index([workspaceId, status])
   @@index([workspaceId, provider])
 }

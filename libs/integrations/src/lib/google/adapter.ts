@@ -10,7 +10,9 @@ import {
   fetchGoogleUserInfo,
   googleConnectionClientConfig,
   googleConnectionConfigMissingMessage,
+  googleGrantedSheetsWrite,
   googleScopesFor,
+  sheetsAccessModeFromCapabilities,
   signGoogleOAuthState,
 } from './oauth';
 
@@ -25,12 +27,25 @@ const GOOGLE_CAPABILITIES: ConnectionCapability[] = [
   'sheets.write',
 ];
 
+function sheetsCapabilitiesForMode(
+  accessMode: 'full' | 'readonly',
+): ConnectionCapability[] {
+  return accessMode === 'readonly'
+    ? ['sheets.read']
+    : ['sheets.read', 'sheets.write'];
+}
+
 export class GoogleConnectionAdapter implements ConnectionProviderAdapter {
   readonly provider = 'google' as const;
   readonly capabilities = GOOGLE_CAPABILITIES;
 
   async startConnect(ctx: AdapterConnectContext): Promise<AdapterConnectResult> {
-    const scopes = googleScopesFor(ctx.integrationId);
+    const accessMode =
+      ctx.accessMode ??
+      (ctx.integrationId === 'google_sheets'
+        ? sheetsAccessModeFromCapabilities(ctx.capabilities)
+        : 'full');
+    const scopes = googleScopesFor(ctx.integrationId, accessMode);
     if (!scopes) {
       return {
         success: false,
@@ -52,6 +67,8 @@ export class GoogleConnectionAdapter implements ConnectionProviderAdapter {
       workspaceId: ctx.workspaceId,
       userId: ctx.userId,
       integrationId: ctx.integrationId,
+      ...(ctx.integrationId === 'google_sheets' ? { accessMode } : {}),
+      ...(ctx.connectionId ? { connectionId: ctx.connectionId } : {}),
     });
 
     const authorizeUrl = buildGoogleAuthorizeUrl({
@@ -59,6 +76,8 @@ export class GoogleConnectionAdapter implements ConnectionProviderAdapter {
       callbackUrl: config.callbackUrl,
       scopes,
       state,
+      // Never merge prior grants for Sheets — otherwise "read-only" still shows edit.
+      includeGrantedScopes: false,
     });
 
     return {
@@ -73,7 +92,12 @@ export class GoogleConnectionAdapter implements ConnectionProviderAdapter {
   async completeConnect(
     ctx: AdapterConnectContext & { code: string },
   ): Promise<AdapterConnectResult> {
-    const scopes = googleScopesFor(ctx.integrationId);
+    const accessMode =
+      ctx.accessMode ??
+      (ctx.integrationId === 'google_sheets'
+        ? sheetsAccessModeFromCapabilities(ctx.capabilities)
+        : 'full');
+    const scopes = googleScopesFor(ctx.integrationId, accessMode);
     if (!scopes) {
       return {
         success: false,
@@ -98,11 +122,24 @@ export class GoogleConnectionAdapter implements ConnectionProviderAdapter {
       callbackUrl: config.callbackUrl,
     });
 
+    if (
+      ctx.integrationId === 'google_sheets' &&
+      accessMode === 'readonly' &&
+      googleGrantedSheetsWrite(tokens.scope)
+    ) {
+      return {
+        success: false,
+        code: 'error',
+        message:
+          'Google העניק הרשאות כתיבה למרות שבחרתם קריאה בלבד. בטלו את הגישה ל-kodem בחשבון Google (אבטחה → גישה של צד שלישי) ונסו שוב.',
+      };
+    }
+
     const profile = await fetchGoogleUserInfo(tokens.accessToken);
 
     const capabilities: ConnectionCapability[] =
       ctx.integrationId === 'google_sheets'
-        ? ['sheets.read', 'sheets.write']
+        ? sheetsCapabilitiesForMode(accessMode)
         : GOOGLE_CAPABILITIES;
 
     return {
@@ -120,6 +157,7 @@ export class GoogleConnectionAdapter implements ConnectionProviderAdapter {
           ? { expiresAt: String(Date.now() + tokens.expiresIn * 1000) }
           : {}),
         ...(tokens.scope ? { scope: tokens.scope } : {}),
+        accessMode,
       },
     };
   }

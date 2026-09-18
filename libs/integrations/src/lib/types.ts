@@ -9,6 +9,10 @@ export interface AdapterConnectContext {
   integrationId: IntegrationId;
   userId: string;
   capabilities?: ConnectionCapability[];
+  /** Sheets (and similar): full vs read-only OAuth scopes. */
+  accessMode?: 'full' | 'readonly';
+  /** When set, OAuth refreshes this connection instead of creating a new one. */
+  connectionId?: string;
   /** Absolute callback URL for OAuth (future). */
   redirectUri?: string;
 }

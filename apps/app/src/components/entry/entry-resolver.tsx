@@ -15,7 +15,7 @@ import { requiresOnboarding } from '@kodem/contracts';
 import { useAuth } from '../../providers/auth-provider';
 import { isApiError } from '../../lib/api';
 import { fetchEntryResolution } from '../../lib/entry/entry-flow';
-import { getToken } from '../../lib/auth/storage';
+import { clearToken, getToken } from '../../lib/auth/storage';
 import { ROUTES } from '../../lib/constants';
 
 export function EntryResolver() {
@@ -28,9 +28,9 @@ export function EntryResolver() {
     if (isLoading) return;
 
     if (!isAuthenticated) {
-      if (!getToken()) {
-        router.replace(ROUTES.login);
-      }
+      // Stale local token without a session used to leave this screen hanging.
+      if (getToken()) clearToken();
+      router.replace(ROUTES.login);
       return;
     }
 

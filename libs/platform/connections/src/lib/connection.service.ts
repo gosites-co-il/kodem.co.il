@@ -61,20 +61,31 @@ export class ConnectionService {
     workspaceId: WorkspaceId,
   ): Promise<ConnectionCatalogItem[]> {
     const existing = await this.connections.findByWorkspace(workspaceId);
-    const byIntegration = new Map(
-      existing.map((c) => [c.integrationId, c] as const),
-    );
+    const byIntegration = new Map<IntegrationId, WorkspaceConnection[]>();
+    for (const c of existing) {
+      const list = byIntegration.get(c.integrationId) ?? [];
+      list.push(c);
+      byIntegration.set(c.integrationId, list);
+    }
 
-    return PLATFORM_INTEGRATIONS.map((def) => ({
-      integrationId: def.id,
-      provider: def.provider,
-      name: def.name,
-      description: def.description ?? '',
-      category: def.category,
-      status: def.status,
-      capabilities: def.capabilities,
-      connection: byIntegration.get(def.id) ?? null,
-    }));
+    return PLATFORM_INTEGRATIONS.map((def) => {
+      const connections = byIntegration.get(def.id) ?? [];
+      const active =
+        connections.find((c) => c.status === 'connected') ??
+        connections[0] ??
+        null;
+      return {
+        integrationId: def.id,
+        provider: def.provider,
+        name: def.name,
+        description: def.description ?? '',
+        category: def.category,
+        status: def.status,
+        capabilities: def.capabilities,
+        connections,
+        connection: active,
+      };
+    });
   }
 
   list(workspaceId: WorkspaceId): Promise<WorkspaceConnection[]> {
@@ -92,6 +103,8 @@ export class ConnectionService {
     workspaceId: WorkspaceId,
     integrationId: IntegrationId,
     actorId: UserId,
+    capabilities?: import('@kodem/contracts').ConnectionCapability[],
+    options?: { connectionId?: string; accessMode?: 'full' | 'readonly' },
   ): Promise<ConnectionActionResult> {
     const def = getIntegrationDefinition(integrationId);
     if (!def) {
@@ -111,11 +124,39 @@ export class ConnectionService {
       };
     }
 
+    if (options?.connectionId) {
+      const existing = await this.connections.findById(
+        workspaceId,
+        options.connectionId,
+      );
+      if (!existing || existing.integrationId !== integrationId) {
+        return {
+          success: false,
+          code: 'error',
+          message: 'Connection not found',
+        };
+      }
+    }
+
+    const sheetsCaps =
+      integrationId === 'google_sheets' && options?.accessMode
+        ? options.accessMode === 'readonly'
+          ? (['sheets.read'] as import('@kodem/contracts').ConnectionCapability[])
+          : ([
+              'sheets.read',
+              'sheets.write',
+            ] as import('@kodem/contracts').ConnectionCapability[])
+        : undefined;
+
     const result = await adapter.startConnect({
       workspaceId,
       integrationId,
       userId: actorId,
-      capabilities: def.capabilities,
+      capabilities:
+        sheetsCaps ??
+        (capabilities?.length ? capabilities : def.capabilities),
+      accessMode: options?.accessMode,
+      connectionId: options?.connectionId,
     });
 
     if (result.code === 'oauth_redirect' && result.authorizeUrl) {
@@ -162,6 +203,10 @@ export class ConnectionService {
     integrationId: IntegrationId,
     actorId: UserId,
     code: string,
+    options?: {
+      accessMode?: 'full' | 'readonly';
+      connectionId?: string;
+    },
   ): Promise<ConnectionActionResult> {
     const def = getIntegrationDefinition(integrationId);
     if (!def) {
@@ -176,12 +221,21 @@ export class ConnectionService {
       };
     }
 
+    const capabilities: import('@kodem/contracts').ConnectionCapability[] =
+      integrationId === 'google_sheets'
+        ? options?.accessMode === 'readonly'
+          ? ['sheets.read']
+          : ['sheets.read', 'sheets.write']
+        : def.capabilities;
+
     const result = await adapter.completeConnect({
       workspaceId,
       integrationId,
       userId: actorId,
-      capabilities: def.capabilities,
+      capabilities,
       code,
+      accessMode: options?.accessMode,
+      connectionId: options?.connectionId,
     });
 
     if (!result.success) {
@@ -208,7 +262,10 @@ export class ConnectionService {
       provider: def.provider,
       actorId,
       result,
-      auditAction: 'connection.connected',
+      connectionId: options?.connectionId,
+      auditAction: options?.connectionId
+        ? 'connection.reconnected'
+        : 'connection.connected',
       eventType: EVENT_TYPES.CONNECTION_CONNECTED,
     });
   }
@@ -219,6 +276,7 @@ export class ConnectionService {
     provider: import('@kodem/contracts').ConnectionProviderId;
     actorId: UserId;
     result: import('@kodem/integrations').AdapterConnectResult;
+    connectionId?: string;
     auditAction: 'connection.connected' | 'connection.reconnected';
     eventType: typeof EVENT_TYPES.CONNECTION_CONNECTED;
   }): Promise<ConnectionActionResult> {
@@ -234,6 +292,7 @@ export class ConnectionService {
       createdById: input.actorId,
       externalAccountId: input.result.externalAccountId ?? null,
       externalAccountName: input.result.externalAccountName ?? null,
+      connectionId: input.connectionId,
     });
 
     if (input.result.credentials) {
@@ -280,7 +339,11 @@ export class ConnectionService {
       throw new Error('Connection not found');
     }
     if (existing.status !== 'connected') {
-      throw new Error('Connection is not active');
+      throw new Error(
+        existing.status === 'inactive'
+          ? 'החיבור אינו פעיל — הפעילו אותו כדי להשתמש בגיליון'
+          : 'Connection is not active',
+      );
     }
 
     const ciphertext = await this.credentials.findCiphertext(existing.id);
@@ -364,7 +427,10 @@ export class ConnectionService {
       return {
         success: false,
         code: 'error',
-        message: 'יש לחבר את Google Sheets לפני בחירת קובץ',
+        message:
+          existing.status === 'inactive'
+            ? 'החיבור מחובר אך לא פעיל — הפעילו אותו לפני בחירת קובץ'
+            : 'יש לחבר את Google Sheets לפני בחירת קובץ',
       };
     }
 
@@ -527,7 +593,70 @@ export class ConnectionService {
     if (!existing) {
       return { success: false, code: 'error', message: 'Connection not found' };
     }
-    return this.connect(workspaceId, existing.integrationId, actorId);
+    return this.connect(workspaceId, existing.integrationId, actorId, existing.capabilities, {
+      connectionId: existing.id,
+    });
+  }
+
+  /**
+   * Soft enable/disable — keeps credentials. Unlike disconnect, can be turned back on.
+   */
+  async setActive(
+    workspaceId: WorkspaceId,
+    id: string,
+    actorId: UserId,
+    active: boolean,
+  ): Promise<ConnectionActionResult> {
+    const existing = await this.connections.findById(workspaceId, id);
+    if (!existing) {
+      return { success: false, code: 'error', message: 'Connection not found' };
+    }
+    if (existing.status === 'disconnected') {
+      return {
+        success: false,
+        code: 'error',
+        message: 'חיבור מנותק — חברו מחדש לפני הפעלה',
+      };
+    }
+    if (
+      active &&
+      (existing.status === 'expired' || existing.status === 'error')
+    ) {
+      return {
+        success: false,
+        code: 'error',
+        message: 'יש לחדש את החיבור לפני הפעלה',
+      };
+    }
+
+    const nextStatus = active ? 'connected' : 'inactive';
+    if (existing.status === nextStatus) {
+      return { success: true, code: 'ok', connection: existing };
+    }
+
+    const connection = await this.connections.updateStatus(
+      workspaceId,
+      id,
+      nextStatus,
+    );
+    await this.audit.record({
+      workspaceId,
+      actorId,
+      targetId: id,
+      action: active ? 'connection.reconnected' : 'connection.disconnected',
+      metadata: {
+        integrationId: existing.integrationId,
+        soft: true,
+        active,
+      },
+    });
+
+    return {
+      success: true,
+      code: 'ok',
+      connection: connection ?? undefined,
+      message: active ? 'החיבור הופעל' : 'החיבור הושבת',
+    };
   }
 
   async test(
@@ -627,7 +756,7 @@ export class ConnectionService {
     const adapter = getConnectionAdapter(existing.provider);
     await adapter?.disconnect(id);
     await this.credentials.delete(existing.id);
-    await this.connections.updateStatus(workspaceId, id, 'disconnected');
+    await this.connections.delete(workspaceId, id);
 
     await this.eventBus.emit({
       type: EVENT_TYPES.CONNECTION_DISCONNECTED,
@@ -646,11 +775,10 @@ export class ConnectionService {
       metadata: { integrationId: existing.integrationId },
     });
 
-    const connection = await this.connections.findById(workspaceId, id);
     return {
       success: true,
       code: 'ok',
-      connection: connection ?? undefined,
+      message: 'החיבור נמחק',
     };
   }
 }

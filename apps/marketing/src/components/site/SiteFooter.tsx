@@ -1,5 +1,6 @@
 import { FOOTER_NAV } from '../../lib/nav';
 import { PRIMARY_CTA_LABEL, SITE_CONFIG } from '../../lib/site-config';
+import { openCookiePreferences } from '@kodem/design-system/lib/cookie-consent';
 import { Logo } from './Logo';
 
 export function SiteFooter() {
@@ -32,7 +33,16 @@ export function SiteFooter() {
           <p>
             © {year} {SITE_CONFIG.name}. כל הזכויות שמורות.
           </p>
-          <p>נבנה לעסקים בישראל · Meta API</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <button
+              type="button"
+              onClick={() => openCookiePreferences()}
+              className="cursor-pointer text-white/60 transition hover:text-white"
+            >
+              הגדרות עוגיות
+            </button>
+            <p>נבנה לעסקים בישראל · Meta API</p>
+          </div>
         </div>
       </div>
     </footer>

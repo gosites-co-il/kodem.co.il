@@ -9,7 +9,7 @@ import {
   useState,
 } from 'react';
 import type { RoleName, User, Workspace } from '@kodem/contracts';
-import { api, isApiError } from '../lib/api';
+import { api } from '../lib/api';
 import { clearToken, getToken, setToken } from '../lib/auth/storage';
 import { ROUTES } from '../lib/constants';
 
@@ -69,10 +69,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading: false,
         isAuthenticated: true,
       });
-    } catch (error) {
-      if (isApiError(error) && error.status === 401) {
-        clearToken();
-      }
+    } catch {
+      // Drop client token so middleware/gates cannot loop on a stale session.
+      // HttpOnly refresh cookie may still restore the session on next refresh().
+      clearToken();
       setState({
         user: null,
         workspace: null,

@@ -50,10 +50,18 @@ export type ConnectionCapability =
 export type ConnectionStatus =
   | 'connected'
   | 'disconnected'
+  | 'inactive'
   | 'expired'
   | 'error';
 
-/** Public Connection DTO — never includes credentials. */
+/**
+ * Public Connection DTO — never includes credentials.
+ *
+ * Two dimensions (both required for API access):
+ * - **status** — OAuth/credential health. `connected` and `inactive` both mean
+ *   credentials are stored; `inactive` is soft-disabled (not disconnected).
+ * - **active** — soft enablement (`true` only when `status === 'connected'`).
+ */
 export interface WorkspaceConnection {
   id: ConnectionId;
   workspaceId: WorkspaceId;
@@ -61,6 +69,8 @@ export interface WorkspaceConnection {
   integrationId: IntegrationId;
   provider: ConnectionProviderId;
   status: ConnectionStatus;
+  /** Soft enablement. Access (bind/preview/use) requires `active === true`. */
+  active: boolean;
   capabilities: ConnectionCapability[];
   externalAccountId?: string | null;
   externalAccountName?: string | null;
@@ -78,13 +88,17 @@ export interface ConnectionCatalogItem {
   category: string;
   status: 'available' | 'coming_soon' | 'disabled';
   capabilities: ConnectionCapability[];
-  /** Workspace connection when linked, else null. */
+  /** All workspace instances of this integration (may be empty). */
+  connections: WorkspaceConnection[];
+  /** Latest/primary instance when any exist; else null. Prefer `connections`. */
   connection: WorkspaceConnection | null;
 }
 
 export interface ConnectConnectionInput {
   /** Optional scopes / capability subset requested at connect time. */
   capabilities?: ConnectionCapability[];
+  /** Explicit Sheets access mode (preferred over inferring from capabilities). */
+  accessMode?: 'full' | 'readonly';
 }
 
 export interface ConnectionActionResult {

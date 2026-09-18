@@ -1,4 +1,8 @@
 import { SITE_CONFIG } from './site-config';
+import {
+  canUseAnalytics,
+  canUseMarketing,
+} from '@kodem/design-system/lib/cookie-consent';
 
 export type AnalyticsEvent =
   | 'hero_cta_click'
@@ -20,7 +24,7 @@ declare global {
 }
 
 /**
- * Analytics abstraction — no-ops when IDs are unset.
+ * Analytics abstraction — no-ops when IDs are unset or consent is missing.
  * Do not hard-code tracking IDs.
  */
 export function track(event: AnalyticsEvent, payload: EventPayload = {}): void {
@@ -31,11 +35,19 @@ export function track(event: AnalyticsEvent, payload: EventPayload = {}): void {
     console.debug('[analytics]', event, payload);
   }
 
-  if (SITE_CONFIG.gaMeasurementId && typeof window.gtag === 'function') {
+  if (
+    canUseAnalytics() &&
+    SITE_CONFIG.gaMeasurementId &&
+    typeof window.gtag === 'function'
+  ) {
     window.gtag('event', event, payload);
   }
 
-  if (SITE_CONFIG.metaPixelId && typeof window.fbq === 'function') {
+  if (
+    canUseMarketing() &&
+    SITE_CONFIG.metaPixelId &&
+    typeof window.fbq === 'function'
+  ) {
     window.fbq('trackCustom', event, payload);
   }
 }

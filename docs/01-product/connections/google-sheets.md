@@ -46,8 +46,23 @@ Azure (GitHub Environment): `OAUTH_GOOGLE_SHEETS_CLIENT_ID`, `OAUTH_GOOGLE_SHEET
 
 4. Paste Client ID / Secret into `.env`.
 5. Consent screen in Testing → add test users.
-6. Run api + app; open **Settings → חיבורים** → Connect Google Sheets.
-7. Paste a spreadsheet URL → **קשר קובץ** → pick tab → preview.
+6. Run api + app; open **Settings → חיבורים** (or `/workspace/integrations/connections`) → Connect Google Sheets (חיבור מלא or קריאה בלבד).
+7. After OAuth, URL becomes `/workspace/integrations/connections/google_sheets` and the left detail sheet opens.
+8. On each connection instance: Status (**מחובר**), **פעיל** switch, **בדוק חיבור**, permission badge.
+9. With the instance **active**, paste a spreadsheet URL → **קשר קובץ** → pick tab → preview.
+
+## Connected vs active
+
+| | Meaning | UI |
+|---|---------|-----|
+| **Connected** | Credentials stored (`status` `connected` or `inactive`) | Status pill **מחובר** |
+| **Active** | Soft-enabled (`status === 'connected'`, DTO `active: true`) | Switch **פעיל** |
+| **Inactive** | Soft-disabled; credentials kept | Switch **לא פעיל**; still **מחובר** |
+| **Disconnected / delete** | Credentials removed | Delete icon when not active |
+
+Bind, preview, sheets list, and token use require **active**. Inactive shows a banner and blocks file actions until re-enabled.
+
+A workspace may have **multiple** Google Sheets connections (different Google accounts and/or access modes). Use **הוסף** on the catalog card to add another.
 
 ## APIs (after connect)
 
@@ -56,16 +71,27 @@ Azure (GitHub Environment): `OAUTH_GOOGLE_SHEETS_CLIENT_ID`, `OAUTH_GOOGLE_SHEET
 | POST | `/api/connections/:id/resource` | `connections:manage` |
 | GET | `/api/connections/:id/sheets` | `connections:use` |
 | GET | `/api/connections/:id/preview?sheet=` | `connections:use` |
+| POST | `/api/connections/:id/active` | `connections:manage` |
 | POST | `/api/connections/:id/test` | `connections:manage` |
 
 OAuth callback: `{APP_URL}/api/connections/oauth/google/google_sheets/callback`
 
-Metadata on the connection: `{ spreadsheetId, spreadsheetTitle?, lastBoundAt? }`.
+Bound file is stored on each connection as `metadata`: `{ spreadsheetId, spreadsheetTitle?, lastBoundAt? }`.
 
 ## Scopes
 
+**חיבור מלא**
+
 - `https://www.googleapis.com/auth/spreadsheets`
 - `https://www.googleapis.com/auth/drive.file`
+
+**קריאה בלבד**
+
+- `https://www.googleapis.com/auth/spreadsheets.readonly`
+
+Connect UI: dropdown on **חבר** / **הוסף** → חיבור מלא | קריאה בלבד.
+
+OAuth uses `include_granted_scopes=false` so a prior full grant on the same Google client does not widen a read-only request. If Google still shows edit permissions, revoke kodem under [Google Account → Third-party access](https://myaccount.google.com/connections) and reconnect.
 
 ## Code
 
@@ -76,6 +102,7 @@ Metadata on the connection: `{ spreadsheetId, spreadsheetTitle?, lastBoundAt? }`
 | Domain | `libs/platform/connections` |
 | API | `apps/api/src/app/connections/` |
 | UI | `apps/app/src/components/integrations/connections-catalog-view.tsx` |
+| Routes | `apps/app/src/app/(app)/workspace/{integrations,settings}/connections/` (+ `[integrationId]`) |
 
 ## Common errors
 
@@ -84,10 +111,21 @@ Metadata on the connection: `{ spreadsheetId, spreadsheetTitle?, lastBoundAt? }`
 | `redirect_uri_mismatch` | Register the exact callback on the **Sheets** OAuth client |
 | אין גישה לגיליון | Share the file with the connected Google account |
 | לא נבחר גיליון | Bind a URL after OAuth |
+| מחובר אך לא פעיל | Turn **פעיל** on before bind / preview |
 | Decrypt errors | `CONNECTION_CREDENTIALS_KEY` changed — restore key or reconnect |
 
-## Roadmap
+## Roadmap / TODO
 
-- CRM import / column mapping
-- Google Picker
-- Recurring sync
+Leave for later (do not block current Sheets connection work):
+
+1. **Column mapping → CRM** — Infer headers from the preview row, map to contact fields, one-shot import (product payoff of bind + preview).
+2. **Change / clear bound file** — Unbind or replace spreadsheet URL without deleting the OAuth connection.
+3. **Expired / error recovery** — On `expired` / `error`, clear **חדש חיבור** that reuses the same connection instance.
+4. **Primary tab** — Persist chosen sheet tab in `metadata` (not only for preview) so sync/import always target the right tab.
+5. **Last checked / last used** — Show last successful test or API use on the connection card.
+6. **Read-only guardrails** — Disable write-ish actions (and explain why) when capabilities are read-only.
+7. **Recurring sync** — Worker job: pull rows on a schedule or on demand (needs mapping + primary tab first).
+8. **Quota / rate-limit messaging** — Friendly Hebrew errors for Google 429 / 403 instead of generic failure.
+9. **Google Picker (browse)** — Optional browse via Picker under `drive.file`; keep paste URL for shared / read-only. Do **not** add broad Drive list scopes for a custom file browser.
+
+Suggested order: **1 → 2 → 3**, then sync after mapping exists.

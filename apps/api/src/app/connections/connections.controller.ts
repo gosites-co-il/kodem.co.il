@@ -92,11 +92,18 @@ export class ConnectionsController {
   async connect(
     @CurrentContext() context: PlatformContext,
     @Param('integrationId') integrationId: IntegrationId,
+    @Body()
+    body?: {
+      capabilities?: import('@kodem/contracts').ConnectionCapability[];
+      accessMode?: 'full' | 'readonly';
+    },
   ) {
     return this.connections.connect(
       context.workspace.id,
       integrationId,
       context.user.id,
+      body?.capabilities,
+      { accessMode: body?.accessMode },
     );
   }
 
@@ -125,6 +132,21 @@ export class ConnectionsController {
       id,
       context.user.id,
       body ?? {},
+    );
+  }
+
+  @Post(':id/active')
+  @RequirePermissions('connections:manage')
+  async setActive(
+    @CurrentContext() context: PlatformContext,
+    @Param('id') id: string,
+    @Body() body: { active: boolean },
+  ) {
+    return this.connections.setActive(
+      context.workspace.id,
+      id,
+      context.user.id,
+      Boolean(body?.active),
     );
   }
 

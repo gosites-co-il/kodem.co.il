@@ -65,12 +65,14 @@ function parseCapabilities(raw: string): ConnectionCapability[] {
 }
 
 export function mapConnection(row: ConnectionRow): WorkspaceConnection {
+  const status = row.status as ConnectionStatus;
   return {
     id: row.id as ConnectionId,
     workspaceId: row.workspaceId as WorkspaceId,
     integrationId: row.integrationId as IntegrationId,
     provider: row.provider as ConnectionProviderId,
-    status: row.status as ConnectionStatus,
+    status,
+    active: status === 'connected',
     capabilities: parseCapabilities(row.capabilities),
     externalAccountId: row.externalAccountId,
     externalAccountName: row.externalAccountName,
@@ -107,16 +109,15 @@ export class WorkspaceConnectionRepository {
   async findByIntegration(
     workspaceId: WorkspaceId,
     integrationId: IntegrationId,
-  ): Promise<WorkspaceConnection | null> {
-    const row = await this.db.workspaceConnection.findUnique({
-      where: {
-        workspaceId_integrationId: { workspaceId, integrationId },
-      },
+  ): Promise<WorkspaceConnection[]> {
+    const rows = await this.db.workspaceConnection.findMany({
+      where: { workspaceId, integrationId },
+      orderBy: { updatedAt: 'desc' },
     });
-    return row ? mapConnection(row) : null;
+    return rows.map(mapConnection);
   }
 
-  async upsert(input: {
+  async create(input: {
     workspaceId: WorkspaceId;
     integrationId: IntegrationId;
     provider: ConnectionProviderId;
@@ -127,33 +128,8 @@ export class WorkspaceConnectionRepository {
     externalAccountName?: string | null;
     metadata?: Record<string, unknown> | null;
   }): Promise<WorkspaceConnection> {
-    const existing = await this.findByIntegration(
-      input.workspaceId,
-      input.integrationId,
-    );
     const capabilities = JSON.stringify(input.capabilities);
-    const metadataJson =
-      input.metadata !== undefined
-        ? input.metadata
-          ? JSON.stringify(input.metadata)
-          : null
-        : undefined;
-
-    if (existing) {
-      const row = await this.db.workspaceConnection.update({
-        where: { id: existing.id },
-        data: {
-          provider: input.provider,
-          status: input.status,
-          capabilities,
-          externalAccountId: input.externalAccountId ?? null,
-          externalAccountName: input.externalAccountName ?? null,
-          ...(metadataJson !== undefined ? { metadata: metadataJson } : {}),
-        },
-      });
-      return mapConnection(row);
-    }
-
+    const metadataJson = input.metadata ? JSON.stringify(input.metadata) : null;
     const row = await this.db.workspaceConnection.create({
       data: {
         id: createId<ConnectionId>('conn'),
@@ -164,11 +140,63 @@ export class WorkspaceConnectionRepository {
         capabilities,
         externalAccountId: input.externalAccountId ?? null,
         externalAccountName: input.externalAccountName ?? null,
-        metadata: metadataJson ?? null,
+        metadata: metadataJson,
         createdById: input.createdById,
       },
     });
     return mapConnection(row);
+  }
+
+  async updateConnected(input: {
+    id: string;
+    workspaceId: WorkspaceId;
+    provider: ConnectionProviderId;
+    status: ConnectionStatus;
+    capabilities: ConnectionCapability[];
+    externalAccountId?: string | null;
+    externalAccountName?: string | null;
+  }): Promise<WorkspaceConnection | null> {
+    const existing = await this.findById(input.workspaceId, input.id);
+    if (!existing) return null;
+    const row = await this.db.workspaceConnection.update({
+      where: { id: input.id },
+      data: {
+        provider: input.provider,
+        status: input.status,
+        capabilities: JSON.stringify(input.capabilities),
+        externalAccountId: input.externalAccountId ?? null,
+        externalAccountName: input.externalAccountName ?? null,
+      },
+    });
+    return mapConnection(row);
+  }
+
+  /** @deprecated Prefer create() / updateConnected() — kept for transitional callers. */
+  async upsert(input: {
+    workspaceId: WorkspaceId;
+    integrationId: IntegrationId;
+    provider: ConnectionProviderId;
+    status: ConnectionStatus;
+    capabilities: ConnectionCapability[];
+    createdById: UserId;
+    externalAccountId?: string | null;
+    externalAccountName?: string | null;
+    metadata?: Record<string, unknown> | null;
+    connectionId?: string;
+  }): Promise<WorkspaceConnection> {
+    if (input.connectionId) {
+      const updated = await this.updateConnected({
+        id: input.connectionId,
+        workspaceId: input.workspaceId,
+        provider: input.provider,
+        status: input.status,
+        capabilities: input.capabilities,
+        externalAccountId: input.externalAccountId,
+        externalAccountName: input.externalAccountName,
+      });
+      if (updated) return updated;
+    }
+    return this.create(input);
   }
 
   async updateMetadata(

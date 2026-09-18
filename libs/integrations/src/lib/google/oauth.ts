@@ -7,6 +7,10 @@ export interface GoogleOAuthState {
   workspaceId: string;
   userId: string;
   integrationId: IntegrationId;
+  /** Sheets (and future): full write vs read-only scopes. */
+  accessMode?: 'full' | 'readonly';
+  /** Reconnect an existing connection instance. */
+  connectionId?: string;
   exp: number;
 }
 
@@ -60,9 +64,18 @@ export function googleConnectionConfigMissingMessage(
 /** Scopes per Google integration catalog entry. */
 export function googleScopesFor(
   integrationId: IntegrationId,
+  accessMode: 'full' | 'readonly' = 'full',
 ): string[] | null {
   switch (integrationId) {
     case 'google_sheets':
+      if (accessMode === 'readonly') {
+        return [
+          'openid',
+          'email',
+          'profile',
+          'https://www.googleapis.com/auth/spreadsheets.readonly',
+        ];
+      }
       return [
         'openid',
         'email',
@@ -73,6 +86,15 @@ export function googleScopesFor(
     default:
       return null;
   }
+}
+
+export function sheetsAccessModeFromCapabilities(
+  capabilities?: import('@kodem/contracts').ConnectionCapability[],
+): 'full' | 'readonly' {
+  if (!capabilities?.length) return 'full';
+  if (capabilities.includes('sheets.write')) return 'full';
+  if (capabilities.includes('sheets.read')) return 'readonly';
+  return 'full';
 }
 
 export function signGoogleOAuthState(payload: Omit<GoogleOAuthState, 'exp'>): string {
@@ -114,6 +136,8 @@ export function buildGoogleAuthorizeUrl(input: {
   callbackUrl: string;
   scopes: string[];
   state: string;
+  /** When true, Google merges previously granted scopes (can widen a read-only request). */
+  includeGrantedScopes?: boolean;
 }): string {
   const params = new URLSearchParams({
     client_id: input.clientId,
@@ -122,10 +146,22 @@ export function buildGoogleAuthorizeUrl(input: {
     scope: input.scopes.join(' '),
     access_type: 'offline',
     prompt: 'consent',
-    include_granted_scopes: 'true',
+    include_granted_scopes: input.includeGrantedScopes ? 'true' : 'false',
     state: input.state,
   });
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+}
+
+/** True if granted OAuth scope string includes Sheets write access. */
+export function googleGrantedSheetsWrite(scope?: string): boolean {
+  if (!scope) return false;
+  const parts = scope.split(/[\s,]+/).filter(Boolean);
+  return parts.some(
+    (s) =>
+      s === 'https://www.googleapis.com/auth/spreadsheets' ||
+      s === 'https://www.googleapis.com/auth/drive' ||
+      s === 'https://www.googleapis.com/auth/drive.file',
+  );
 }
 
 export async function exchangeGoogleAuthCode(input: {
