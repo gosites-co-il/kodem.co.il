@@ -153,6 +153,8 @@ For each environment, register this redirect URI on the **Sheets** OAuth client 
 
 `https://<APP_CUSTOM_DOMAIN>/api/connections/oauth/google/google_sheets/callback`
 
+Full Connections / Channels setup: [`docs/01-product/connections-and-channels.md`](../../docs/01-product/connections-and-channels.md).
+
 ## Deploying
 
 | Trigger | Workflow | Environment |

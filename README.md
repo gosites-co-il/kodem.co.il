@@ -38,6 +38,14 @@ CI=true npx nx dev app
 CI=true npx nx dev marketing
 ```
 
+## Docs
+
+| Topic | Doc |
+|-------|-----|
+| Connections & Channels (feature + install) | [`docs/01-product/connections-and-channels.md`](docs/01-product/connections-and-channels.md) |
+| Azure deploy | [`deploy/azure/README.md`](deploy/azure/README.md) |
+| Agent / monorepo notes | [`AGENTS.md`](AGENTS.md) |
+
 ## shadcn/ui
 
 ```bash
