@@ -18,9 +18,10 @@ export function CrmNav({ pathname }: { pathname: string }) {
       aria-label="ניווט CRM"
     >
       {LINKS.map((link) => {
-        const active = link.exact
-          ? pathname === link.href
-          : pathname === link.href || pathname.startsWith(`${link.href}/`);
+        const active =
+          'exact' in link && link.exact
+            ? pathname === link.href
+            : pathname === link.href || pathname.startsWith(`${link.href}/`);
         return (
           <Link
             key={link.href}
