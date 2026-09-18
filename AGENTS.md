@@ -66,11 +66,11 @@ Target is **Azure Container Apps**, images in **Azure Container Registry**, data
 
 Both call `deploy.yml`: lint + marketing build → build/push four images to ACR → `az deployment group create` with `deploy/azure/main.bicep` → health check. `dev` / `prod` name the Azure resource suffix and the Bicep parameter file; the GitHub Environment holding the credentials is passed separately as `github_environment`, since GitHub Environments cannot be renamed. The hostnames live in `deploy/azure/main.parameters.<env>.json`.
 
-**GitHub Environment variables**: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_CONTAINER_REGISTRY`, optional `APP_CUSTOM_DOMAIN`, `API_CUSTOM_DOMAIN`, `MARKETING_CUSTOM_DOMAIN`, `PUBLIC_WHATSAPP_PHONE`, `PUBLIC_GA_MEASUREMENT_ID`, `PUBLIC_META_PIXEL_ID`, `POSTGRES_LOCATION`, `POSTGRES_VERSION`, `OAUTH_*_CLIENT_ID`, `MAIL_PROVIDER`, `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, and `SIGNUP_ADMIN_EMAIL`.
+**GitHub Environment variables**: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_CONTAINER_REGISTRY`, optional `APP_CUSTOM_DOMAIN`, `API_CUSTOM_DOMAIN`, `MARKETING_CUSTOM_DOMAIN`, `PUBLIC_WHATSAPP_PHONE`, `PUBLIC_GA_MEASUREMENT_ID`, `PUBLIC_META_PIXEL_ID`, `POSTGRES_LOCATION`, `POSTGRES_VERSION`, `OAUTH_*_CLIENT_ID`, `OAUTH_GOOGLE_SHEETS_CLIENT_ID`, `MAIL_PROVIDER`, `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, and `SIGNUP_ADMIN_EMAIL`.
 
 `POSTGRES_LOCATION` exists because a subscription is not allowed to provision flexible servers in every region; when it cannot, ARM reports `The value of the 'Version' should be in: []`. The deploy job recognises that message and prints what to do about it.
 
-**GitHub Environment secrets**: `POSTGRES_ADMIN_PASSWORD`, `JWT_SECRET`, optional `OAUTH_*_CLIENT_SECRET`, `SMTP_PASS`.
+**GitHub Environment secrets**: `POSTGRES_ADMIN_PASSWORD`, `JWT_SECRET`, optional `OAUTH_*_CLIENT_SECRET`, `OAUTH_GOOGLE_SHEETS_CLIENT_SECRET`, `CONNECTION_CREDENTIALS_KEY`, `SMTP_PASS`.
 
 Authentication is OIDC federated credentials — no Azure passwords in GitHub. Images are built as **linux/amd64**, which Container Apps runs natively.
 

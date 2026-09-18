@@ -40,6 +40,10 @@ services:
       FACEBOOK_CLIENT_ID: ${FACEBOOK_CLIENT_ID:-facebook-client-id}
       FACEBOOK_CLIENT_SECRET: ${FACEBOOK_CLIENT_SECRET:-facebook-client-secret}
       FACEBOOK_CALLBACK_URL: ${FACEBOOK_CALLBACK_URL:-http://localhost:3000/api/auth/facebook/callback}
+      GOOGLE_SHEETS_CLIENT_ID: ${GOOGLE_SHEETS_CLIENT_ID:-}
+      GOOGLE_SHEETS_CLIENT_SECRET: ${GOOGLE_SHEETS_CLIENT_SECRET:-}
+      GOOGLE_SHEETS_CALLBACK_URL: ${GOOGLE_SHEETS_CALLBACK_URL:-http://localhost:3000/api/connections/oauth/google/google_sheets/callback}
+      CONNECTION_CREDENTIALS_KEY: ${CONNECTION_CREDENTIALS_KEY:-connection-credentials-key-change-me}
     healthcheck:
       test:
         [
