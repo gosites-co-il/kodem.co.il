@@ -10,6 +10,7 @@ import {
   LogOut,
   Menu,
   Moon,
+  Plug,
   Sun,
   UserRound,
 } from 'lucide-react';
@@ -17,17 +18,11 @@ import { cn } from '@kodem/design-system/lib/utils';
 import { Button } from '@kodem/design-system/components/ui/button';
 import { Badge } from '@kodem/design-system/components/ui/badge';
 import {
-  Avatar,
-  AvatarFallback,
-} from '@kodem/design-system/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@kodem/design-system/components/ui/dropdown-menu';
+  AccountMenu,
+  AccountMenuPanel,
+  type AccountMenuAction,
+  type AccountMenuLinkProps,
+} from '@kodem/design-system/components/ui/account-menu';
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -53,6 +48,45 @@ import {
   type NavLinkItem,
   type NavSection,
 } from './nav-config';
+
+function NextAccountLink({ href, className, onClick, children }: AccountMenuLinkProps) {
+  return (
+    <Link href={href} className={className} onClick={onClick}>
+      {children}
+    </Link>
+  );
+}
+
+function buildAccountItems(onLogout: () => void): AccountMenuAction[] {
+  return [
+    {
+      id: 'workspace-select',
+      label: 'החלפת סביבה',
+      href: ROUTES.workspaceSelect,
+      icon: UserRound,
+    },
+    {
+      id: 'workspace-settings',
+      label: 'הגדרות סביבה',
+      href: ROUTES.workspaceSettings,
+      icon: Building2,
+    },
+    {
+      id: 'workspace-connections',
+      label: 'חיבורים',
+      href: ROUTES.workspaceIntegrationsConnections,
+      icon: Plug,
+    },
+    {
+      id: 'logout',
+      label: 'יציאה',
+      icon: LogOut,
+      destructive: true,
+      separatorBefore: true,
+      onSelect: onLogout,
+    },
+  ];
+}
 
 function MegaLinkCard({ item }: { item: NavLinkItem }) {
   const Icon = item.icon;
@@ -109,19 +143,27 @@ function MobileNav({
   onOpenChange: (open: boolean) => void;
 }) {
   const [activeSection, setActiveSection] = useState<NavSection | null>(null);
-  const { user, workspace, logout } = useAuth();
-  const initials =
-    user?.name
-      ?.split(' ')
-      .map((part) => part[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase() ?? 'K';
+  const { user, workspace, role, logout } = useAuth();
 
   function closeMenu() {
     onOpenChange(false);
     setActiveSection(null);
   }
+
+  const accountItems = buildAccountItems(() => {
+    closeMenu();
+    logout();
+  }).map((item) =>
+    item.href
+      ? {
+          ...item,
+          onSelect: () => {
+            closeMenu();
+            item.onSelect?.();
+          },
+        }
+      : item,
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -192,42 +234,20 @@ function MobileNav({
           )}
         </div>
 
-        <div className="mt-auto border-t p-4">
-          <div className="mb-3 flex items-center gap-3">
-            <Avatar className="size-9">
-              <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1 text-start">
-              <p className="truncate text-sm font-medium">{user?.name}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {user?.email}
-              </p>
-            </div>
+        {user ? (
+          <div className="mt-auto border-t p-4">
+            <AccountMenuPanel
+              user={{ name: user.name, email: user.email }}
+              subtitle={
+                workspace
+                  ? `${workspace.name}${role ? ` · ${role}` : ''}`
+                  : null
+              }
+              items={accountItems}
+              linkComponent={NextAccountLink}
+            />
           </div>
-          <div className="grid gap-2">
-            <Button variant="outline" className="w-full" asChild>
-              <Link href={ROUTES.workspaceSelect} onClick={closeMenu}>
-                החלפת סביבה
-              </Link>
-            </Button>
-            <Button variant="outline" className="w-full" asChild>
-              <Link href={ROUTES.workspaceSettings} onClick={closeMenu}>
-                הגדרות סביבה
-              </Link>
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-2 text-destructive"
-              onClick={() => {
-                closeMenu();
-                logout();
-              }}
-            >
-              <LogOut className="size-4" />
-              יציאה
-            </Button>
-          </div>
-        </div>
+        ) : null}
       </SheetContent>
     </Sheet>
   );
@@ -240,15 +260,11 @@ export function AppNavbar() {
   const { user, workspace, role, logout } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
 
-  const initials =
-    user?.name
-      ?.split(' ')
-      .map((part) => part[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase() ?? 'K';
-
   const isDashboardActive = pathname === ROUTES.dashboard;
+  const accountItems = buildAccountItems(logout);
+  const accountSubtitle = workspace
+    ? `${workspace.name}${role ? ` · ${role}` : ''}`
+    : null;
 
   return (
     <header
@@ -333,51 +349,13 @@ export function AppNavbar() {
             )}
           </Button>
 
-          {!isMobile ? (
-            <DropdownMenu dir="rtl">
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 gap-2 px-2">
-                  <Avatar className="size-8">
-                    <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-                  </Avatar>
-                  <span className="hidden max-w-[8rem] truncate text-sm font-medium lg:inline">
-                    {user?.name?.split(' ')[0]}
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 text-start">
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col gap-1 text-start">
-                    <p className="text-sm font-medium">{user?.name}</p>
-                    <p className="text-xs text-muted-foreground">{user?.email}</p>
-                    <p className="text-xs capitalize text-muted-foreground">
-                      {workspace?.name} · {role}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href={ROUTES.workspaceSelect} className="flex items-center gap-2">
-                    <UserRound className="size-4" />
-                    החלפת סביבה
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href={ROUTES.workspaceSettings} className="flex items-center gap-2">
-                    <Building2 className="size-4" />
-                    הגדרות סביבה
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="gap-2 text-destructive focus:text-destructive"
-                  onClick={logout}
-                >
-                  <LogOut className="size-4" />
-                  יציאה
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          {!isMobile && user ? (
+            <AccountMenu
+              user={{ name: user.name, email: user.email }}
+              subtitle={accountSubtitle}
+              items={accountItems}
+              linkComponent={NextAccountLink}
+            />
           ) : null}
         </div>
       </div>

@@ -8,6 +8,9 @@ import { BillingModule } from './billing/billing.module';
 import { CatalogController } from './catalog/catalog.controller';
 import { PlatformConfigController } from './platform/platform-config.controller';
 import { FeatureFlagsController } from './feature-flags/feature-flags.controller';
+import { CrmModule } from './crm/crm.module';
+import { ConnectionsModule } from './connections/connections.module';
+import { ChannelsModule } from './channels/channels.module';
 
 @Module({
   imports: [
@@ -16,6 +19,9 @@ import { FeatureFlagsController } from './feature-flags/feature-flags.controller
     WorkspaceModule,
     EntryModule,
     BillingModule,
+    CrmModule,
+    ConnectionsModule,
+    ChannelsModule,
   ],
   controllers: [
     HealthController,

@@ -229,6 +229,9 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           OAUTH_GOOGLE_CLIENT_ID: ${{ vars.OAUTH_GOOGLE_CLIENT_ID }}
           OAUTH_GOOGLE_CLIENT_SECRET: ${{ secrets.OAUTH_GOOGLE_CLIENT_SECRET }}
+          OAUTH_GOOGLE_SHEETS_CLIENT_ID: ${{ vars.OAUTH_GOOGLE_SHEETS_CLIENT_ID }}
+          OAUTH_GOOGLE_SHEETS_CLIENT_SECRET: ${{ secrets.OAUTH_GOOGLE_SHEETS_CLIENT_SECRET }}
+          CONNECTION_CREDENTIALS_KEY: ${{ secrets.CONNECTION_CREDENTIALS_KEY }}
           OAUTH_GITHUB_CLIENT_ID: ${{ vars.OAUTH_GITHUB_CLIENT_ID }}
           OAUTH_GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
           OAUTH_FACEBOOK_CLIENT_ID: ${{ vars.OAUTH_FACEBOOK_CLIENT_ID }}
@@ -408,6 +411,9 @@ jobs:
                 jwtSecret="$JWT_SECRET" \
                 googleClientId="$OAUTH_GOOGLE_CLIENT_ID" \
                 googleClientSecret="$OAUTH_GOOGLE_CLIENT_SECRET" \
+                googleSheetsClientId="${OAUTH_GOOGLE_SHEETS_CLIENT_ID:-}" \
+                googleSheetsClientSecret="${OAUTH_GOOGLE_SHEETS_CLIENT_SECRET:-}" \
+                connectionCredentialsKey="${CONNECTION_CREDENTIALS_KEY:-}" \
                 githubClientId="$OAUTH_GITHUB_CLIENT_ID" \
                 githubClientSecret="$OAUTH_GITHUB_CLIENT_SECRET" \
                 facebookClientId="$OAUTH_FACEBOOK_CLIENT_ID" \

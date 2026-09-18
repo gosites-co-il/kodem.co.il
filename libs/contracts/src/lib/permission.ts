@@ -10,4 +10,5 @@ export type Permission =
   | 'workspace.lifecycle.manage'
   | 'insights:read'
   | 'recommendations:read'
-  | 'integrations:manage';
+  | 'connections:manage'
+  | 'connections:use';

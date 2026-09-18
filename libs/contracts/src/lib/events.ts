@@ -4,7 +4,7 @@ export type EventType =
   | 'workspace.created'
   | 'workspace.updated'
   | 'lead.created'
-  | 'integration.connected'
+  | 'lead.converted'
   | 'task.completed'
   | 'insight.generated'
   | 'recommendation.generated'
@@ -13,7 +13,19 @@ export type EventType =
   | 'asset.discovered'
   | 'asset.processed'
   | 'business.updated'
-  | 'setup.preparation.requested';
+  | 'setup.preparation.requested'
+  | 'connection.connected'
+  | 'connection.disconnected'
+  | 'connection.expired'
+  | 'connection.error'
+  | 'connection.reconnected'
+  | 'channel.configured'
+  | 'channel.disconnected'
+  | 'message.received'
+  | 'message.sent'
+  | 'message.failed'
+  | 'conversation.created'
+  | 'conversation.updated';
 
 export type EventStatus = 'pending' | 'processing' | 'completed' | 'failed';
 

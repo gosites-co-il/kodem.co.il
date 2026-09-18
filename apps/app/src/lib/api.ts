@@ -3,22 +3,47 @@ import type {
   AuthResult,
   BillingSnapshot,
   BusinessProfile,
+  ChannelCatalogItem,
+  ConfigureChannelInput,
+  ConnectionActionResult,
+  ConnectionCatalogItem,
+  Contact,
+  CreateContactInput,
+  CreateCrmBoardInput,
+  CreateCrmBoardItemInput,
+  CreateLeadInput,
+  CreateTaskInput,
+  CrmBoard,
+  CrmBoardDetail,
+  CrmBoardItem,
+  CrmBoardPresetDefinition,
   EntryResolution,
   Insight,
   InvitePublicView,
+  Lead,
+  LeadStatus,
   Member,
   PlanDefinition,
   PlanId,
   Recommendation,
   RoleName,
   SetupStateResponse,
+  Task,
+  TaskStatus,
+  UpdateContactInput,
+  UpdateCrmBoardInput,
+  UpdateCrmBoardItemInput,
+  UpdateLeadInput,
+  UpdateTaskInput,
   User,
   UserId,
   Workspace,
+  WorkspaceChannel,
   WorkspaceInvite,
 } from '@kodem/contracts';
 import { API_URL } from './constants';
 import { clearToken, getToken, setToken } from './auth/storage';
+import type { CrmOverviewResponse } from './crm';
 
 export type ApiError = Error & { status: number; name: 'ApiError' };
 
@@ -409,6 +434,214 @@ export const api = {
         recommendations: boolean;
       };
     }>('/workspace/overview');
+  },
+
+  getCrmOverview() {
+    return request<CrmOverviewResponse>('/crm/overview');
+  },
+
+  listCrmLeads() {
+    return request<{ leads: Lead[] }>('/crm/leads');
+  },
+
+  getCrmLead(id: string) {
+    return request<{ lead: Lead }>(`/crm/leads/${id}`);
+  },
+
+  createCrmLead(body: CreateLeadInput) {
+    return request<{ lead: Lead }>('/crm/leads', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateCrmLead(id: string, body: UpdateLeadInput) {
+    return request<{ lead: Lead }>(`/crm/leads/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  },
+
+  changeCrmLeadStatus(id: string, status: LeadStatus) {
+    return request<{ lead: Lead }>(`/crm/leads/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  convertCrmLead(
+    id: string,
+    body: { name?: string; email?: string; phone?: string; notes?: string } = {},
+  ) {
+    return request<{ lead: Lead; contactId: string }>(
+      `/crm/leads/${id}/convert`,
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      },
+    );
+  },
+
+  deleteCrmLead(id: string) {
+    return request<void>(`/crm/leads/${id}`, { method: 'DELETE' });
+  },
+
+  listCrmContacts() {
+    return request<{ contacts: Contact[] }>('/crm/contacts');
+  },
+
+  getCrmContact(id: string) {
+    return request<{ contact: Contact }>(`/crm/contacts/${id}`);
+  },
+
+  createCrmContact(body: CreateContactInput) {
+    return request<{ contact: Contact }>('/crm/contacts', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateCrmContact(id: string, body: UpdateContactInput) {
+    return request<{ contact: Contact }>(`/crm/contacts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  },
+
+  deleteCrmContact(id: string) {
+    return request<void>(`/crm/contacts/${id}`, { method: 'DELETE' });
+  },
+
+  listCrmTasks(filters?: {
+    leadId?: string;
+    contactId?: string;
+    status?: TaskStatus;
+  }) {
+    const params = new URLSearchParams();
+    if (filters?.leadId) params.set('leadId', filters.leadId);
+    if (filters?.contactId) params.set('contactId', filters.contactId);
+    if (filters?.status) params.set('status', filters.status);
+    const query = params.toString();
+    return request<{ tasks: Task[] }>(
+      `/crm/tasks${query ? `?${query}` : ''}`,
+    );
+  },
+
+  getCrmTask(id: string) {
+    return request<{ task: Task }>(`/crm/tasks/${id}`);
+  },
+
+  createCrmTask(body: CreateTaskInput) {
+    return request<{ task: Task }>('/crm/tasks', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateCrmTask(id: string, body: UpdateTaskInput) {
+    return request<{ task: Task }>(`/crm/tasks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  },
+
+  completeCrmTask(id: string) {
+    return request<{ task: Task }>(`/crm/tasks/${id}/complete`, {
+      method: 'POST',
+    });
+  },
+
+  deleteCrmTask(id: string) {
+    return request<void>(`/crm/tasks/${id}`, { method: 'DELETE' });
+  },
+
+  listCrmPresets() {
+    return request<{ presets: CrmBoardPresetDefinition[] }>('/crm/presets');
+  },
+
+  listCrmBoards() {
+    return request<{ boards: CrmBoard[] }>('/crm/boards');
+  },
+
+  getCrmBoard(boardId: string) {
+    return request<{ board: CrmBoardDetail }>(`/crm/boards/${boardId}`);
+  },
+
+  createCrmBoard(body: CreateCrmBoardInput) {
+    return request<{ board: CrmBoardDetail }>('/crm/boards', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateCrmBoard(boardId: string, body: UpdateCrmBoardInput) {
+    return request<{ board: CrmBoard }>(`/crm/boards/${boardId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  },
+
+  deleteCrmBoard(boardId: string) {
+    return request<void>(`/crm/boards/${boardId}`, { method: 'DELETE' });
+  },
+
+  createCrmBoardItem(boardId: string, body: CreateCrmBoardItemInput) {
+    return request<{ item: CrmBoardItem }>(`/crm/boards/${boardId}/items`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateCrmBoardItem(
+    boardId: string,
+    itemId: string,
+    body: UpdateCrmBoardItemInput,
+  ) {
+    return request<{ item: CrmBoardItem }>(
+      `/crm/boards/${boardId}/items/${itemId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      },
+    );
+  },
+
+  deleteCrmBoardItem(boardId: string, itemId: string) {
+    return request<void>(`/crm/boards/${boardId}/items/${itemId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  listConnectionsCatalog() {
+    return request<{ catalog: ConnectionCatalogItem[] }>('/connections');
+  },
+
+  connectIntegration(integrationId: string) {
+    return request<ConnectionActionResult>(
+      `/connections/${integrationId}/connect`,
+      { method: 'POST' },
+    );
+  },
+
+  disconnectConnection(id: string) {
+    return request<ConnectionActionResult>(`/connections/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  listChannelsCatalog() {
+    return request<{ catalog: ChannelCatalogItem[] }>('/channels');
+  },
+
+  configureChannel(type: string, body: ConfigureChannelInput) {
+    return request<{ channel: WorkspaceChannel }>(
+      `/channels/${type}/configure`,
+      { method: 'POST', body: JSON.stringify(body) },
+    );
+  },
+
+  disconnectChannel(type: string) {
+    return request<{ ok: boolean }>(`/channels/${type}`, { method: 'DELETE' });
   },
 };
 

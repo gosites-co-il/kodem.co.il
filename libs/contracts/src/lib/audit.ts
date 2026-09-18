@@ -11,7 +11,12 @@ export type AuditAction =
   | 'subscription.plan_changed'
   | 'auth.password_reset_requested'
   | 'auth.password_reset_completed'
-  | 'auth.email_verified';
+  | 'auth.email_verified'
+  | 'connection.connected'
+  | 'connection.reconnected'
+  | 'connection.disconnected'
+  | 'connection.credentials_refreshed'
+  | 'connection.failed';
 
 export interface AuditEvent {
   id: string;

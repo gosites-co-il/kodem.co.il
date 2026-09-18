@@ -5,6 +5,7 @@ import type { IntegrationId } from '@kodem/contracts';
 import { Card, CardContent } from '@kodem/design-system/components/ui/card';
 import { Button } from '@kodem/design-system/components/ui/button';
 import { INTEGRATIONS } from '../../../lib/setup/constants';
+import { IntegrationIcon } from '../../integrations/integration-icons';
 import {
   SetupHeadline,
   SetupNavButtons,
@@ -55,11 +56,16 @@ export function ConnectionsScreen({
           return (
             <Card key={integration.id} className="border shadow-sm">
               <CardContent className="flex items-center justify-between gap-4 pt-4">
-                <div>
-                  <p className="font-medium">{integration.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {integration.description}
-                  </p>
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-background p-1.5">
+                    <IntegrationIcon id={integration.id} className="size-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium">{integration.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {integration.description}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex shrink-0 gap-1">
                   <Button

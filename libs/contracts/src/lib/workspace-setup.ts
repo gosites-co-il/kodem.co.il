@@ -34,14 +34,15 @@ export type LegacySetupStepId =
 
 export type IntegrationId =
   | 'google_workspace'
+  | 'google_sheets'
   | 'microsoft_365'
   | 'google_analytics'
   | 'google_business'
   | 'meta'
   | 'google_ads'
   | 'whatsapp'
-  | 'shopify'
-  | 'woocommerce';
+  | 'slack'
+  | 'zoom';
 
 export type AiProviderId =
   | 'kodem'

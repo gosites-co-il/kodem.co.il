@@ -86,14 +86,7 @@ export default function WorkspaceSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">הגדרות סביבה</h1>
-        <p className="text-sm text-muted-foreground">
-          {workspace?.name ?? 'סביבת העבודה'}
-        </p>
-      </div>
-
+    <div className="flex flex-col gap-6">
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       {info ? <p className="text-sm text-muted-foreground">{info}</p> : null}
 

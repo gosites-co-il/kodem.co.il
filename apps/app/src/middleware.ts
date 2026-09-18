@@ -19,6 +19,7 @@ const authRequiredPaths = [
   ROUTES.setup,
   ROUTES.onboarding,
   ROUTES.dashboard,
+  ROUTES.crm,
 ];
 
 export function middleware(request: NextRequest) {
@@ -58,7 +59,10 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/entry',
+    '/dashboard',
     '/dashboard/:path*',
+    '/crm',
+    '/crm/:path*',
     '/setup/:path*',
     '/onboarding/:path*',
     '/workspace/:path*',

@@ -1,0 +1,8 @@
+{
+  "name": "crm-feature-boards",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/modules/crm/feature-boards/src",
+  "projectType": "library",
+  "tags": ["scope:module", "type:feature"],
+  "targets": {}
+}

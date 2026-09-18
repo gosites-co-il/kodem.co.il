@@ -325,11 +325,35 @@ Meta
 
 WhatsApp
 
-Stripe
-
 Search Console
 
 A Connection belongs to a Workspace.
+
+Connections use Integrations (adapters). Settings and onboarding חיבורים share the same catalog.
+
+---
+
+# Channel
+
+A communication medium through which a business talks to customers and contacts.
+
+Examples:
+
+WhatsApp
+
+Email
+
+Instagram
+
+Facebook Messenger
+
+SMS
+
+Web Chat
+
+A Channel is not a Connection. Email Channel ≠ Gmail Connection — a Channel may be backed by one or more Connections (e.g. Email ← Gmail / Outlook / SMTP).
+
+Channels are used by CRM, Campaigns, and Conversations. They must not embed provider-specific logic.
 
 ---
 

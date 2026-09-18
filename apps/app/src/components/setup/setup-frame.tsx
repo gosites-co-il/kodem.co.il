@@ -1,8 +1,11 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import Link from 'next/link';
+import { ArrowRightLeft } from 'lucide-react';
 import { cn } from '@kodem/design-system/lib/utils';
 import { AuthBrandLogo } from '../auth/auth-brand-logo';
+import { ROUTES } from '../../lib/constants';
 import { SetupStartOverProvider } from './setup-shell';
 import { SetupStepper, type SetupStepperStep } from './setup-stepper';
 
@@ -78,7 +81,23 @@ export function SetupFrame({
           'lg:shadow-[24px_0_60px_rgba(11,17,30,0.18)]',
         )}
       >
-        <div className="shrink-0 border-b border-border px-5 py-4 sm:px-8">
+        <div className="shrink-0 space-y-3 border-b border-border px-5 py-4 sm:px-8">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-medium text-muted-foreground">
+              הגדרת סביבה
+            </p>
+            <Link
+              href={ROUTES.workspaceSelect}
+              className={cn(
+                'inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5',
+                'text-xs font-medium text-muted-foreground',
+                'transition-colors hover:bg-muted hover:text-foreground',
+              )}
+            >
+              <ArrowRightLeft className="size-3.5" aria-hidden />
+              בחירת סביבה
+            </Link>
+          </div>
           <SetupStepper steps={steps} activeStepId={activeStepId} />
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-8 sm:px-8 sm:py-10">

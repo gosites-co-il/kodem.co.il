@@ -15,10 +15,10 @@ import { api, isApiError } from '../../lib/api';
 import { useAuth } from '../../providers/auth-provider';
 
 const SUGGESTED_ACTIONS = [
-  'חברו Google Analytics',
-  'ייבאו אנשי קשר',
-  'הזמינו חברי צוות',
-  'צרו קמפיין ראשון',
+  { label: 'חברו Google Analytics', href: '/workspace/integrations/connections' },
+  { label: 'הוסיפו אנשי קשר', href: '/crm/contacts' },
+  { label: 'הזמינו חברי צוות', href: '/workspace/settings' },
+  { label: 'צרו קמפיין ראשון', href: '#' },
 ];
 
 export function DashboardContent() {
@@ -125,8 +125,8 @@ export function DashboardContent() {
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           {SUGGESTED_ACTIONS.map((action) => (
-            <Button key={action} variant="secondary" size="sm" asChild>
-              <Link href="#">{action}</Link>
+            <Button key={action.label} variant="secondary" size="sm" asChild>
+              <Link href={action.href}>{action.label}</Link>
             </Button>
           ))}
         </CardContent>

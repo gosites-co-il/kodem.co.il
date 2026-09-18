@@ -22,7 +22,9 @@ export function guardRouteForWorkspace(
 
   const destination = resolveWorkspaceRoute(workspace);
   const onSetup = isSetupPath(pathname);
-  const onDashboard = pathname.startsWith(ENTRY_ROUTES.dashboard);
+  const onDashboard =
+    pathname.startsWith(ENTRY_ROUTES.dashboard) ||
+    pathname.startsWith(ENTRY_ROUTES.crm);
 
   if (destination === ENTRY_ROUTES.setup && onDashboard) {
     return ENTRY_ROUTES.setup;

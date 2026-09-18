@@ -129,7 +129,8 @@ Variables:
 | `PUBLIC_WHATSAPP_PHONE`, `PUBLIC_GA_MEASUREMENT_ID`, `PUBLIC_META_PIXEL_ID` | Optional, baked into the marketing image at build time |
 | `POSTGRES_LOCATION` | Optional, puts the database in another region than the rest — see below |
 | `POSTGRES_VERSION` | Optional, overrides the PostgreSQL major version (`16`) |
-| `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GITHUB_CLIENT_ID`, `OAUTH_FACEBOOK_CLIENT_ID` | Optional |
+| `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GITHUB_CLIENT_ID`, `OAUTH_FACEBOOK_CLIENT_ID` | Optional (login OAuth) |
+| `OAUTH_GOOGLE_SHEETS_CLIENT_ID` | Optional; Google Sheets Connection OAuth client id |
 | `MAIL_PROVIDER` | Optional (`stub` default, set `smtp` for real mail) |
 | `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER` | Optional SMTP settings |
 | `SIGNUP_ADMIN_EMAIL` | Optional; prod signup alerts (default `admin@kodem.co.il`) |
@@ -140,11 +141,17 @@ Secrets:
 |------|---------|
 | `POSTGRES_ADMIN_PASSWORD` | Flexible server administrator password |
 | `JWT_SECRET` | API token signing key |
-| `OAUTH_GOOGLE_CLIENT_SECRET`, `OAUTH_GITHUB_CLIENT_SECRET`, `OAUTH_FACEBOOK_CLIENT_SECRET` | Optional |
+| `OAUTH_GOOGLE_CLIENT_SECRET`, `OAUTH_GITHUB_CLIENT_SECRET`, `OAUTH_FACEBOOK_CLIENT_SECRET` | Optional (login OAuth) |
+| `OAUTH_GOOGLE_SHEETS_CLIENT_SECRET` | Optional; Google Sheets Connection OAuth client secret |
+| `CONNECTION_CREDENTIALS_KEY` | Optional but required before using Connections in cloud; encrypts stored OAuth tokens |
 | `SMTP_PASS` | Optional SMTP password when `MAIL_PROVIDER=smtp` |
 
-OAuth values left unset fall back to placeholders so the api still boots. Secrets cannot
+OAuth values left unset fall back to placeholders so the api still boots. Sheets connect stays disabled until `OAUTH_GOOGLE_SHEETS_*` are set. Secrets cannot
 be named with a `GITHUB_` prefix, which is why the OAuth ones use `OAUTH_`.
+
+For each environment, register this redirect URI on the **Sheets** OAuth client (not login):
+
+`https://<APP_CUSTOM_DOMAIN>/api/connections/oauth/google/google_sheets/callback`
 
 ## Deploying
 

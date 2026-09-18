@@ -54,6 +54,17 @@ param googleClientId string = ''
 @description('Google OAuth client secret. Leave empty to boot with a placeholder.')
 param googleClientSecret string = ''
 
+@description('Google Sheets Connection OAuth client id. Leave empty to disable Sheets connect.')
+param googleSheetsClientId string = ''
+
+@secure()
+@description('Google Sheets Connection OAuth client secret.')
+param googleSheetsClientSecret string = ''
+
+@secure()
+@description('AES key material for encrypting workspace connection credentials. Leave empty for a deploy placeholder (set a real secret before using Connections).')
+param connectionCredentialsKey string = ''
+
 @description('GitHub OAuth client id. Leave empty to boot with a placeholder.')
 param githubClientId string = ''
 
@@ -307,6 +318,14 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
           value: empty(googleClientSecret) ? 'google-client-secret' : googleClientSecret
         }
         {
+          name: 'google-sheets-client-secret'
+          value: empty(googleSheetsClientSecret) ? 'google-sheets-client-secret' : googleSheetsClientSecret
+        }
+        {
+          name: 'connection-credentials-key'
+          value: empty(connectionCredentialsKey) ? 'connection-credentials-key-change-me' : connectionCredentialsKey
+        }
+        {
           name: 'github-client-secret'
           value: empty(githubClientSecret) ? 'github-client-secret' : githubClientSecret
         }
@@ -334,6 +353,7 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
             { name: 'NODE_ENV', value: 'production' }
             { name: 'PORT', value: '3333' }
             { name: 'APP_URL', value: resolvedAppUrl }
+            { name: 'MARKETING_URL', value: resolvedMarketingUrl }
             { name: 'COOKIE_SECURE', value: 'true' }
             { name: 'FEATURE_FLAG_ENV', value: environmentName == 'prod' ? 'production' : 'development' }
             { name: 'SIGNUP_ADMIN_EMAIL', value: environmentName == 'prod' ? signupAdminEmail : '' }
@@ -349,6 +369,10 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
             { name: 'GOOGLE_CLIENT_ID', value: empty(googleClientId) ? 'google-client-id' : googleClientId }
             { name: 'GOOGLE_CLIENT_SECRET', secretRef: 'google-client-secret' }
             { name: 'GOOGLE_CALLBACK_URL', value: '${resolvedAppUrl}/api/auth/google/callback' }
+            { name: 'GOOGLE_SHEETS_CLIENT_ID', value: googleSheetsClientId }
+            { name: 'GOOGLE_SHEETS_CLIENT_SECRET', secretRef: 'google-sheets-client-secret' }
+            { name: 'GOOGLE_SHEETS_CALLBACK_URL', value: '${resolvedAppUrl}/api/connections/oauth/google/google_sheets/callback' }
+            { name: 'CONNECTION_CREDENTIALS_KEY', secretRef: 'connection-credentials-key' }
             { name: 'GITHUB_CLIENT_ID', value: empty(githubClientId) ? 'github-client-id' : githubClientId }
             { name: 'GITHUB_CLIENT_SECRET', secretRef: 'github-client-secret' }
             { name: 'GITHUB_CALLBACK_URL', value: '${resolvedAppUrl}/api/auth/github/callback' }

@@ -9,10 +9,18 @@ export const ENTRY_ROUTES = {
   entry: '/entry',
   workspaceSelect: '/workspace/select',
   workspaceSettings: '/workspace/settings',
+  /** @deprecated Prefer {@link ENTRY_ROUTES.workspaceIntegrationsConnections}. */
+  workspaceSettingsConnections: '/workspace/integrations/connections',
+  /** @deprecated Prefer {@link ENTRY_ROUTES.workspaceIntegrationsChannels}. */
+  workspaceSettingsChannels: '/workspace/integrations/channels',
+  workspaceIntegrations: '/workspace/integrations',
+  workspaceIntegrationsConnections: '/workspace/integrations/connections',
+  workspaceIntegrationsChannels: '/workspace/integrations/channels',
   /** Legacy path — app redirects to {@link ENTRY_ROUTES.setup}. */
   onboarding: '/onboarding',
   setup: '/setup',
   dashboard: '/dashboard',
+  crm: '/crm',
   terms: '/terms',
   privacy: '/privacy',
 } as const;

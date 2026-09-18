@@ -4,4 +4,7 @@ export * from './lib/repositories';
 export * from './lib/platform-repositories';
 export * from './lib/saas-repositories';
 export * from './lib/output-repositories';
+export * from './lib/crm-repositories';
+export * from './lib/crm-board-repositories';
+export * from './lib/connection-repositories';
 export * from './lib/mappers';

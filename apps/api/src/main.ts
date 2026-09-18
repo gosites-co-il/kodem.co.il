@@ -16,8 +16,21 @@ async function bootstrap() {
   app.setGlobalPrefix(globalPrefix);
 
   const appUrl = process.env['APP_URL'] ?? 'http://localhost:3000';
+  const marketingUrl =
+    process.env['MARKETING_URL'] ?? process.env['PUBLIC_SITE_URL'] ?? 'http://localhost:4321';
+  const extraOrigins = (process.env['CORS_ORIGINS'] ?? '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: [appUrl, 'http://localhost:3000'],
+    origin: [
+      appUrl,
+      marketingUrl,
+      'http://localhost:3000',
+      'http://localhost:4321',
+      ...extraOrigins,
+    ],
     credentials: true,
   });
 

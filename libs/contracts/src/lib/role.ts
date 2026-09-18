@@ -12,6 +12,7 @@ const MEMBER_BASE: Permission[] = [
   'workspace.members.read',
   'insights:read',
   'recommendations:read',
+  'connections:use',
 ];
 
 const ADMIN_PERMS: Permission[] = [
@@ -21,7 +22,7 @@ const ADMIN_PERMS: Permission[] = [
   'workspace.members.update',
   'workspace.members.remove',
   'workspace.billing.read',
-  'integrations:manage',
+  'connections:manage',
 ];
 
 export const ROLE_DEFINITIONS: Record<RoleName, Role> = {

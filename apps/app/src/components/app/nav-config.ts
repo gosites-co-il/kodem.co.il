@@ -7,6 +7,8 @@ import {
   LayoutDashboard,
   LifeBuoy,
   MessageSquare,
+  Plug,
+  Radio,
   Sparkles,
   Users,
 } from 'lucide-react';
@@ -34,7 +36,7 @@ export const APP_NAV_SECTIONS: NavSection[] = [
       {
         title: 'CRM',
         description: 'ניהול לקוחות, לידים ומעקב מכירות',
-        href: ROUTES.dashboard,
+        href: ROUTES.crm,
         icon: Users,
         badge: 'פעיל',
       },
@@ -51,6 +53,26 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         href: '#',
         icon: MessageSquare,
         badge: 'בקרוב',
+      },
+    ],
+  },
+  {
+    id: 'integrations',
+    label: 'חיבורים',
+    items: [
+      {
+        title: 'חיבורים',
+        description: 'חשבונות ושירותים חיצוניים לסביבה',
+        href: ROUTES.workspaceIntegrationsConnections,
+        icon: Plug,
+        badge: 'פעיל',
+      },
+      {
+        title: 'ערוצים',
+        description: 'ערוצי תקשורת מול לקוחות ואנשי קשר',
+        href: ROUTES.workspaceIntegrationsChannels,
+        icon: Radio,
+        badge: 'פעיל',
       },
     ],
   },

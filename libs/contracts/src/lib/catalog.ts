@@ -1,5 +1,10 @@
 import type { ModuleId, IntegrationId } from './workspace-setup';
 import type { PlanId } from './subscription';
+import type {
+  ConnectionCapability,
+  ConnectionProviderId,
+} from './connections';
+import type { ChannelType } from './channels';
 
 export type ModuleCategory = 'core' | 'growth' | 'marketing' | 'intelligence';
 
@@ -25,6 +30,19 @@ export interface IntegrationDefinition {
   category: string;
   description?: string;
   icon?: string;
+  status: IntegrationCatalogStatus;
+  /** Runtime adapter for Connections. */
+  provider: ConnectionProviderId;
+  capabilities: ConnectionCapability[];
+  /** Channels this catalog entry can back when connected. */
+  backsChannels?: ChannelType[];
+}
+
+export interface ChannelDefinition {
+  type: ChannelType;
+  name: string;
+  description: string;
+  allowedProviders: ConnectionProviderId[];
   status: IntegrationCatalogStatus;
 }
 

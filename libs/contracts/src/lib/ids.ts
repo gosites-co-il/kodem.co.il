@@ -12,6 +12,8 @@ export type InviteId = Brand<string, 'InviteId'>;
 export type UsageEventId = Brand<string, 'UsageEventId'>;
 export type AuditEventId = Brand<string, 'AuditEventId'>;
 export type WorkspaceModuleId = Brand<string, 'WorkspaceModuleId'>;
+export type ConnectionId = Brand<string, 'ConnectionId'>;
+export type ChannelId = Brand<string, 'ChannelId'>;
 
 export function createId<B extends string>(prefix: string): Brand<string, B> {
   return `${prefix}_${crypto.randomUUID()}` as Brand<string, B>;

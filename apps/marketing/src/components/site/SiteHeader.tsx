@@ -2,9 +2,9 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@kodem/design-system/components/ui/button';
 import { cn } from '@kodem/design-system/lib/utils';
-import { NAV_SIGNUP_HREF, NAV_SIGNUP_LABEL } from '../../lib/site-config';
 import { PRIMARY_NAV, isNavActive, isNavSectionActive, type NavItem } from '../../lib/nav';
 import { Logo } from './Logo';
+import { AuthAccountMenu, useAuthAccountMenu } from './AuthAccountMenu';
 
 type Props = {
   currentPath?: string;
@@ -122,6 +122,7 @@ export function SiteHeader({ currentPath = '/' }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [mobileProductOpen, setMobileProductOpen] = useState(false);
+  const auth = useAuthAccountMenu();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -162,13 +163,7 @@ export function SiteHeader({ currentPath = '/' }: Props) {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button
-            asChild
-            size="sm"
-            className="hidden h-10 cursor-pointer rounded-full bg-cta px-5 text-cta-foreground hover:bg-cta/90 sm:inline-flex"
-          >
-            <a href={NAV_SIGNUP_HREF}>{NAV_SIGNUP_LABEL}</a>
-          </Button>
+          <AuthAccountMenu {...auth} />
           <Button
             type="button"
             size="sm"
@@ -244,14 +239,7 @@ export function SiteHeader({ currentPath = '/' }: Props) {
             >
               צור קשר
             </a>
-            <Button
-              asChild
-              className="mt-3 h-12 w-full cursor-pointer rounded-full bg-cta text-cta-foreground hover:bg-cta/90"
-            >
-              <a href={NAV_SIGNUP_HREF} onClick={() => setOpen(false)}>
-                {NAV_SIGNUP_LABEL}
-              </a>
-            </Button>
+            <AuthAccountMenu {...auth} mobile onNavigate={() => setOpen(false)} />
           </nav>
         </div>
       ) : null}

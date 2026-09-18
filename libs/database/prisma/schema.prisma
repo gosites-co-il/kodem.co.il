@@ -37,6 +37,14 @@ model Workspace {
   auditEvents       AuditEvent[]
   featureOverrides  FeatureFlagOverride[]
   notificationOutbox NotificationOutbox[]
+  crmLeads          CrmLead[]
+  crmContacts       CrmContact[]
+  crmTasks          CrmTask[]
+  crmBoards         CrmBoard[]
+  crmBoardColumns   CrmBoardColumn[]
+  crmBoardItems     CrmBoardItem[]
+  connections       WorkspaceConnection[]
+  channels          WorkspaceChannel[]
 }
 
 model User {
@@ -55,6 +63,7 @@ model User {
   authTokens      AuthToken[]
   invitesSent     WorkspaceInvite[] @relation("InviteSender")
   auditEvents     AuditEvent[]      @relation("AuditActor")
+  connectionsCreated WorkspaceConnection[] @relation("ConnectionCreator")
 }
 
 model Member {
@@ -309,4 +318,195 @@ model RecommendationRecord {
   createdAt      DateTime @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model CrmLead {
+  id          String   @id
+  workspaceId String
+  name        String
+  email       String?
+  phone       String?
+  source      String?
+  status      String   @default("new")
+  notes       String?
+  contactId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id])
+  contact   CrmContact? @relation(fields: [contactId], references: [id])
+  tasks     CrmTask[]
+  boardItems CrmBoardItem[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+  @@index([contactId])
+}
+
+model CrmContact {
+  id          String   @id
+  workspaceId String
+  name        String
+  email       String?
+  phone       String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  leads     CrmLead[]
+  tasks     CrmTask[]
+  boardItems CrmBoardItem[]
+
+  @@index([workspaceId])
+}
+
+model CrmTask {
+  id          String    @id
+  workspaceId String
+  title       String
+  description String?
+  status      String    @default("pending")
+  priority    String    @default("medium")
+  leadId      String?
+  contactId   String?
+  dueAt       DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id])
+  lead      CrmLead?    @relation(fields: [leadId], references: [id])
+  contact   CrmContact? @relation(fields: [contactId], references: [id])
+  boardItems CrmBoardItem[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+  @@index([leadId])
+  @@index([contactId])
+}
+
+model CrmBoard {
+  id          String   @id
+  workspaceId String
+  name        String
+  preset      String
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace        @relation(fields: [workspaceId], references: [id])
+  columns   CrmBoardColumn[]
+  items     CrmBoardItem[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, position])
+}
+
+model CrmBoardColumn {
+  id          String   @id
+  workspaceId String
+  boardId     String
+  key         String
+  label       String
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id])
+  board     CrmBoard      @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  items     CrmBoardItem[]
+
+  @@index([workspaceId])
+  @@index([boardId, position])
+}
+
+model CrmBoardItem {
+  id          String   @id
+  workspaceId String
+  boardId     String
+  columnId    String
+  title       String
+  description String?
+  position    Int      @default(0)
+  leadId      String?
+  contactId   String?
+  taskId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace      @relation(fields: [workspaceId], references: [id])
+  board     CrmBoard       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  column    CrmBoardColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  lead      CrmLead?       @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  contact   CrmContact?    @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  task      CrmTask?       @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([boardId, position])
+  @@index([columnId, position])
+  @@index([leadId])
+  @@index([contactId])
+  @@index([taskId])
+}
+
+model WorkspaceConnection {
+  id                   String   @id
+  workspaceId          String
+  integrationId        String
+  provider             String
+  status               String   @default("disconnected")
+  capabilities         String   @default("[]")
+  externalAccountId    String?
+  externalAccountName  String?
+  metadata             String?
+  createdById          String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  workspace   Workspace            @relation(fields: [workspaceId], references: [id])
+  createdBy   User                 @relation("ConnectionCreator", fields: [createdById], references: [id])
+  credential  ConnectionCredential?
+  channelBindings ChannelConnectionBinding[]
+
+  @@unique([workspaceId, integrationId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, provider])
+}
+
+model ConnectionCredential {
+  connectionId    String   @id
+  ciphertext      String
+  keyVersion      Int      @default(1)
+  updatedAt       DateTime @updatedAt
+
+  connection WorkspaceConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+}
+
+model WorkspaceChannel {
+  id          String   @id
+  workspaceId String
+  type        String
+  status      String   @default("not_configured")
+  metadata    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  bindings  ChannelConnectionBinding[]
+
+  @@unique([workspaceId, type])
+  @@index([workspaceId, status])
+}
+
+model ChannelConnectionBinding {
+  id           String  @id
+  channelId    String
+  connectionId String
+  isPrimary    Boolean @default(true)
+
+  channel    WorkspaceChannel    @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  connection WorkspaceConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, connectionId])
+  @@index([connectionId])
 }
