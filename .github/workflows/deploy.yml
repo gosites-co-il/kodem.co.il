@@ -151,8 +151,10 @@ jobs:
             echo "api_url=https://api.kodem.co.il/api" >> "$GITHUB_OUTPUT"
           fi
           if [ -n "$APP_DOMAIN" ]; then
+            echo "app_url=https://$APP_DOMAIN" >> "$GITHUB_OUTPUT"
             echo "signup_url=https://$APP_DOMAIN/register" >> "$GITHUB_OUTPUT"
           else
+            echo "app_url=https://app.kodem.co.il" >> "$GITHUB_OUTPUT"
             echo "signup_url=https://app.kodem.co.il/register" >> "$GITHUB_OUTPUT"
           fi
           echo "whatsapp_phone=${PUBLIC_WHATSAPP_PHONE:-}" >> "$GITHUB_OUTPUT"
@@ -171,6 +173,7 @@ jobs:
             API_ORIGIN=${{ inputs.api_origin }}
             PUBLIC_SITE_URL=${{ steps.urls.outputs.site_url }}
             PUBLIC_API_URL=${{ steps.urls.outputs.api_url }}
+            PUBLIC_APP_URL=${{ steps.urls.outputs.app_url }}
             PUBLIC_APP_SIGNUP_URL=${{ steps.urls.outputs.signup_url }}
             PUBLIC_WHATSAPP_PHONE=${{ steps.urls.outputs.whatsapp_phone }}
             PUBLIC_GA_MEASUREMENT_ID=${{ steps.urls.outputs.ga_id }}
