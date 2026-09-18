@@ -25,6 +25,12 @@ describe('platform auth', () => {
     expect(hasPermission('member', 'workspace.members.read')).toBe(true);
     expect(hasPermission('admin', 'workspace.members.invite')).toBe(true);
     expect(hasPermission('admin', 'workspace.lifecycle.manage')).toBe(false);
+    expect(hasPermission('super_admin', 'workspace.lifecycle.manage')).toBe(
+      true,
+    );
+    expect(hasPermission('super_admin', 'workspace.billing.manage')).toBe(
+      true,
+    );
   });
 
   it('hashes tokens deterministically for single-use consume lookups', () => {

@@ -19,6 +19,7 @@ import { ROUTES } from '../../../lib/constants';
 import { useAuth } from '../../../providers/auth-provider';
 
 const ROLE_LABELS: Record<RoleName, string> = {
+  super_admin: 'סופר־מנהל',
   owner: 'בעלים',
   admin: 'מנהל',
   member: 'חבר צוות',

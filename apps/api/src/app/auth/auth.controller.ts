@@ -225,7 +225,12 @@ export class AuthController {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error('[oauth] handleOAuth failed:', message);
-      return res.redirect(`${appUrl}/login?error=oauth_failed`);
+      const dbDown =
+        /Can't reach database|ECONNREFUSED|database.*error|PrismaClientInitializationError|the URL must start with/i.test(
+          message,
+        );
+      const errorCode = dbDown ? 'oauth_db' : 'oauth_failed';
+      return res.redirect(`${appUrl}/login?error=${errorCode}`);
     }
   }
 }

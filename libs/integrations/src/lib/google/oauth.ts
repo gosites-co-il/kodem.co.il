@@ -171,6 +171,44 @@ export async function exchangeGoogleAuthCode(input: {
   };
 }
 
+export async function refreshGoogleAccessToken(input: {
+  refreshToken: string;
+  clientId: string;
+  clientSecret: string;
+}): Promise<{
+  accessToken: string;
+  expiresIn?: number;
+  scope?: string;
+  tokenType?: string;
+}> {
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      refresh_token: input.refreshToken,
+      client_id: input.clientId,
+      client_secret: input.clientSecret,
+      grant_type: 'refresh_token',
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Google token refresh failed: ${text}`);
+  }
+  const json = (await res.json()) as {
+    access_token: string;
+    expires_in?: number;
+    scope?: string;
+    token_type?: string;
+  };
+  return {
+    accessToken: json.access_token,
+    expiresIn: json.expires_in,
+    scope: json.scope,
+    tokenType: json.token_type,
+  };
+}
+
 export async function fetchGoogleUserInfo(accessToken: string): Promise<{
   id: string;
   email?: string;

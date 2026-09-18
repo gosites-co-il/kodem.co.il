@@ -1,6 +1,10 @@
 import type {
+  BindConnectionResourceInput,
   ConnectionActionResult,
   ConnectionCatalogItem,
+  ConnectionPreviewResult,
+  ConnectionSheetsListResult,
+  GoogleSheetsConnectionMetadata,
   IntegrationId,
   UserId,
   WorkspaceConnection,
@@ -12,13 +16,39 @@ import {
   WorkspaceConnectionRepository,
 } from '@kodem/database';
 import { EVENT_TYPES, KodemEventBus } from '@kodem/events';
-import { getConnectionAdapter } from '@kodem/integrations';
+import {
+  defaultPreviewRange,
+  getConnectionAdapter,
+  getSpreadsheet,
+  getValues,
+  googleConnectionClientConfig,
+  parseSpreadsheetId,
+  refreshGoogleAccessToken,
+} from '@kodem/integrations';
 import {
   PLATFORM_INTEGRATIONS,
   getIntegrationDefinition,
 } from '@kodem/platform/catalog';
 import { AuditService } from '@kodem/platform/audit';
 import { ConnectionCredentialsStore } from './credentials-store';
+
+const TOKEN_REFRESH_SKEW_MS = 60_000;
+
+function sheetsMetadata(
+  connection: WorkspaceConnection,
+): GoogleSheetsConnectionMetadata | null {
+  const meta = connection.metadata;
+  if (!meta || typeof meta['spreadsheetId'] !== 'string') return null;
+  return {
+    spreadsheetId: meta['spreadsheetId'],
+    spreadsheetTitle:
+      typeof meta['spreadsheetTitle'] === 'string'
+        ? meta['spreadsheetTitle']
+        : undefined,
+    lastBoundAt:
+      typeof meta['lastBoundAt'] === 'string' ? meta['lastBoundAt'] : undefined,
+  };
+}
 
 export class ConnectionService {
   private readonly connections = new WorkspaceConnectionRepository();
@@ -238,6 +268,256 @@ export class ConnectionService {
     return { success: true, code: 'ok', connection };
   }
 
+  /**
+   * Decrypts stored OAuth credentials and refreshes the access token when near expiry.
+   */
+  async getValidAccessToken(
+    workspaceId: WorkspaceId,
+    connectionId: string,
+  ): Promise<string> {
+    const existing = await this.connections.findById(workspaceId, connectionId);
+    if (!existing) {
+      throw new Error('Connection not found');
+    }
+    if (existing.status !== 'connected') {
+      throw new Error('Connection is not active');
+    }
+
+    const ciphertext = await this.credentials.findCiphertext(existing.id);
+    if (!ciphertext) {
+      throw new Error('No credentials stored for this connection');
+    }
+
+    const creds = this.store.decrypt(ciphertext);
+    const accessToken = creds['accessToken'];
+    if (!accessToken) {
+      throw new Error('Stored credentials are missing an access token');
+    }
+
+    const expiresAtRaw = creds['expiresAt'];
+    const expiresAt = expiresAtRaw ? Number(expiresAtRaw) : NaN;
+    const needsRefresh =
+      Number.isFinite(expiresAt) &&
+      expiresAt - TOKEN_REFRESH_SKEW_MS <= Date.now();
+
+    if (!needsRefresh) {
+      return accessToken;
+    }
+
+    const refreshToken = creds['refreshToken'];
+    if (!refreshToken) {
+      throw new Error(
+        'תוקף הגישה פג ואין refresh token — חברו מחדש את Google Sheets',
+      );
+    }
+
+    const config = googleConnectionClientConfig(existing.integrationId);
+    if (!config) {
+      throw new Error('Google OAuth client is not configured');
+    }
+
+    const refreshed = await refreshGoogleAccessToken({
+      refreshToken,
+      clientId: config.clientId,
+      clientSecret: config.clientSecret,
+    });
+
+    const next: Record<string, string> = {
+      ...creds,
+      accessToken: refreshed.accessToken,
+    };
+    if (refreshed.expiresIn) {
+      next['expiresAt'] = String(Date.now() + refreshed.expiresIn * 1000);
+    }
+    if (refreshed.scope) {
+      next['scope'] = refreshed.scope;
+    }
+
+    const encrypted = this.store.encrypt(next);
+    await this.credentials.upsert(
+      existing.id,
+      encrypted.ciphertext,
+      encrypted.keyVersion,
+    );
+
+    return refreshed.accessToken;
+  }
+
+  async bindResource(
+    workspaceId: WorkspaceId,
+    id: string,
+    actorId: UserId,
+    input: BindConnectionResourceInput,
+  ): Promise<ConnectionActionResult> {
+    const existing = await this.connections.findById(workspaceId, id);
+    if (!existing) {
+      return { success: false, code: 'error', message: 'Connection not found' };
+    }
+    if (existing.integrationId !== 'google_sheets') {
+      return {
+        success: false,
+        code: 'error',
+        message: 'קשירת גיליון זמינה רק ל-Google Sheets',
+      };
+    }
+    if (existing.status !== 'connected') {
+      return {
+        success: false,
+        code: 'error',
+        message: 'יש לחבר את Google Sheets לפני בחירת קובץ',
+      };
+    }
+
+    const spreadsheetId = parseSpreadsheetId(
+      input.spreadsheetId?.trim() || input.spreadsheetUrl?.trim() || '',
+    );
+    if (!spreadsheetId) {
+      return {
+        success: false,
+        code: 'error',
+        message: 'קישור או מזהה גיליון לא תקין',
+      };
+    }
+
+    try {
+      const accessToken = await this.getValidAccessToken(workspaceId, id);
+      const summary = await getSpreadsheet(accessToken, spreadsheetId);
+      const meta: GoogleSheetsConnectionMetadata = {
+        spreadsheetId: summary.spreadsheetId,
+        spreadsheetTitle: summary.title,
+        lastBoundAt: new Date().toISOString(),
+      };
+      const connection = await this.connections.updateMetadata(
+        workspaceId,
+        id,
+        { ...existing.metadata, ...meta },
+      );
+
+      await this.audit.record({
+        workspaceId,
+        actorId,
+        targetId: id,
+        action: 'connection.reconnected',
+        metadata: {
+          integrationId: existing.integrationId,
+          spreadsheetId: summary.spreadsheetId,
+          bound: true,
+        },
+      });
+
+      return {
+        success: true,
+        code: 'ok',
+        connection: connection ?? undefined,
+        message: `נקשר: ${summary.title}`,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        code: 'error',
+        message: err instanceof Error ? err.message : 'קשירת הגיליון נכשלה',
+        connection: existing,
+      };
+    }
+  }
+
+  async listSheets(
+    workspaceId: WorkspaceId,
+    id: string,
+  ): Promise<ConnectionSheetsListResult | ConnectionActionResult> {
+    const existing = await this.connections.findById(workspaceId, id);
+    if (!existing) {
+      return { success: false, code: 'error', message: 'Connection not found' };
+    }
+    const bound = sheetsMetadata(existing);
+    if (!bound) {
+      return {
+        success: false,
+        code: 'error',
+        message: 'לא נבחר גיליון — הדביקו קישור לקובץ Sheets',
+      };
+    }
+
+    try {
+      const accessToken = await this.getValidAccessToken(workspaceId, id);
+      const summary = await getSpreadsheet(accessToken, bound.spreadsheetId);
+      return {
+        spreadsheetId: summary.spreadsheetId,
+        title: summary.title,
+        sheets: summary.sheets,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        code: 'error',
+        message: err instanceof Error ? err.message : 'טעינת הגיליונות נכשלה',
+        connection: existing,
+      };
+    }
+  }
+
+  async preview(
+    workspaceId: WorkspaceId,
+    id: string,
+    opts?: { sheet?: string; range?: string },
+  ): Promise<ConnectionPreviewResult | ConnectionActionResult> {
+    const existing = await this.connections.findById(workspaceId, id);
+    if (!existing) {
+      return { success: false, code: 'error', message: 'Connection not found' };
+    }
+    const bound = sheetsMetadata(existing);
+    if (!bound) {
+      return {
+        success: false,
+        code: 'error',
+        message: 'לא נבחר גיליון — הדביקו קישור לקובץ Sheets',
+      };
+    }
+
+    try {
+      const accessToken = await this.getValidAccessToken(workspaceId, id);
+      let range = opts?.range?.trim();
+      if (!range) {
+        const sheetTitle = opts?.sheet?.trim();
+        if (sheetTitle) {
+          range = defaultPreviewRange(sheetTitle);
+        } else {
+          const summary = await getSpreadsheet(
+            accessToken,
+            bound.spreadsheetId,
+          );
+          const first = summary.sheets[0]?.title;
+          if (!first) {
+            return {
+              success: false,
+              code: 'error',
+              message: 'הקובץ לא מכיל גיליונות',
+            };
+          }
+          range = defaultPreviewRange(first);
+        }
+      }
+
+      const values = await getValues(
+        accessToken,
+        bound.spreadsheetId,
+        range,
+      );
+      return {
+        spreadsheetId: bound.spreadsheetId,
+        range: values.range,
+        values: values.values,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        code: 'error',
+        message: err instanceof Error ? err.message : 'תצוגה מקדימה נכשלה',
+        connection: existing,
+      };
+    }
+  }
+
   async reconnect(
     workspaceId: WorkspaceId,
     id: string,
@@ -258,6 +538,40 @@ export class ConnectionService {
     if (!existing) {
       return { success: false, code: 'error', message: 'Connection not found' };
     }
+
+    if (existing.integrationId === 'google_sheets') {
+      try {
+        await this.getValidAccessToken(workspaceId, id);
+        const bound = sheetsMetadata(existing);
+        if (!bound) {
+          return {
+            success: true,
+            code: 'ok',
+            message: 'החיבור תקין — עדיין לא נבחר גיליון',
+            connection: existing,
+          };
+        }
+        const accessToken = await this.getValidAccessToken(workspaceId, id);
+        const summary = await getSpreadsheet(
+          accessToken,
+          bound.spreadsheetId,
+        );
+        return {
+          success: true,
+          code: 'ok',
+          message: `החיבור תקין: ${summary.title}`,
+          connection: existing,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          code: 'error',
+          message: err instanceof Error ? err.message : 'בדיקת החיבור נכשלה',
+          connection: existing,
+        };
+      }
+    }
+
     const adapter = getConnectionAdapter(existing.provider);
     if (!adapter?.test) {
       return {

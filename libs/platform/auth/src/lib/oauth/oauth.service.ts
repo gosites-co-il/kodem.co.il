@@ -13,11 +13,12 @@ export class OAuthService {
   }
 
   async handleOAuthCallback(profile: OAuthProfile) {
-    const { user, isNewUser } = await this.userLinking.resolveFromOAuth(profile);
-    if (isNewUser) {
+    const resolved = await this.userLinking.resolveFromOAuth(profile);
+    const user = resolved.user;
+    if (resolved.isNewUser) {
       await this.authService.notifyAdminOfSignup(user, 'oauth');
     }
-    const resolved = await this.workspaceResolver.resolveForUser(user);
-    return this.authService.issueSession(user, resolved);
+    const workspace = await this.workspaceResolver.resolveForUser(user);
+    return this.authService.issueSession(user, workspace);
   }
 }

@@ -40,6 +40,7 @@ export default function WorkspaceSettingsPage() {
   const canReadBilling = can(role, 'workspace.billing.read');
   const canManageBilling = can(role, 'workspace.billing.manage');
   const canLifecycle = can(role, 'workspace.lifecycle.manage');
+  const canAssignSuperAdmin = role === 'owner' || role === 'super_admin';
 
   const load = useCallback(async () => {
     setError(null);
@@ -192,6 +193,9 @@ export default function WorkspaceSettingsPage() {
                         {m.role === 'owner' ? (
                           <option value="owner">owner</option>
                         ) : null}
+                        {canAssignSuperAdmin || m.role === 'super_admin' ? (
+                          <option value="super_admin">super_admin</option>
+                        ) : null}
                       </select>
                     ) : (
                       <span className="text-sm text-muted-foreground">
@@ -200,7 +204,8 @@ export default function WorkspaceSettingsPage() {
                     )}
                     {canRemoveMembers &&
                     m.userId !== user?.id &&
-                    m.role !== 'owner' ? (
+                    m.role !== 'owner' &&
+                    (m.role !== 'super_admin' || role === 'super_admin') ? (
                       <Button
                         size="sm"
                         variant="ghost"

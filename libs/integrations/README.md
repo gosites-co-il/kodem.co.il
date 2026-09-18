@@ -2,8 +2,9 @@
 
 External provider adapters and OAuth helpers used by Workspace **Connections**.
 
-Feature overview and install (Google Sheets, env vars, Azure):  
-[`docs/01-product/connections-and-channels.md`](../../docs/01-product/connections-and-channels.md)
+Feature overview: [`docs/01-product/connections-and-channels.md`](../../docs/01-product/connections-and-channels.md).  
+Per connection: [`docs/01-product/connections/`](../../docs/01-product/connections/).  
+Per channel: [`docs/01-product/channels/`](../../docs/01-product/channels/).
 
 ## Building
 

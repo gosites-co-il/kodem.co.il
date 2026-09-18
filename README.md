@@ -42,7 +42,9 @@ CI=true npx nx dev marketing
 
 | Topic | Doc |
 |-------|-----|
-| Connections & Channels (feature + install) | [`docs/01-product/connections-and-channels.md`](docs/01-product/connections-and-channels.md) |
+| Connections & Channels (overview) | [`docs/01-product/connections-and-channels.md`](docs/01-product/connections-and-channels.md) |
+| Per-connection docs | [`docs/01-product/connections/`](docs/01-product/connections/) |
+| Per-channel docs | [`docs/01-product/channels/`](docs/01-product/channels/) |
 | Azure deploy | [`deploy/azure/README.md`](deploy/azure/README.md) |
 | Agent / monorepo notes | [`AGENTS.md`](AGENTS.md) |
 

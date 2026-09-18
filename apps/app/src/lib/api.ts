@@ -7,6 +7,8 @@ import type {
   ConfigureChannelInput,
   ConnectionActionResult,
   ConnectionCatalogItem,
+  ConnectionPreviewResult,
+  ConnectionSheetsListResult,
   Contact,
   CreateContactInput,
   CreateCrmBoardInput,
@@ -626,6 +628,41 @@ export const api = {
   disconnectConnection(id: string) {
     return request<ConnectionActionResult>(`/connections/${id}`, {
       method: 'DELETE',
+    });
+  },
+
+  bindConnectionResource(
+    id: string,
+    body: { spreadsheetUrl?: string; spreadsheetId?: string },
+  ) {
+    return request<ConnectionActionResult>(`/connections/${id}/resource`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  listConnectionSheets(id: string) {
+    return request<ConnectionSheetsListResult | ConnectionActionResult>(
+      `/connections/${id}/sheets`,
+    );
+  },
+
+  previewConnectionSheet(
+    id: string,
+    params?: { sheet?: string; range?: string },
+  ) {
+    const q = new URLSearchParams();
+    if (params?.sheet) q.set('sheet', params.sheet);
+    if (params?.range) q.set('range', params.range);
+    const qs = q.toString();
+    return request<ConnectionPreviewResult | ConnectionActionResult>(
+      `/connections/${id}/preview${qs ? `?${qs}` : ''}`,
+    );
+  },
+
+  testConnection(id: string) {
+    return request<ConnectionActionResult>(`/connections/${id}/test`, {
+      method: 'POST',
     });
   },
 

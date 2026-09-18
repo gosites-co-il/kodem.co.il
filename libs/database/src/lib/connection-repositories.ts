@@ -132,7 +132,12 @@ export class WorkspaceConnectionRepository {
       input.integrationId,
     );
     const capabilities = JSON.stringify(input.capabilities);
-    const metadata = input.metadata ? JSON.stringify(input.metadata) : null;
+    const metadataJson =
+      input.metadata !== undefined
+        ? input.metadata
+          ? JSON.stringify(input.metadata)
+          : null
+        : undefined;
 
     if (existing) {
       const row = await this.db.workspaceConnection.update({
@@ -143,7 +148,7 @@ export class WorkspaceConnectionRepository {
           capabilities,
           externalAccountId: input.externalAccountId ?? null,
           externalAccountName: input.externalAccountName ?? null,
-          metadata,
+          ...(metadataJson !== undefined ? { metadata: metadataJson } : {}),
         },
       });
       return mapConnection(row);
@@ -159,8 +164,24 @@ export class WorkspaceConnectionRepository {
         capabilities,
         externalAccountId: input.externalAccountId ?? null,
         externalAccountName: input.externalAccountName ?? null,
-        metadata,
+        metadata: metadataJson ?? null,
         createdById: input.createdById,
+      },
+    });
+    return mapConnection(row);
+  }
+
+  async updateMetadata(
+    workspaceId: WorkspaceId,
+    id: string,
+    metadata: Record<string, unknown> | null,
+  ): Promise<WorkspaceConnection | null> {
+    const existing = await this.findById(workspaceId, id);
+    if (!existing) return null;
+    const row = await this.db.workspaceConnection.update({
+      where: { id },
+      data: {
+        metadata: metadata ? JSON.stringify(metadata) : null,
       },
     });
     return mapConnection(row);

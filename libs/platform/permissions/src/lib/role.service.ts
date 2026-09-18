@@ -1,4 +1,9 @@
-import { Permission, RoleName, ROLE_DEFINITIONS } from '@kodem/contracts';
+import {
+  Permission,
+  RoleName,
+  ROLE_DEFINITIONS,
+  ROLE_HIERARCHY,
+} from '@kodem/contracts';
 
 export class RoleService {
   hasPermission(role: RoleName, permission: Permission): boolean {
@@ -6,8 +11,7 @@ export class RoleService {
   }
 
   isAtLeast(role: RoleName, minimum: RoleName): boolean {
-    const hierarchy: RoleName[] = ['viewer', 'member', 'admin', 'owner'];
-    return hierarchy.indexOf(role) >= hierarchy.indexOf(minimum);
+    return ROLE_HIERARCHY.indexOf(role) >= ROLE_HIERARCHY.indexOf(minimum);
   }
 
   canManageMembers(role: RoleName): boolean {

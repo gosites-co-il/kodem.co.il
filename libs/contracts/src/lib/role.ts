@@ -1,6 +1,11 @@
 import { Permission } from './permission';
 
-export type RoleName = 'owner' | 'admin' | 'member' | 'viewer';
+export type RoleName =
+  | 'super_admin'
+  | 'owner'
+  | 'admin'
+  | 'member'
+  | 'viewer';
 
 export interface Role {
   name: RoleName;
@@ -25,14 +30,23 @@ const ADMIN_PERMS: Permission[] = [
   'connections:manage',
 ];
 
+const OWNER_PERMS: Permission[] = [
+  ...ADMIN_PERMS,
+  'workspace.billing.manage',
+  'workspace.lifecycle.manage',
+];
+
+/** Full permission set — reserved for super_admin. */
+const SUPER_ADMIN_PERMS: Permission[] = [...OWNER_PERMS];
+
 export const ROLE_DEFINITIONS: Record<RoleName, Role> = {
+  super_admin: {
+    name: 'super_admin',
+    permissions: SUPER_ADMIN_PERMS,
+  },
   owner: {
     name: 'owner',
-    permissions: [
-      ...ADMIN_PERMS,
-      'workspace.billing.manage',
-      'workspace.lifecycle.manage',
-    ],
+    permissions: OWNER_PERMS,
   },
   admin: {
     name: 'admin',
@@ -55,3 +69,12 @@ export const ROLE_DEFINITIONS: Record<RoleName, Role> = {
 
 /** Roles offered when inviting members (viewer kept for backward compat only). */
 export const INVITABLE_ROLES: RoleName[] = ['admin', 'member'];
+
+/** Highest → lowest. Used by RoleService.isAtLeast. */
+export const ROLE_HIERARCHY: RoleName[] = [
+  'viewer',
+  'member',
+  'admin',
+  'owner',
+  'super_admin',
+];

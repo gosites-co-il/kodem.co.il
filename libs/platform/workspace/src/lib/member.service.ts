@@ -324,12 +324,32 @@ export class MemberService {
       throw new Error('Use transferOwnership to assign the owner role');
     }
 
+    const actor = await this.memberRepo.findByUserAndWorkspace(
+      actorId,
+      workspaceId,
+    );
+    if (!actor) {
+      throw new Error('Actor is not a member of this workspace');
+    }
+
     const target = await this.memberRepo.findByUserAndWorkspace(
       targetUserId,
       workspaceId,
     );
     if (!target) {
       throw new Error('Member not found');
+    }
+
+    if (
+      newRole === 'super_admin' &&
+      actor.role !== 'super_admin' &&
+      actor.role !== 'owner'
+    ) {
+      throw new Error('Only owners or super admins can assign super_admin');
+    }
+
+    if (target.role === 'super_admin' && actor.role !== 'super_admin') {
+      throw new Error('Only a super admin can change another super admin');
     }
 
     if (target.role === 'owner') {
@@ -361,12 +381,24 @@ export class MemberService {
     targetUserId: UserId,
     actorId: UserId,
   ): Promise<void> {
+    const actor = await this.memberRepo.findByUserAndWorkspace(
+      actorId,
+      workspaceId,
+    );
+    if (!actor) {
+      throw new Error('Actor is not a member of this workspace');
+    }
+
     const target = await this.memberRepo.findByUserAndWorkspace(
       targetUserId,
       workspaceId,
     );
     if (!target) {
       throw new Error('Member not found');
+    }
+
+    if (target.role === 'super_admin' && actor.role !== 'super_admin') {
+      throw new Error('Only a super admin can remove another super admin');
     }
 
     if (target.role === 'owner') {

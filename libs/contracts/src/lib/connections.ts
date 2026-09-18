@@ -103,3 +103,35 @@ export interface ConnectionActionResult {
   /** Exact redirect_uri sent to Google — add this in Cloud Console if mismatch. */
   redirectUri?: string;
 }
+
+/**
+ * google_sheets connection metadata (stored on WorkspaceConnection.metadata):
+ * { spreadsheetId, spreadsheetTitle?, lastBoundAt? }
+ */
+export interface GoogleSheetsConnectionMetadata {
+  spreadsheetId: string;
+  spreadsheetTitle?: string;
+  lastBoundAt?: string;
+}
+
+export interface BindConnectionResourceInput {
+  spreadsheetUrl?: string;
+  spreadsheetId?: string;
+}
+
+export interface ConnectionSheetTab {
+  title: string;
+  sheetId: number;
+}
+
+export interface ConnectionSheetsListResult {
+  spreadsheetId: string;
+  title: string;
+  sheets: ConnectionSheetTab[];
+}
+
+export interface ConnectionPreviewResult {
+  spreadsheetId: string;
+  range: string;
+  values: string[][];
+}

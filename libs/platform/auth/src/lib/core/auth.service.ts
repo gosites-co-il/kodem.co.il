@@ -74,7 +74,10 @@ export class AuthService {
           name: user.name,
           userId: user.id,
           method,
-          createdAt: user.createdAt.toISOString(),
+          createdAt:
+            user.createdAt instanceof Date
+              ? user.createdAt.toISOString()
+              : String(user.createdAt ?? ''),
         },
       });
     } catch (err) {

@@ -130,9 +130,11 @@ export function LoginForm() {
               {error ??
                 (queryError === 'oauth_failed'
                   ? 'ההתחברות נכשלה. נסו שוב.'
-                  : queryError === 'no_workspace'
-                    ? 'לא נמצא workspace לחשבון זה.'
-                    : 'לא ניתן להתחבר.')}
+                  : queryError === 'oauth_db'
+                    ? 'השרת לא מצליח להתחבר למסד הנתונים. בדקו ש־Postgres רץ ונסקו שוב.'
+                    : queryError === 'no_workspace'
+                      ? 'לא נמצא workspace לחשבון זה.'
+                      : 'לא ניתן להתחבר.')}
             </p>
           ) : null}
           <Button

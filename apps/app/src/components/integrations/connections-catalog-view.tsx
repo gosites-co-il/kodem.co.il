@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CheckIcon, PlusIcon, SearchIcon } from 'lucide-react';
-import type { ConnectionCatalogItem, IntegrationId } from '@kodem/contracts';
+import type {
+  ConnectionCatalogItem,
+  ConnectionPreviewResult,
+  IntegrationId,
+} from '@kodem/contracts';
 import { Badge } from '@kodem/design-system/components/ui/badge';
 import { Button } from '@kodem/design-system/components/ui/button';
 import {
@@ -20,10 +24,251 @@ import { can } from '../../lib/auth/permissions';
 import { useAuth } from '../../providers/auth-provider';
 import { IntegrationIcon } from './integration-icons';
 
+function isActionFailure(
+  value: unknown,
+): value is { success: false; message?: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'success' in value &&
+    (value as { success: boolean }).success === false
+  );
+}
+
+function isSheetsListResult(
+  value: unknown,
+): value is { spreadsheetId: string; title: string; sheets: Array<{ title: string }> } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'sheets' in value &&
+    Array.isArray((value as { sheets: unknown }).sheets)
+  );
+}
+
+function isPreviewResult(
+  value: unknown,
+): value is ConnectionPreviewResult {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'values' in value &&
+    Array.isArray((value as { values: unknown }).values)
+  );
+}
+
+function SheetsResourcePanel({
+  connectionId,
+  metadata,
+  canManage,
+  canUse,
+  onBound,
+}: {
+  connectionId: string;
+  metadata: Record<string, unknown> | null | undefined;
+  canManage: boolean;
+  canUse: boolean;
+  onBound: () => Promise<void>;
+}) {
+  const boundId =
+    typeof metadata?.['spreadsheetId'] === 'string'
+      ? metadata['spreadsheetId']
+      : null;
+  const boundTitle =
+    typeof metadata?.['spreadsheetTitle'] === 'string'
+      ? metadata['spreadsheetTitle']
+      : null;
+
+  const [url, setUrl] = useState('');
+  const [tabs, setTabs] = useState<string[]>([]);
+  const [sheet, setSheet] = useState('');
+  const [preview, setPreview] = useState<ConnectionPreviewResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [localInfo, setLocalInfo] = useState<string | null>(null);
+
+  const loadTabsAndPreview = useCallback(
+    async (preferredSheet?: string) => {
+      if (!canUse || !boundId) return;
+      setLocalError(null);
+      try {
+        const sheetsRes = await api.listConnectionSheets(connectionId);
+        if (isActionFailure(sheetsRes) || !isSheetsListResult(sheetsRes)) {
+          setLocalError(
+            isActionFailure(sheetsRes)
+              ? (sheetsRes.message ?? 'טעינת הגיליונות נכשלה')
+              : 'טעינת הגיליונות נכשלה',
+          );
+          return;
+        }
+        const titles = sheetsRes.sheets.map((s) => s.title);
+        setTabs(titles);
+        const nextSheet =
+          preferredSheet && titles.includes(preferredSheet)
+            ? preferredSheet
+            : titles[0] ?? '';
+        setSheet(nextSheet);
+        if (!nextSheet) {
+          setPreview(null);
+          return;
+        }
+        const previewRes = await api.previewConnectionSheet(connectionId, {
+          sheet: nextSheet,
+        });
+        if (isActionFailure(previewRes) || !isPreviewResult(previewRes)) {
+          setLocalError(
+            isActionFailure(previewRes)
+              ? (previewRes.message ?? 'תצוגה מקדימה נכשלה')
+              : 'תצוגה מקדימה נכשלה',
+          );
+          setPreview(null);
+          return;
+        }
+        setPreview(previewRes);
+      } catch (err) {
+        setLocalError(isApiError(err) ? err.message : 'טעינת הנתונים נכשלה');
+      }
+    },
+    [boundId, canUse, connectionId],
+  );
+
+  useEffect(() => {
+    void loadTabsAndPreview();
+  }, [loadTabsAndPreview]);
+
+  async function bind() {
+    if (!canManage || !url.trim()) return;
+    setBusy(true);
+    setLocalError(null);
+    setLocalInfo(null);
+    try {
+      const result = await api.bindConnectionResource(connectionId, {
+        spreadsheetUrl: url.trim(),
+      });
+      if (!result.success) {
+        setLocalError(result.message ?? 'קשירת הגיליון נכשלה');
+        return;
+      }
+      setLocalInfo(result.message ?? 'הגיליון נקשר');
+      setUrl('');
+      await onBound();
+      const test = await api.testConnection(connectionId);
+      if (test.message) setLocalInfo(test.message);
+    } catch (err) {
+      setLocalError(isApiError(err) ? err.message : 'קשירת הגיליון נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onSheetChange(next: string) {
+    setSheet(next);
+    if (!canUse || !next) return;
+    setBusy(true);
+    setLocalError(null);
+    try {
+      const previewRes = await api.previewConnectionSheet(connectionId, {
+        sheet: next,
+      });
+      if (isActionFailure(previewRes) || !isPreviewResult(previewRes)) {
+        setLocalError(
+          isActionFailure(previewRes)
+            ? (previewRes.message ?? 'תצוגה מקדימה נכשלה')
+            : 'תצוגה מקדימה נכשלה',
+        );
+        setPreview(null);
+        return;
+      }
+      setPreview(previewRes);
+    } catch (err) {
+      setLocalError(isApiError(err) ? err.message : 'תצוגה מקדימה נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 flex flex-col gap-3 border-t pt-3">
+      <p className="text-xs text-muted-foreground">
+        {boundTitle
+          ? `קובץ: ${boundTitle}`
+          : 'לא נבחר גיליון — הדביקו קישור לקובץ Sheets (כולל קבצים ששותפו איתכם)'}
+      </p>
+      {canManage ? (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input
+            dir="ltr"
+            className="font-mono text-xs"
+            placeholder="https://docs.google.com/spreadsheets/d/…"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            disabled={busy}
+          />
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={busy || !url.trim()}
+            onClick={() => void bind()}
+          >
+            קשר קובץ
+          </Button>
+        </div>
+      ) : null}
+      {boundId && tabs.length > 0 ? (
+        <label className="flex flex-col gap-1 text-xs">
+          <span className="text-muted-foreground">גיליון</span>
+          <select
+            className="h-8 rounded-md border bg-background px-2 text-sm"
+            value={sheet}
+            disabled={busy || !canUse}
+            onChange={(e) => void onSheetChange(e.target.value)}
+          >
+            {tabs.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {localError ? (
+        <p className="text-xs text-destructive">{localError}</p>
+      ) : null}
+      {localInfo ? (
+        <p className="text-xs text-muted-foreground">{localInfo}</p>
+      ) : null}
+      {preview && preview.values.length > 0 ? (
+        <div className="max-h-48 overflow-auto rounded-md border">
+          <table className="w-full min-w-max border-collapse text-start text-xs">
+            <tbody>
+              {preview.values.map((row, ri) => (
+                <tr key={ri} className="border-b last:border-0">
+                  {row.map((cell, ci) => (
+                    <td
+                      key={ci}
+                      className={`max-w-[10rem] truncate border-e px-2 py-1 last:border-e-0 ${
+                        ri === 0 ? 'bg-muted/50 font-medium' : ''
+                      }`}
+                      title={cell}
+                    >
+                      {cell || '—'}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function ConnectionsCatalogView() {
   const { role } = useAuth();
   const searchParams = useSearchParams();
   const canManage = can(role, 'connections:manage');
+  const canUse = can(role, 'connections:use');
   const [catalog, setCatalog] = useState<ConnectionCatalogItem[]>([]);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +336,6 @@ export function ConnectionsCatalogView() {
             'kodem.oauth.redirectUri',
             result.redirectUri,
           );
-          // Helps debug redirect_uri_mismatch — copy this exact URI into Google Console.
           console.info(
             '[kodem] Google OAuth redirect_uri (must match Cloud Console exactly):',
             result.redirectUri,
@@ -153,6 +397,12 @@ export function ConnectionsCatalogView() {
           const connected = item.connection?.status === 'connected';
           const expired = item.connection?.status === 'expired';
           const errored = item.connection?.status === 'error';
+          const sheetsConnection =
+            item.integrationId === 'google_sheets' &&
+            connected &&
+            item.connection
+              ? item.connection
+              : null;
           return (
             <Card
               key={item.integrationId}
@@ -184,6 +434,15 @@ export function ConnectionsCatalogView() {
                   <p className="text-xs text-muted-foreground" dir="ltr">
                     {item.connection.externalAccountName}
                   </p>
+                ) : null}
+                {sheetsConnection ? (
+                  <SheetsResourcePanel
+                    connectionId={sheetsConnection.id}
+                    metadata={sheetsConnection.metadata}
+                    canManage={canManage}
+                    canUse={canUse}
+                    onBound={load}
+                  />
                 ) : null}
               </CardContent>
               <CardFooter className="mt-auto flex items-center justify-between border-t pt-4">
