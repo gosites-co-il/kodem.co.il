@@ -21,5 +21,9 @@ export default defineConfig({
         '@kodem/contracts': path.join(root, 'libs/contracts/src/index.ts'),
       },
     },
+    ssr: {
+      // Bundle cookie into the prerender entry (avoids Node resolving Express cookie@0.7).
+      noExternal: ['cookie'],
+    },
   },
 });
