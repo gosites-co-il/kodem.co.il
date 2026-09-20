@@ -12,6 +12,11 @@ import { ROUTES } from '../../lib/constants';
 import { useAuth } from '../../providers/auth-provider';
 import { AuthShell, authFieldClasses } from './auth-shell';
 import { OAuthButton } from './oauth-button';
+import {
+  SignupLegalConsent,
+  storePendingSignupConsent,
+  useSignupLegalConsent,
+} from './signup-legal-consent';
 
 export function RegisterForm() {
   const router = useRouter();
@@ -23,14 +28,26 @@ export function RegisterForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { accepted, setAccepted, consents } = useSignupLegalConsent();
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+
+    if (!accepted) {
+      setError('יש לאשר את תקנון השימוש ומדיניות הפרטיות כדי להמשיך.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const result = await api.register({ email, name, password });
+      const result = await api.register({
+        email,
+        name,
+        password,
+        legalConsents: consents,
+      });
       const nextRoute = await completeAuthFlow(result, { next: nextParam });
       setSession({
         user: result.user,
@@ -56,6 +73,7 @@ export function RegisterForm() {
     <AuthShell
       title="יצירת חשבון"
       description="התחילו עם Kodem בתוך דקה"
+      showLegal={false}
       footer={
         <>
           כבר יש לכם חשבון?{' '}
@@ -69,10 +87,24 @@ export function RegisterForm() {
       }
     >
       <div className="grid gap-4">
+        <SignupLegalConsent
+          checked={accepted}
+          onCheckedChange={setAccepted}
+        />
+
         <OAuthButton
           provider="google"
           label="הירשמו עם Google"
           className={authFieldClasses.buttonOutline}
+          disabled={!accepted}
+          onBeforeNavigate={() => {
+            if (!accepted) {
+              setError('יש לאשר את תקנון השימוש ומדיניות הפרטיות כדי להמשיך.');
+              return false;
+            }
+            storePendingSignupConsent();
+            return true;
+          }}
         />
 
         <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:border-t after:border-border">
@@ -130,13 +162,14 @@ export function RegisterForm() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
+
           {error ? (
             <p className="text-center text-sm text-destructive">{error}</p>
           ) : null}
           <Button
             type="submit"
             className={authFieldClasses.button}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !accepted}
           >
             {isSubmitting ? 'יוצר חשבון…' : 'המשך'}
           </Button>

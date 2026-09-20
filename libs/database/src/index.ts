@@ -7,4 +7,5 @@ export * from './lib/output-repositories';
 export * from './lib/crm-repositories';
 export * from './lib/crm-board-repositories';
 export * from './lib/connection-repositories';
+export * from './lib/legal-consent-repository';
 export * from './lib/mappers';

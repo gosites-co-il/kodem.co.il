@@ -44,14 +44,14 @@ export function AuthShell({
 
         {showLegal ? (
           <p className="px-2 text-center text-xs text-muted-foreground">
-            בהמשך אתם מאשרים את{' '}
+            ניתן לעיין ב־
             <Link
               href={ROUTES.terms}
               className="underline underline-offset-4 hover:text-foreground"
             >
-              תנאי השימוש
+              תקנון השימוש
             </Link>{' '}
-            ואת{' '}
+            וב־
             <Link
               href={ROUTES.privacy}
               className="underline underline-offset-4 hover:text-foreground"

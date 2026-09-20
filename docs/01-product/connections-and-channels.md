@@ -9,7 +9,9 @@ Workspace integrations for external providers (**Connections**) and customer com
 | **Connections** | [`connections/README.md`](connections/README.md) |
 | **Channels** | [`channels/README.md`](channels/README.md) |
 
-Available today: [Google Sheets](connections/google-sheets.md) (OAuth + bind spreadsheet + preview).
+**Available:** [Sheets](connections/google-sheets.md), [Analytics](connections/google-analytics.md), [Business Profile](connections/google-business.md), [Workspace](connections/google-workspace.md) + [Email channel stubs](channels/email.md).
+
+**Next phase:** [Google Ads](connections/google-ads.md) (developer token).
 
 ## Concepts
 
@@ -60,9 +62,7 @@ Env pattern for a connection:
 
 `CONNECTION_CREDENTIALS_KEY` encrypts stored OAuth tokens (AES-256-GCM via scrypt). Minimum 16 characters; use a long random string in every real environment. Changing it invalidates existing stored credentials.
 
-Install, APIs, and errors for Sheets: [`connections/google-sheets.md`](connections/google-sheets.md).
-
-Azure deploy vars: [`../../deploy/azure/README.md`](../../deploy/azure/README.md).
+Per-connection install guides under [`connections/`](connections/). Azure deploy vars: [`../../deploy/azure/README.md`](../../deploy/azure/README.md).
 
 ## Code map
 
@@ -71,14 +71,13 @@ Azure deploy vars: [`../../deploy/azure/README.md`](../../deploy/azure/README.md
 | Catalog | `libs/platform/catalog` |
 | Connection domain | `libs/platform/connections` |
 | Channel domain | `libs/platform/channels` |
-| Adapters / OAuth / Sheets client | `libs/integrations` |
-| API | `apps/api` connections + OAuth controllers |
+| Adapters / OAuth / Google clients | `libs/integrations` |
+| API | `apps/api` connections + OAuth + channels controllers |
 | UI | `apps/app` → settings + `/workspace/integrations/connections` (+ `[integrationId]`) |
 
 ## Phase status
 
-- **Phase 0 (done):** domain split, catalog UI, Google Sheets OAuth, encrypted credentials, Azure wiring.
-- **Phase 0.5 (done):** token refresh, bind spreadsheet URL, list tabs, preview rows.
-- **Phase 0.6 (done):** multi-connection, full vs read-only OAuth, connected vs active, detail route sync, per-card test.
-- **Sheets next:** see TODO list in [`connections/google-sheets.md`](connections/google-sheets.md) (mapping → CRM, unbind, reconnect UX, primary tab, sync, Picker later).
-- **Other Google (later):** Analytics → Business Profile → Ads → Workspace (Email Channel). Then Meta → WhatsApp Channel.
+- **Phase 0–0.6 (done):** Sheets OAuth, bind/preview, multi-connection, connected vs active, detail routes.
+- **Phase 1 (done):** Analytics + Business Profile (bind resource + test); Workspace OAuth + Email channel stubs.
+- **Sheets next:** TODO in [`connections/google-sheets.md`](connections/google-sheets.md).
+- **Ads next:** developer token — [`connections/google-ads.md`](connections/google-ads.md). Then Meta → WhatsApp Channel.

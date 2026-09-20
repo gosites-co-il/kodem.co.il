@@ -26,16 +26,23 @@ export function OAuthButton({
   provider,
   className,
   label: labelOverride,
+  disabled = false,
+  onBeforeNavigate,
 }: {
   provider: OAuthProvider;
   className?: string;
   label?: string;
+  disabled?: boolean;
+  /** Return false to cancel navigation. */
+  onBeforeNavigate?: () => boolean;
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const { label: defaultLabel, Icon } = providerConfig[provider];
   const label = labelOverride ?? defaultLabel;
 
   function handleClick() {
+    if (disabled) return;
+    if (onBeforeNavigate && !onBeforeNavigate()) return;
     setIsLoading(true);
     window.location.href = getOAuthUrl(provider);
   }
@@ -44,7 +51,7 @@ export function OAuthButton({
     <Button
       type="button"
       variant="outline"
-      disabled={isLoading}
+      disabled={disabled || isLoading}
       aria-label={label}
       onClick={handleClick}
       className={cn(

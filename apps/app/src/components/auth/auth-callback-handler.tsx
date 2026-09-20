@@ -15,6 +15,10 @@ import { setToken } from '../../lib/auth/storage';
 import { api } from '../../lib/api';
 import { ROUTES } from '../../lib/constants';
 import { useAuth } from '../../providers/auth-provider';
+import {
+  clearPendingSignupConsent,
+  readPendingSignupConsent,
+} from './signup-legal-consent';
 
 export function AuthCallbackHandler() {
   const router = useRouter();
@@ -42,6 +46,21 @@ export function AuthCallbackHandler() {
           if (!refreshed) {
             setError('חסר אסימון אימות.');
             return;
+          }
+        }
+
+        const pending = readPendingSignupConsent();
+        if (pending) {
+          try {
+            await api.acceptLegalConsent({
+              consents: pending.consents,
+              source: pending.source,
+              authMethod: 'unknown',
+            });
+          } catch {
+            // Status gate will require consent if recording failed.
+          } finally {
+            clearPendingSignupConsent();
           }
         }
 

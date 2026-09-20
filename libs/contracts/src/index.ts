@@ -33,3 +33,4 @@ export * from './lib/usage';
 export * from './lib/notifications';
 export * from './lib/audit';
 export * from './lib/invite';
+export * from './lib/legal';

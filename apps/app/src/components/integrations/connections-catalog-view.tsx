@@ -87,6 +87,13 @@ const SHEETS_FULL_CAPS: ConnectionCapability[] = [
 ];
 const SHEETS_READONLY_CAPS: ConnectionCapability[] = ['sheets.read'];
 
+const MULTI_CONNECT_IDS = new Set<string>([
+  'google_sheets',
+  'google_analytics',
+  'google_business',
+  'google_workspace',
+]);
+
 function statusLabel(status: WorkspaceConnection['status']): string {
   switch (status) {
     case 'connected':
@@ -379,6 +386,288 @@ function SheetsResourcePanel({
   );
 }
 
+function AnalyticsResourcePanel({
+  connectionId,
+  metadata,
+  canManage,
+  canUse,
+  active,
+  onBound,
+}: {
+  connectionId: string;
+  metadata: Record<string, unknown> | null | undefined;
+  canManage: boolean;
+  canUse: boolean;
+  active: boolean;
+  onBound: () => Promise<void>;
+}) {
+  const boundId =
+    typeof metadata?.['propertyId'] === 'string' ? metadata['propertyId'] : null;
+  const boundName =
+    typeof metadata?.['propertyName'] === 'string'
+      ? metadata['propertyName']
+      : null;
+
+  const [properties, setProperties] = useState<
+    Array<{ propertyId: string; displayName: string; accountDisplayName?: string }>
+  >([]);
+  const [selected, setSelected] = useState(boundId ?? '');
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [localInfo, setLocalInfo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!canUse || !active) return;
+    let cancelled = false;
+    void (async () => {
+      setLocalError(null);
+      try {
+        const res = await api.listConnectionAnalyticsProperties(connectionId);
+        if (isActionFailure(res) || !('properties' in res)) {
+          if (!cancelled) {
+            setLocalError(
+              isActionFailure(res)
+                ? (res.message ?? 'טעינת הנכסים נכשלה')
+                : 'טעינת הנכסים נכשלה',
+            );
+          }
+          return;
+        }
+        if (!cancelled) {
+          setProperties(res.properties);
+          setSelected((current) => current || res.properties[0]?.propertyId || '');
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setLocalError(isApiError(err) ? err.message : 'טעינת הנכסים נכשלה');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [active, canUse, connectionId]);
+
+  async function bind() {
+    if (!canManage || !active || !selected) return;
+    setBusy(true);
+    setLocalError(null);
+    setLocalInfo(null);
+    try {
+      const result = await api.bindConnectionResource(connectionId, {
+        propertyId: selected,
+      });
+      if (!result.success) {
+        setLocalError(result.message ?? 'קשירת הנכס נכשלה');
+        return;
+      }
+      setLocalInfo(result.message ?? 'הנכס נקשר');
+      await onBound();
+    } catch (err) {
+      setLocalError(isApiError(err) ? err.message : 'קשירת הנכס נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {!active ? (
+        <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
+          החיבור מחובר אך לא פעיל — הפעילו אותו כדי לבחור נכס Analytics.
+        </p>
+      ) : null}
+      <div>
+        <h3 className="text-sm font-medium">נכס GA4</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {boundName
+            ? boundName
+            : 'בחרו נכס Google Analytics 4 לקשר לחיבור'}
+        </p>
+      </div>
+      {canManage && active ? (
+        <div className="flex flex-col gap-2">
+          <select
+            className="h-9 rounded-md border bg-background px-3 text-sm"
+            value={selected}
+            disabled={busy || properties.length === 0}
+            onChange={(e) => setSelected(e.target.value)}
+          >
+            {properties.length === 0 ? (
+              <option value="">אין נכסים זמינים</option>
+            ) : (
+              properties.map((p) => (
+                <option key={p.propertyId} value={p.propertyId}>
+                  {p.accountDisplayName
+                    ? `${p.displayName} (${p.accountDisplayName})`
+                    : p.displayName}
+                </option>
+              ))
+            )}
+          </select>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={busy || !selected}
+            onClick={() => void bind()}
+          >
+            קשר נכס
+          </Button>
+        </div>
+      ) : null}
+      {localError ? (
+        <p className="text-sm text-destructive">{localError}</p>
+      ) : null}
+      {localInfo ? (
+        <p className="text-sm text-muted-foreground">{localInfo}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function BusinessResourcePanel({
+  connectionId,
+  metadata,
+  canManage,
+  canUse,
+  active,
+  onBound,
+}: {
+  connectionId: string;
+  metadata: Record<string, unknown> | null | undefined;
+  canManage: boolean;
+  canUse: boolean;
+  active: boolean;
+  onBound: () => Promise<void>;
+}) {
+  const boundName =
+    typeof metadata?.['locationName'] === 'string'
+      ? metadata['locationName']
+      : null;
+  const boundTitle =
+    typeof metadata?.['locationTitle'] === 'string'
+      ? metadata['locationTitle']
+      : null;
+
+  const [locations, setLocations] = useState<
+    Array<{ locationName: string; title: string; accountName?: string }>
+  >([]);
+  const [selected, setSelected] = useState(boundName ?? '');
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [localInfo, setLocalInfo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!canUse || !active) return;
+    let cancelled = false;
+    void (async () => {
+      setLocalError(null);
+      try {
+        const res = await api.listConnectionBusinessLocations(connectionId);
+        if (isActionFailure(res) || !('locations' in res)) {
+          if (!cancelled) {
+            setLocalError(
+              isActionFailure(res)
+                ? (res.message ?? 'טעינת המיקומים נכשלה')
+                : 'טעינת המיקומים נכשלה',
+            );
+          }
+          return;
+        }
+        if (!cancelled) {
+          setLocations(res.locations);
+          setSelected(
+            (current) => current || res.locations[0]?.locationName || '',
+          );
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setLocalError(isApiError(err) ? err.message : 'טעינת המיקומים נכשלה');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [active, canUse, connectionId]);
+
+  async function bind() {
+    if (!canManage || !active || !selected) return;
+    setBusy(true);
+    setLocalError(null);
+    setLocalInfo(null);
+    try {
+      const result = await api.bindConnectionResource(connectionId, {
+        locationName: selected,
+      });
+      if (!result.success) {
+        setLocalError(result.message ?? 'קשירת המיקום נכשלה');
+        return;
+      }
+      setLocalInfo(result.message ?? 'המיקום נקשר');
+      await onBound();
+    } catch (err) {
+      setLocalError(isApiError(err) ? err.message : 'קשירת המיקום נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {!active ? (
+        <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
+          החיבור מחובר אך לא פעיל — הפעילו אותו כדי לבחור מיקום עסקי.
+        </p>
+      ) : null}
+      <div>
+        <h3 className="text-sm font-medium">מיקום</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {boundTitle
+            ? boundTitle
+            : 'בחרו מיקום Google Business Profile לקשר לחיבור'}
+        </p>
+      </div>
+      {canManage && active ? (
+        <div className="flex flex-col gap-2">
+          <select
+            className="h-9 rounded-md border bg-background px-3 text-sm"
+            value={selected}
+            disabled={busy || locations.length === 0}
+            onChange={(e) => setSelected(e.target.value)}
+          >
+            {locations.length === 0 ? (
+              <option value="">אין מיקומים זמינים</option>
+            ) : (
+              locations.map((loc) => (
+                <option key={loc.locationName} value={loc.locationName}>
+                  {loc.accountName
+                    ? `${loc.title} (${loc.accountName})`
+                    : loc.title}
+                </option>
+              ))
+            )}
+          </select>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={busy || !selected}
+            onClick={() => void bind()}
+          >
+            קשר מיקום
+          </Button>
+        </div>
+      ) : null}
+      {localError ? (
+        <p className="text-sm text-destructive">{localError}</p>
+      ) : null}
+      {localInfo ? (
+        <p className="text-sm text-muted-foreground">{localInfo}</p>
+      ) : null}
+    </div>
+  );
+}
+
 function ConnectionDetailSheet({
   item,
   open,
@@ -416,6 +705,9 @@ function ConnectionDetailSheet({
   const connection =
     instances.find((c) => c.id === activeConnectionId) ?? instances[0] ?? null;
   const isSheets = item?.integrationId === 'google_sheets' && connection;
+  const isAnalytics = item?.integrationId === 'google_analytics' && connection;
+  const isBusiness = item?.integrationId === 'google_business' && connection;
+  const isWorkspace = item?.integrationId === 'google_workspace' && connection;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -447,7 +739,11 @@ function ConnectionDetailSheet({
                     const title =
                       typeof c.metadata?.['spreadsheetTitle'] === 'string'
                         ? c.metadata['spreadsheetTitle']
-                        : null;
+                        : typeof c.metadata?.['propertyName'] === 'string'
+                          ? c.metadata['propertyName']
+                          : typeof c.metadata?.['locationTitle'] === 'string'
+                            ? c.metadata['locationTitle']
+                            : null;
                     const selected = c.id === connection.id;
                     const canToggle =
                       canManage &&
@@ -588,9 +884,34 @@ function ConnectionDetailSheet({
                   active={connection.active}
                   onBound={onBound}
                 />
+              ) : isAnalytics ? (
+                <AnalyticsResourcePanel
+                  key={connection.id}
+                  connectionId={connection.id}
+                  metadata={connection.metadata}
+                  canManage={canManage}
+                  canUse={canUse}
+                  active={connection.active}
+                  onBound={onBound}
+                />
+              ) : isBusiness ? (
+                <BusinessResourcePanel
+                  key={connection.id}
+                  connectionId={connection.id}
+                  metadata={connection.metadata}
+                  canManage={canManage}
+                  canUse={canUse}
+                  active={connection.active}
+                  onBound={onBound}
+                />
+              ) : isWorkspace ? (
+                <p className="text-sm text-muted-foreground">
+                  חשבון Gmail מחובר. הגדירו את ערוץ האימייל תחת ערוצים. שליחה
+                  וקריאה אמיתיות יתווספו בהמשך.
+                </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  ניהול קבצים לחיבור זה יתווסף בהמשך.
+                  ניהול משאבים לחיבור זה יתווסף בהמשך.
                 </p>
               )}
             </div>
@@ -605,12 +926,13 @@ export function ConnectionsCatalogView() {
   const { role } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const params = useParams<{ integrationId?: string }>();
+  const params = useParams<{ integrationId?: string | string[] }>();
   const searchParams = useSearchParams();
   const basePath = connectionsBasePath(pathname);
-  const routeIntegrationId = isIntegrationId(params.integrationId)
-    ? params.integrationId
-    : null;
+  const routeParam = Array.isArray(params.integrationId)
+    ? params.integrationId[0]
+    : params.integrationId;
+  const routeIntegrationId = isIntegrationId(routeParam) ? routeParam : null;
   const canManage = can(role, 'connections:manage');
   const canUse = can(role, 'connections:use');
   const [catalog, setCatalog] = useState<ConnectionCatalogItem[]>([]);
@@ -887,7 +1209,7 @@ export function ConnectionsCatalogView() {
           const errored = instances.some((c) => c.status === 'error');
           const showConnect =
             item.status === 'available' &&
-            (item.integrationId === 'google_sheets' || linked.length === 0);
+            (MULTI_CONNECT_IDS.has(item.integrationId) || linked.length === 0);
 
           return (
             <Card
@@ -929,12 +1251,23 @@ export function ConnectionsCatalogView() {
                         }`}
                   </p>
                 ) : null}
-                {activeOnes.length === 1 &&
-                typeof activeOnes[0]?.metadata?.['spreadsheetTitle'] ===
+                {activeOnes.length === 1 ? (
+                  typeof activeOnes[0]?.metadata?.['spreadsheetTitle'] ===
                   'string' ? (
-                  <p className="mt-1 truncate text-xs text-muted-foreground">
-                    קובץ: {activeOnes[0].metadata['spreadsheetTitle']}
-                  </p>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                      קובץ: {activeOnes[0].metadata['spreadsheetTitle']}
+                    </p>
+                  ) : typeof activeOnes[0]?.metadata?.['propertyName'] ===
+                    'string' ? (
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                      נכס: {activeOnes[0].metadata['propertyName']}
+                    </p>
+                  ) : typeof activeOnes[0]?.metadata?.['locationTitle'] ===
+                    'string' ? (
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                      מיקום: {activeOnes[0].metadata['locationTitle']}
+                    </p>
+                  ) : null
                 ) : null}
               </CardContent>
               <CardFooter className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-4">

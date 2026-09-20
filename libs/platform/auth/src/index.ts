@@ -5,7 +5,7 @@ export type { JwtPayload, PlatformContext, AuthResult } from '@kodem/contracts';
 
 export { hasPermission };
 export { JwtService } from './lib/jwt/jwt.service';
-export { AuthService } from './lib/core/auth.service';
+export { AuthService, type RegisterContext } from './lib/core/auth.service';
 export { OAuthService } from './lib/oauth/oauth.service';
 export {
   AuthTokenService,

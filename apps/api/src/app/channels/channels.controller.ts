@@ -30,6 +30,21 @@ export class ChannelsController {
     return { catalog };
   }
 
+  @Get('email/messages')
+  @RequirePermissions('connections:use')
+  async stubEmailMessages(@CurrentContext() context: PlatformContext) {
+    return this.channels.stubEmailMessages(context.workspace.id);
+  }
+
+  @Post('email/send')
+  @RequirePermissions('connections:use')
+  async stubEmailSend(
+    @CurrentContext() context: PlatformContext,
+    @Body() body: { to?: string; subject?: string; body?: string },
+  ) {
+    return this.channels.stubEmailSend(context.workspace.id, body ?? {});
+  }
+
   @Get(':type')
   @RequirePermissions('workspace.settings.read')
   async get(

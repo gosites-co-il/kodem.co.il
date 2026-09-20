@@ -1,9 +1,13 @@
 import type {
   BindConnectionResourceInput,
   ConnectionActionResult,
+  ConnectionAnalyticsPropertiesResult,
+  ConnectionBusinessLocationsResult,
   ConnectionCatalogItem,
   ConnectionPreviewResult,
   ConnectionSheetsListResult,
+  GoogleAnalyticsConnectionMetadata,
+  GoogleBusinessConnectionMetadata,
   GoogleSheetsConnectionMetadata,
   IntegrationId,
   UserId,
@@ -18,12 +22,17 @@ import {
 import { EVENT_TYPES, KodemEventBus } from '@kodem/events';
 import {
   defaultPreviewRange,
+  getAnalyticsProperty,
+  getBusinessLocation,
   getConnectionAdapter,
   getSpreadsheet,
   getValues,
   googleConnectionClientConfig,
+  listAnalyticsProperties,
+  listBusinessLocations,
   parseSpreadsheetId,
   refreshGoogleAccessToken,
+  runAnalyticsSessionsSmoke,
 } from '@kodem/integrations';
 import {
   PLATFORM_INTEGRATIONS,
@@ -47,6 +56,52 @@ function sheetsMetadata(
         : undefined,
     lastBoundAt:
       typeof meta['lastBoundAt'] === 'string' ? meta['lastBoundAt'] : undefined,
+  };
+}
+
+function analyticsMetadata(
+  connection: WorkspaceConnection,
+): GoogleAnalyticsConnectionMetadata | null {
+  const meta = connection.metadata;
+  if (!meta || typeof meta['propertyId'] !== 'string') return null;
+  return {
+    propertyId: meta['propertyId'],
+    propertyName:
+      typeof meta['propertyName'] === 'string'
+        ? meta['propertyName']
+        : undefined,
+    lastBoundAt:
+      typeof meta['lastBoundAt'] === 'string' ? meta['lastBoundAt'] : undefined,
+  };
+}
+
+function businessMetadata(
+  connection: WorkspaceConnection,
+): GoogleBusinessConnectionMetadata | null {
+  const meta = connection.metadata;
+  if (!meta || typeof meta['locationName'] !== 'string') return null;
+  return {
+    locationName: meta['locationName'],
+    locationTitle:
+      typeof meta['locationTitle'] === 'string'
+        ? meta['locationTitle']
+        : undefined,
+    lastBoundAt:
+      typeof meta['lastBoundAt'] === 'string' ? meta['lastBoundAt'] : undefined,
+  };
+}
+
+function requireActive(
+  existing: WorkspaceConnection,
+  inactiveMessage: string,
+  otherMessage: string,
+): ConnectionActionResult | null {
+  if (existing.status === 'connected') return null;
+  return {
+    success: false,
+    code: 'error',
+    message:
+      existing.status === 'inactive' ? inactiveMessage : otherMessage,
   };
 }
 
@@ -416,23 +471,49 @@ export class ConnectionService {
     if (!existing) {
       return { success: false, code: 'error', message: 'Connection not found' };
     }
-    if (existing.integrationId !== 'google_sheets') {
-      return {
-        success: false,
-        code: 'error',
-        message: 'קשירת גיליון זמינה רק ל-Google Sheets',
-      };
+
+    if (existing.integrationId === 'google_sheets') {
+      return this.bindSheetsResource(workspaceId, id, actorId, existing, input);
     }
-    if (existing.status !== 'connected') {
-      return {
-        success: false,
-        code: 'error',
-        message:
-          existing.status === 'inactive'
-            ? 'החיבור מחובר אך לא פעיל — הפעילו אותו לפני בחירת קובץ'
-            : 'יש לחבר את Google Sheets לפני בחירת קובץ',
-      };
+    if (existing.integrationId === 'google_analytics') {
+      return this.bindAnalyticsResource(
+        workspaceId,
+        id,
+        actorId,
+        existing,
+        input,
+      );
     }
+    if (existing.integrationId === 'google_business') {
+      return this.bindBusinessResource(
+        workspaceId,
+        id,
+        actorId,
+        existing,
+        input,
+      );
+    }
+
+    return {
+      success: false,
+      code: 'error',
+      message: 'קשירת משאב אינה זמינה לחיבור זה',
+    };
+  }
+
+  private async bindSheetsResource(
+    workspaceId: WorkspaceId,
+    id: string,
+    actorId: UserId,
+    existing: WorkspaceConnection,
+    input: BindConnectionResourceInput,
+  ): Promise<ConnectionActionResult> {
+    const inactive = requireActive(
+      existing,
+      'החיבור מחובר אך לא פעיל — הפעילו אותו לפני בחירת קובץ',
+      'יש לחבר את Google Sheets לפני בחירת קובץ',
+    );
+    if (inactive) return inactive;
 
     const spreadsheetId = parseSpreadsheetId(
       input.spreadsheetId?.trim() || input.spreadsheetUrl?.trim() || '',
@@ -482,6 +563,209 @@ export class ConnectionService {
         success: false,
         code: 'error',
         message: err instanceof Error ? err.message : 'קשירת הגיליון נכשלה',
+        connection: existing,
+      };
+    }
+  }
+
+  private async bindAnalyticsResource(
+    workspaceId: WorkspaceId,
+    id: string,
+    actorId: UserId,
+    existing: WorkspaceConnection,
+    input: BindConnectionResourceInput,
+  ): Promise<ConnectionActionResult> {
+    const inactive = requireActive(
+      existing,
+      'החיבור מחובר אך לא פעיל — הפעילו אותו לפני בחירת נכס',
+      'יש לחבר את Google Analytics לפני בחירת נכס',
+    );
+    if (inactive) return inactive;
+
+    const raw = input.propertyId?.trim();
+    if (!raw) {
+      return {
+        success: false,
+        code: 'error',
+        message: 'נא לבחור נכס Analytics',
+      };
+    }
+    const propertyId = raw.replace(/^properties\//, '');
+
+    try {
+      const accessToken = await this.getValidAccessToken(workspaceId, id);
+      const summary = await getAnalyticsProperty(accessToken, propertyId);
+      const meta: GoogleAnalyticsConnectionMetadata = {
+        propertyId: summary.propertyId,
+        propertyName: summary.displayName,
+        lastBoundAt: new Date().toISOString(),
+      };
+      const connection = await this.connections.updateMetadata(
+        workspaceId,
+        id,
+        { ...existing.metadata, ...meta },
+      );
+
+      await this.audit.record({
+        workspaceId,
+        actorId,
+        targetId: id,
+        action: 'connection.reconnected',
+        metadata: {
+          integrationId: existing.integrationId,
+          propertyId: summary.propertyId,
+          bound: true,
+        },
+      });
+
+      return {
+        success: true,
+        code: 'ok',
+        connection: connection ?? undefined,
+        message: `נקשר: ${summary.displayName}`,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        code: 'error',
+        message: err instanceof Error ? err.message : 'קשירת הנכס נכשלה',
+        connection: existing,
+      };
+    }
+  }
+
+  private async bindBusinessResource(
+    workspaceId: WorkspaceId,
+    id: string,
+    actorId: UserId,
+    existing: WorkspaceConnection,
+    input: BindConnectionResourceInput,
+  ): Promise<ConnectionActionResult> {
+    const inactive = requireActive(
+      existing,
+      'החיבור מחובר אך לא פעיל — הפעילו אותו לפני בחירת מיקום',
+      'יש לחבר את Google Business Profile לפני בחירת מיקום',
+    );
+    if (inactive) return inactive;
+
+    const locationName = input.locationName?.trim();
+    if (!locationName) {
+      return {
+        success: false,
+        code: 'error',
+        message: 'נא לבחור מיקום עסקי',
+      };
+    }
+
+    try {
+      const accessToken = await this.getValidAccessToken(workspaceId, id);
+      const summary = await getBusinessLocation(accessToken, locationName);
+      const meta: GoogleBusinessConnectionMetadata = {
+        locationName: summary.locationName,
+        locationTitle: summary.title,
+        lastBoundAt: new Date().toISOString(),
+      };
+      const connection = await this.connections.updateMetadata(
+        workspaceId,
+        id,
+        { ...existing.metadata, ...meta },
+      );
+
+      await this.audit.record({
+        workspaceId,
+        actorId,
+        targetId: id,
+        action: 'connection.reconnected',
+        metadata: {
+          integrationId: existing.integrationId,
+          locationName: summary.locationName,
+          bound: true,
+        },
+      });
+
+      return {
+        success: true,
+        code: 'ok',
+        connection: connection ?? undefined,
+        message: `נקשר: ${summary.title}`,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        code: 'error',
+        message: err instanceof Error ? err.message : 'קשירת המיקום נכשלה',
+        connection: existing,
+      };
+    }
+  }
+
+  async listAnalyticsProperties(
+    workspaceId: WorkspaceId,
+    id: string,
+  ): Promise<ConnectionAnalyticsPropertiesResult | ConnectionActionResult> {
+    const existing = await this.connections.findById(workspaceId, id);
+    if (!existing) {
+      return { success: false, code: 'error', message: 'Connection not found' };
+    }
+    if (existing.integrationId !== 'google_analytics') {
+      return {
+        success: false,
+        code: 'error',
+        message: 'רשימת נכסים זמינה רק ל-Google Analytics',
+      };
+    }
+    const inactive = requireActive(
+      existing,
+      'החיבור מחובר אך לא פעיל — הפעילו אותו כדי לטעון נכסים',
+      'יש לחבר את Google Analytics תחילה',
+    );
+    if (inactive) return inactive;
+
+    try {
+      const accessToken = await this.getValidAccessToken(workspaceId, id);
+      const properties = await listAnalyticsProperties(accessToken);
+      return { properties };
+    } catch (err) {
+      return {
+        success: false,
+        code: 'error',
+        message: err instanceof Error ? err.message : 'טעינת הנכסים נכשלה',
+        connection: existing,
+      };
+    }
+  }
+
+  async listBusinessLocations(
+    workspaceId: WorkspaceId,
+    id: string,
+  ): Promise<ConnectionBusinessLocationsResult | ConnectionActionResult> {
+    const existing = await this.connections.findById(workspaceId, id);
+    if (!existing) {
+      return { success: false, code: 'error', message: 'Connection not found' };
+    }
+    if (existing.integrationId !== 'google_business') {
+      return {
+        success: false,
+        code: 'error',
+        message: 'רשימת מיקומים זמינה רק ל-Google Business Profile',
+      };
+    }
+    const inactive = requireActive(
+      existing,
+      'החיבור מחובר אך לא פעיל — הפעילו אותו כדי לטעון מיקומים',
+      'יש לחבר את Google Business Profile תחילה',
+    );
+    if (inactive) return inactive;
+
+    try {
+      const accessToken = await this.getValidAccessToken(workspaceId, id);
+      const locations = await listBusinessLocations(accessToken);
+      return { locations };
+    } catch (err) {
+      return {
+        success: false,
+        code: 'error',
+        message: err instanceof Error ? err.message : 'טעינת המיקומים נכשלה',
         connection: existing,
       };
     }
@@ -689,6 +973,91 @@ export class ConnectionService {
           success: true,
           code: 'ok',
           message: `החיבור תקין: ${summary.title}`,
+          connection: existing,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          code: 'error',
+          message: err instanceof Error ? err.message : 'בדיקת החיבור נכשלה',
+          connection: existing,
+        };
+      }
+    }
+
+    if (existing.integrationId === 'google_analytics') {
+      try {
+        const accessToken = await this.getValidAccessToken(workspaceId, id);
+        const bound = analyticsMetadata(existing);
+        if (!bound) {
+          return {
+            success: true,
+            code: 'ok',
+            message: 'החיבור תקין — עדיין לא נבחר נכס',
+            connection: existing,
+          };
+        }
+        const smoke = await runAnalyticsSessionsSmoke(
+          accessToken,
+          bound.propertyId,
+        );
+        return {
+          success: true,
+          code: 'ok',
+          message: `החיבור תקין: ${bound.propertyName ?? bound.propertyId} · ${smoke.sessions} sessions (7 ימים)`,
+          connection: existing,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          code: 'error',
+          message: err instanceof Error ? err.message : 'בדיקת החיבור נכשלה',
+          connection: existing,
+        };
+      }
+    }
+
+    if (existing.integrationId === 'google_business') {
+      try {
+        const accessToken = await this.getValidAccessToken(workspaceId, id);
+        const bound = businessMetadata(existing);
+        if (!bound) {
+          return {
+            success: true,
+            code: 'ok',
+            message: 'החיבור תקין — עדיין לא נבחר מיקום',
+            connection: existing,
+          };
+        }
+        const summary = await getBusinessLocation(
+          accessToken,
+          bound.locationName,
+        );
+        return {
+          success: true,
+          code: 'ok',
+          message: `החיבור תקין: ${summary.title}`,
+          connection: existing,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          code: 'error',
+          message: err instanceof Error ? err.message : 'בדיקת החיבור נכשלה',
+          connection: existing,
+        };
+      }
+    }
+
+    if (existing.integrationId === 'google_workspace') {
+      try {
+        await this.getValidAccessToken(workspaceId, id);
+        return {
+          success: true,
+          code: 'ok',
+          message: existing.externalAccountName
+            ? `החיבור תקין: ${existing.externalAccountName}`
+            : 'החיבור תקין',
           connection: existing,
         };
       } catch (err) {

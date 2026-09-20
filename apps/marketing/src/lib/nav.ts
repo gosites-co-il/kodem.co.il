@@ -38,8 +38,10 @@ export const FOOTER_NAV = {
     { href: '/resources', label: 'מרכז ידע' },
   ],
   legal: [
+    { href: '/terms', label: 'תקנון שימוש' },
     { href: '/privacy', label: 'מדיניות פרטיות' },
-    { href: '/terms', label: 'תנאי שימוש' },
+    { href: '/cookies', label: 'מדיניות Cookies' },
+    { href: '/ai-terms', label: 'תנאי שימוש ב-AI' },
   ],
 } as const;
 

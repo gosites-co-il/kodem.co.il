@@ -25,6 +25,9 @@ const GOOGLE_CAPABILITIES: ConnectionCapability[] = [
   'drive.write',
   'sheets.read',
   'sheets.write',
+  'analytics.read',
+  'local.reviews.read',
+  'local.listing.read',
 ];
 
 function sheetsCapabilitiesForMode(
@@ -33,6 +36,24 @@ function sheetsCapabilitiesForMode(
   return accessMode === 'readonly'
     ? ['sheets.read']
     : ['sheets.read', 'sheets.write'];
+}
+
+function capabilitiesForIntegration(
+  integrationId: string,
+  accessMode: 'full' | 'readonly',
+): ConnectionCapability[] {
+  switch (integrationId) {
+    case 'google_sheets':
+      return sheetsCapabilitiesForMode(accessMode);
+    case 'google_analytics':
+      return ['analytics.read'];
+    case 'google_business':
+      return ['local.reviews.read', 'local.listing.read'];
+    case 'google_workspace':
+      return ['email.read', 'email.send'];
+    default:
+      return GOOGLE_CAPABILITIES;
+  }
 }
 
 export class GoogleConnectionAdapter implements ConnectionProviderAdapter {
@@ -76,7 +97,6 @@ export class GoogleConnectionAdapter implements ConnectionProviderAdapter {
       callbackUrl: config.callbackUrl,
       scopes,
       state,
-      // Never merge prior grants for Sheets — otherwise "read-only" still shows edit.
       includeGrantedScopes: false,
     });
 
@@ -137,15 +157,10 @@ export class GoogleConnectionAdapter implements ConnectionProviderAdapter {
 
     const profile = await fetchGoogleUserInfo(tokens.accessToken);
 
-    const capabilities: ConnectionCapability[] =
-      ctx.integrationId === 'google_sheets'
-        ? sheetsCapabilitiesForMode(accessMode)
-        : GOOGLE_CAPABILITIES;
-
     return {
       success: true,
       code: 'ok',
-      capabilities,
+      capabilities: capabilitiesForIntegration(ctx.integrationId, accessMode),
       externalAccountId: profile.id,
       externalAccountName: profile.email ?? profile.name ?? profile.id,
       credentials: {

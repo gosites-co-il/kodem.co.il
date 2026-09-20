@@ -131,6 +131,9 @@ Variables:
 | `POSTGRES_VERSION` | Optional, overrides the PostgreSQL major version (`16`) |
 | `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GITHUB_CLIENT_ID`, `OAUTH_FACEBOOK_CLIENT_ID` | Optional (login OAuth) |
 | `OAUTH_GOOGLE_SHEETS_CLIENT_ID` | Optional; Google Sheets Connection OAuth client id |
+| `OAUTH_GOOGLE_ANALYTICS_CLIENT_ID` | Optional; Google Analytics Connection OAuth client id |
+| `OAUTH_GOOGLE_BUSINESS_CLIENT_ID` | Optional; Google Business Profile Connection OAuth client id |
+| `OAUTH_GOOGLE_WORKSPACE_CLIENT_ID` | Optional; Google Workspace Connection OAuth client id |
 | `MAIL_PROVIDER` | Optional (`stub` default, set `smtp` for real mail) |
 | `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER` | Optional SMTP settings |
 | `SIGNUP_ADMIN_EMAIL` | Optional; prod signup alerts (default `admin@kodem.co.il`) |
@@ -143,10 +146,13 @@ Secrets:
 | `JWT_SECRET` | API token signing key |
 | `OAUTH_GOOGLE_CLIENT_SECRET`, `OAUTH_GITHUB_CLIENT_SECRET`, `OAUTH_FACEBOOK_CLIENT_SECRET` | Optional (login OAuth) |
 | `OAUTH_GOOGLE_SHEETS_CLIENT_SECRET` | Optional; Google Sheets Connection OAuth client secret |
+| `OAUTH_GOOGLE_ANALYTICS_CLIENT_SECRET` | Optional; Google Analytics Connection OAuth client secret |
+| `OAUTH_GOOGLE_BUSINESS_CLIENT_SECRET` | Optional; Google Business Profile Connection OAuth client secret |
+| `OAUTH_GOOGLE_WORKSPACE_CLIENT_SECRET` | Optional; Google Workspace Connection OAuth client secret |
 | `CONNECTION_CREDENTIALS_KEY` | Optional but required before using Connections in cloud; encrypts stored OAuth tokens |
 | `SMTP_PASS` | Optional SMTP password when `MAIL_PROVIDER=smtp` |
 
-OAuth values left unset fall back to placeholders so the api still boots. Sheets connect stays disabled until `OAUTH_GOOGLE_SHEETS_*` are set. Secrets cannot
+OAuth values left unset fall back to placeholders so the api still boots. Connection OAuth (`OAUTH_GOOGLE_SHEETS_*`, `OAUTH_GOOGLE_ANALYTICS_*`, `OAUTH_GOOGLE_BUSINESS_*`, `OAUTH_GOOGLE_WORKSPACE_*`) stays disabled until set. Secrets cannot
 be named with a `GITHUB_` prefix, which is why the OAuth ones use `OAUTH_`.
 
 For each environment, register this redirect URI on the **Sheets** OAuth client (not login):

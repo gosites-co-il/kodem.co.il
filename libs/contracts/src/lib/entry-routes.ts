@@ -23,6 +23,8 @@ export const ENTRY_ROUTES = {
   crm: '/crm',
   terms: '/terms',
   privacy: '/privacy',
+  cookies: '/cookies',
+  aiTerms: '/ai-terms',
 } as const;
 
 export type EntryRoute = (typeof ENTRY_ROUTES)[keyof typeof ENTRY_ROUTES];

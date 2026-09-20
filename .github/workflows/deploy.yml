@@ -234,6 +234,12 @@ jobs:
           OAUTH_GOOGLE_CLIENT_SECRET: ${{ secrets.OAUTH_GOOGLE_CLIENT_SECRET }}
           OAUTH_GOOGLE_SHEETS_CLIENT_ID: ${{ vars.OAUTH_GOOGLE_SHEETS_CLIENT_ID }}
           OAUTH_GOOGLE_SHEETS_CLIENT_SECRET: ${{ secrets.OAUTH_GOOGLE_SHEETS_CLIENT_SECRET }}
+          OAUTH_GOOGLE_ANALYTICS_CLIENT_ID: ${{ vars.OAUTH_GOOGLE_ANALYTICS_CLIENT_ID }}
+          OAUTH_GOOGLE_ANALYTICS_CLIENT_SECRET: ${{ secrets.OAUTH_GOOGLE_ANALYTICS_CLIENT_SECRET }}
+          OAUTH_GOOGLE_BUSINESS_CLIENT_ID: ${{ vars.OAUTH_GOOGLE_BUSINESS_CLIENT_ID }}
+          OAUTH_GOOGLE_BUSINESS_CLIENT_SECRET: ${{ secrets.OAUTH_GOOGLE_BUSINESS_CLIENT_SECRET }}
+          OAUTH_GOOGLE_WORKSPACE_CLIENT_ID: ${{ vars.OAUTH_GOOGLE_WORKSPACE_CLIENT_ID }}
+          OAUTH_GOOGLE_WORKSPACE_CLIENT_SECRET: ${{ secrets.OAUTH_GOOGLE_WORKSPACE_CLIENT_SECRET }}
           CONNECTION_CREDENTIALS_KEY: ${{ secrets.CONNECTION_CREDENTIALS_KEY }}
           OAUTH_GITHUB_CLIENT_ID: ${{ vars.OAUTH_GITHUB_CLIENT_ID }}
           OAUTH_GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
@@ -416,6 +422,12 @@ jobs:
                 googleClientSecret="$OAUTH_GOOGLE_CLIENT_SECRET" \
                 googleSheetsClientId="${OAUTH_GOOGLE_SHEETS_CLIENT_ID:-}" \
                 googleSheetsClientSecret="${OAUTH_GOOGLE_SHEETS_CLIENT_SECRET:-}" \
+                googleAnalyticsClientId="${OAUTH_GOOGLE_ANALYTICS_CLIENT_ID:-}" \
+                googleAnalyticsClientSecret="${OAUTH_GOOGLE_ANALYTICS_CLIENT_SECRET:-}" \
+                googleBusinessClientId="${OAUTH_GOOGLE_BUSINESS_CLIENT_ID:-}" \
+                googleBusinessClientSecret="${OAUTH_GOOGLE_BUSINESS_CLIENT_SECRET:-}" \
+                googleWorkspaceClientId="${OAUTH_GOOGLE_WORKSPACE_CLIENT_ID:-}" \
+                googleWorkspaceClientSecret="${OAUTH_GOOGLE_WORKSPACE_CLIENT_SECRET:-}" \
                 connectionCredentialsKey="${CONNECTION_CREDENTIALS_KEY:-}" \
                 githubClientId="$OAUTH_GITHUB_CLIENT_ID" \
                 githubClientSecret="$OAUTH_GITHUB_CLIENT_SECRET" \

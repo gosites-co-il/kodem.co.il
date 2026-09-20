@@ -25,6 +25,8 @@ export type CookieBannerProps = {
   className?: string;
   privacyHref?: string;
   privacyLabel?: string;
+  cookiesHref?: string;
+  cookiesLabel?: string;
   message?: string;
   categories?: CookieBannerCategory[];
   labels?: {
@@ -58,6 +60,8 @@ export function CookieBanner({
   className,
   privacyHref = '/privacy',
   privacyLabel = 'מדיניות פרטיות',
+  cookiesHref = '/cookies',
+  cookiesLabel = 'מדיניות Cookies',
   message = 'אנחנו משתמשים בעוגיות כדי להפעיל את האתר, למדוד שימוש ולשפר את החוויה. אפשר לאשר הכל, לדחות עוגיות שאינן הכרחיות, או להתאים.',
   categories = DEFAULT_CATEGORIES,
   labels,
@@ -197,6 +201,17 @@ export function CookieBanner({
                 className="font-medium text-foreground underline-offset-4 hover:underline"
               >
                 {privacyLabel}
+              </a>
+            ) : null}
+            {privacyHref && cookiesHref ? (
+              <span className="text-muted-foreground"> · </span>
+            ) : null}
+            {cookiesHref ? (
+              <a
+                href={cookiesHref}
+                className="font-medium text-foreground underline-offset-4 hover:underline"
+              >
+                {cookiesLabel}
               </a>
             ) : null}
           </p>

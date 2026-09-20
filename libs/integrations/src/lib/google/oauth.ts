@@ -83,6 +83,28 @@ export function googleScopesFor(
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive.file',
       ];
+    case 'google_analytics':
+      return [
+        'openid',
+        'email',
+        'profile',
+        'https://www.googleapis.com/auth/analytics.readonly',
+      ];
+    case 'google_business':
+      return [
+        'openid',
+        'email',
+        'profile',
+        'https://www.googleapis.com/auth/business.manage',
+      ];
+    case 'google_workspace':
+      return [
+        'openid',
+        'email',
+        'profile',
+        'https://www.googleapis.com/auth/gmail.readonly',
+        'https://www.googleapis.com/auth/gmail.send',
+      ];
     default:
       return null;
   }

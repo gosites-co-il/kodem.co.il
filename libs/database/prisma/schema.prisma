@@ -64,6 +64,29 @@ model User {
   invitesSent     WorkspaceInvite[] @relation("InviteSender")
   auditEvents     AuditEvent[]      @relation("AuditActor")
   connectionsCreated WorkspaceConnection[] @relation("ConnectionCreator")
+  legalConsents   LegalConsent[]
+}
+
+/// Append-only record of a user accepting a specific legal document version.
+model LegalConsent {
+  id          String   @id
+  userId      String
+  document    String
+  version     String
+  acceptedAt  DateTime @default(now())
+  source      String
+  ip          String?
+  userAgent   String?
+  locale      String?
+  authMethod  String?
+  workspaceId String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, document])
+  @@index([userId, document, version])
+  @@index([acceptedAt])
 }
 
 model Member {

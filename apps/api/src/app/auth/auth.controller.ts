@@ -11,6 +11,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
 import { OAuthProfile } from '@kodem/contracts';
+import type { RegisterInput } from '@kodem/contracts';
 import { ApiAuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
@@ -31,14 +32,33 @@ export class AuthController {
 
   @Post('register')
   async register(
-    @Body() body: { email: string; name: string; password: string },
+    @Body()
+    body: {
+      email: string;
+      name: string;
+      password: string;
+      legalConsents?: Array<{ document: string; version: string }>;
+    },
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     if (!body.email || !body.name || !body.password) {
       throw new BadRequestException('email, name, and password are required');
     }
     try {
-      const result = await this.authService.register(body);
+      const result = await this.authService.register(
+        {
+          email: body.email,
+          name: body.name,
+          password: body.password,
+          legalConsents: (body.legalConsents ?? []) as RegisterInput['legalConsents'],
+        },
+        {
+          ip: req.ip ?? req.headers['x-forwarded-for']?.toString(),
+          userAgent: req.headers['user-agent'],
+          locale: 'he-IL',
+        },
+      );
       setRefreshCookie(res, result.refreshToken);
       setAccessCookie(res, result.accessToken);
       return this.authService.stripRefresh(result);

@@ -3,5 +3,5 @@
 import { CookieBanner } from '@kodem/design-system/components/ui/cookie-banner';
 
 export function SiteCookieBanner() {
-  return <CookieBanner privacyHref="/privacy" />;
+  return <CookieBanner privacyHref="/privacy" cookiesHref="/cookies" />;
 }

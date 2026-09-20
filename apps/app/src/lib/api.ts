@@ -6,6 +6,9 @@ import type {
   ChannelCatalogItem,
   ConfigureChannelInput,
   ConnectionActionResult,
+  ConnectionAnalyticsPropertiesResult,
+  ConnectionBusinessLocationsResult,
+  ConnectionCapability,
   ConnectionCatalogItem,
   ConnectionPreviewResult,
   ConnectionSheetsListResult,
@@ -171,7 +174,12 @@ function persistAuthTokens(result: AuthResult): AuthResult {
 }
 
 export const api = {
-  register(body: { email: string; name: string; password: string }) {
+  register(body: {
+    email: string;
+    name: string;
+    password: string;
+    legalConsents: Array<{ document: string; version: string }>;
+  }) {
     return request<AuthResult>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(body),
@@ -628,7 +636,7 @@ export const api = {
   connectIntegration(
     integrationId: string,
     body?: {
-      capabilities?: import('@kodem/contracts').ConnectionCapability[];
+      capabilities?: ConnectionCapability[];
       accessMode?: 'full' | 'readonly';
     },
   ) {
@@ -649,7 +657,12 @@ export const api = {
 
   bindConnectionResource(
     id: string,
-    body: { spreadsheetUrl?: string; spreadsheetId?: string },
+    body: {
+      spreadsheetUrl?: string;
+      spreadsheetId?: string;
+      propertyId?: string;
+      locationName?: string;
+    },
   ) {
     return request<ConnectionActionResult>(`/connections/${id}/resource`, {
       method: 'POST',
@@ -660,6 +673,18 @@ export const api = {
   listConnectionSheets(id: string) {
     return request<ConnectionSheetsListResult | ConnectionActionResult>(
       `/connections/${id}/sheets`,
+    );
+  },
+
+  listConnectionAnalyticsProperties(id: string) {
+    return request<ConnectionAnalyticsPropertiesResult | ConnectionActionResult>(
+      `/connections/${id}/analytics/properties`,
+    );
+  },
+
+  listConnectionBusinessLocations(id: string) {
+    return request<ConnectionBusinessLocationsResult | ConnectionActionResult>(
+      `/connections/${id}/business/locations`,
     );
   },
 
@@ -702,6 +727,39 @@ export const api = {
 
   disconnectChannel(type: string) {
     return request<{ ok: boolean }>(`/channels/${type}`, { method: 'DELETE' });
+  },
+
+  stubEmailSend(body: { to?: string; subject?: string; body?: string }) {
+    return request<{ success: boolean; stub: true; message: string }>(
+      '/channels/email/send',
+      { method: 'POST', body: JSON.stringify(body) },
+    );
+  },
+
+  stubEmailMessages() {
+    return request<{ messages: []; stub: true; message?: string }>(
+      '/channels/email/messages',
+    );
+  },
+
+  getLegalStatus() {
+    return request<{ pending: import('@kodem/contracts').PendingLegalDocument[] }>(
+      '/legal/status',
+    );
+  },
+
+  acceptLegalConsent(body: {
+    consents: Array<{ document: string; version: string }>;
+    source?: import('@kodem/contracts').LegalConsentSource;
+    authMethod?: import('@kodem/contracts').LegalAuthMethod;
+  }) {
+    return request<{
+      ok: true;
+      status: { pending: import('@kodem/contracts').PendingLegalDocument[] };
+    }>('/legal/consent', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
   },
 };
 

@@ -6,7 +6,7 @@ Overview: [`../connections-and-channels.md`](../connections-and-channels.md).
 
 | Type | Doc | Status | Typical Connections |
 |------|-----|--------|---------------------|
-| `email` | [email.md](email.md) | coming_soon | Google Workspace, Microsoft 365, SMTP |
+| `email` | [email.md](email.md) | available (stubs) | Google Workspace |
 | `whatsapp` | [whatsapp.md](whatsapp.md) | coming_soon | Meta / WhatsApp Business |
 | `instagram` | [instagram.md](instagram.md) | coming_soon | Meta |
 | `facebook_messenger` | [facebook-messenger.md](facebook-messenger.md) | coming_soon | Meta |

@@ -26,10 +26,14 @@ export interface PlatformContext {
   membership: Member;
 }
 
+import { LegalConsentAcceptanceInput } from './legal';
+
 export interface RegisterInput {
   email: string;
   name: string;
   password: string;
+  /** Required TERMS + PRIVACY acceptances for the current published versions. */
+  legalConsents: LegalConsentAcceptanceInput[];
 }
 
 export interface LoginInput {

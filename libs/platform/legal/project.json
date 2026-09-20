@@ -1,0 +1,8 @@
+{
+  "name": "platform-legal",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/platform/legal/src",
+  "projectType": "library",
+  "tags": ["scope:platform", "type:feature"],
+  "targets": {}
+}

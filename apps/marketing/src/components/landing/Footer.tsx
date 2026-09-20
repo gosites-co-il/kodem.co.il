@@ -9,16 +9,28 @@ export function Footer() {
         <p className="text-lg font-bold">{SITE_CONFIG.name}</p>
         <nav aria-label="קישורים משפטיים" className="flex flex-wrap justify-center gap-4 text-sm">
           <a
+            href="/terms"
+            className="cursor-pointer text-muted-foreground hover:text-foreground"
+          >
+            תקנון שימוש
+          </a>
+          <a
             href="/privacy"
             className="cursor-pointer text-muted-foreground hover:text-foreground"
           >
             מדיניות פרטיות
           </a>
           <a
-            href="/terms"
+            href="/cookies"
             className="cursor-pointer text-muted-foreground hover:text-foreground"
           >
-            תנאי שימוש
+            מדיניות Cookies
+          </a>
+          <a
+            href="/ai-terms"
+            className="cursor-pointer text-muted-foreground hover:text-foreground"
+          >
+            תנאי שימוש ב-AI
           </a>
         </nav>
         <p className="text-xs text-muted-foreground">

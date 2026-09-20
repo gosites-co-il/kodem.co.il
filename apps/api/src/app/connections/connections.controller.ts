@@ -59,6 +59,38 @@ export class ConnectionsController {
     return result;
   }
 
+  @Get(':id/analytics/properties')
+  @RequirePermissions('connections:use')
+  async listAnalyticsProperties(
+    @CurrentContext() context: PlatformContext,
+    @Param('id') id: string,
+  ) {
+    const result = await this.connections.listAnalyticsProperties(
+      context.workspace.id,
+      id,
+    );
+    if (isActionResult(result) && !result.success) {
+      return result;
+    }
+    return result;
+  }
+
+  @Get(':id/business/locations')
+  @RequirePermissions('connections:use')
+  async listBusinessLocations(
+    @CurrentContext() context: PlatformContext,
+    @Param('id') id: string,
+  ) {
+    const result = await this.connections.listBusinessLocations(
+      context.workspace.id,
+      id,
+    );
+    if (isActionResult(result) && !result.success) {
+      return result;
+    }
+    return result;
+  }
+
   @Get(':id/preview')
   @RequirePermissions('connections:use')
   async preview(

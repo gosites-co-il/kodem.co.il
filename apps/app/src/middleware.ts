@@ -9,6 +9,8 @@ const publicPaths = [
   ROUTES.verifyEmail,
   ROUTES.terms,
   ROUTES.privacy,
+  ROUTES.cookies,
+  ROUTES.aiTerms,
   '/invite',
 ];
 
@@ -74,5 +76,7 @@ export const config = {
     '/auth/verify-email',
     '/terms',
     '/privacy',
+    '/cookies',
+    '/ai-terms',
   ],
 };

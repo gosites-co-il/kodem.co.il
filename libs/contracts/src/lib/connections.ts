@@ -128,9 +128,27 @@ export interface GoogleSheetsConnectionMetadata {
   lastBoundAt?: string;
 }
 
+/** google_analytics metadata: { propertyId, propertyName?, lastBoundAt? } */
+export interface GoogleAnalyticsConnectionMetadata {
+  propertyId: string;
+  propertyName?: string;
+  lastBoundAt?: string;
+}
+
+/** google_business metadata: { locationName, locationTitle?, lastBoundAt? } */
+export interface GoogleBusinessConnectionMetadata {
+  locationName: string;
+  locationTitle?: string;
+  lastBoundAt?: string;
+}
+
 export interface BindConnectionResourceInput {
   spreadsheetUrl?: string;
   spreadsheetId?: string;
+  /** GA4 property id (with or without `properties/` prefix). */
+  propertyId?: string;
+  /** Business Profile location resource name. */
+  locationName?: string;
 }
 
 export interface ConnectionSheetTab {
@@ -148,4 +166,24 @@ export interface ConnectionPreviewResult {
   spreadsheetId: string;
   range: string;
   values: string[][];
+}
+
+export interface ConnectionAnalyticsProperty {
+  propertyId: string;
+  displayName: string;
+  accountDisplayName?: string;
+}
+
+export interface ConnectionAnalyticsPropertiesResult {
+  properties: ConnectionAnalyticsProperty[];
+}
+
+export interface ConnectionBusinessLocation {
+  locationName: string;
+  title: string;
+  accountName?: string;
+}
+
+export interface ConnectionBusinessLocationsResult {
+  locations: ConnectionBusinessLocation[];
 }

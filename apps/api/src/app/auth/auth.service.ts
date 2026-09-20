@@ -30,8 +30,8 @@ export class ApiAuthService {
     this.oauthService = new OAuthService(this.authService);
   }
 
-  register(input: RegisterInput) {
-    return this.authService.register(input);
+  register(input: RegisterInput, context?: Parameters<AuthService['register']>[1]) {
+    return this.authService.register(input, context);
   }
 
   login(input: LoginInput, rateKey?: string) {
@@ -81,7 +81,10 @@ export class ApiAuthService {
       message.includes('Invalid email') ||
       message.includes('Too many') ||
       message.includes('required') ||
-      message.includes('Invalid or expired')
+      message.includes('Invalid or expired') ||
+      message.includes('Legal consent') ||
+      message.includes('Acceptance of') ||
+      message.includes('outdated version')
     ) {
       throw new BadRequestException(message);
     }

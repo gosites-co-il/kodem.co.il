@@ -11,6 +11,7 @@ import { FeatureFlagsController } from './feature-flags/feature-flags.controller
 import { CrmModule } from './crm/crm.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { ChannelsModule } from './channels/channels.module';
+import { LegalController } from './legal/legal.controller';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ChannelsModule } from './channels/channels.module';
     CatalogController,
     PlatformConfigController,
     FeatureFlagsController,
+    LegalController,
   ],
 })
 export class AppModule {}

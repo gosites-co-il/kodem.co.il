@@ -1,0 +1,11 @@
+---
+import LegalLayout from '../layouts/LegalLayout.astro';
+import { LegalDocumentPage } from '../components/legal/LegalDocumentPage';
+import { getLegalDocument } from '@kodem/platform/legal';
+
+const document = getLegalDocument('cookies');
+---
+
+<LegalLayout title={`${document.title} — KODEM`} description={document.description} path={document.route}>
+  <LegalDocumentPage client:load document={document} />
+</LegalLayout>

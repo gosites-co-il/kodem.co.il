@@ -17,6 +17,8 @@ export default defineConfig({
     resolve: {
       alias: {
         '@kodem/design-system': path.join(root, 'libs/design-system/src'),
+        '@kodem/platform/legal': path.join(root, 'libs/platform/legal/src/index.ts'),
+        '@kodem/contracts': path.join(root, 'libs/contracts/src/index.ts'),
       },
     },
   },

@@ -151,6 +151,52 @@ export class ChannelService {
       payload: { channelId: existing.channel.id, type },
     });
   }
+
+  /**
+   * Email send stub — validates channel is configured; does not call Gmail yet.
+   */
+  async stubEmailSend(
+    workspaceId: WorkspaceId,
+    input: { to?: string; subject?: string; body?: string },
+  ): Promise<{ success: boolean; stub: true; message: string }> {
+    const channel = await this.getByType(workspaceId, 'email');
+    if (!channel || channel.status !== 'connected') {
+      return {
+        success: false,
+        stub: true,
+        message: 'הגדירו את ערוץ האימייל עם חיבור Google Workspace תחילה',
+      };
+    }
+    if (!input.to?.trim()) {
+      return {
+        success: false,
+        stub: true,
+        message: 'נא להזין כתובת נמען',
+      };
+    }
+    return {
+      success: true,
+      stub: true,
+      message: `שליחה ל-${input.to.trim()} תתווסף בהמשך (stub)`,
+    };
+  }
+
+  /**
+   * Email inbox stub — empty list until Gmail sync ships.
+   */
+  async stubEmailMessages(
+    workspaceId: WorkspaceId,
+  ): Promise<{ messages: []; stub: true; message?: string }> {
+    const channel = await this.getByType(workspaceId, 'email');
+    if (!channel || channel.status !== 'connected') {
+      return {
+        messages: [],
+        stub: true,
+        message: 'הגדירו את ערוץ האימייל עם חיבור Google Workspace תחילה',
+      };
+    }
+    return { messages: [], stub: true };
+  }
 }
 
 /** Port type for CRM / modules that depend on Channels without providers. */

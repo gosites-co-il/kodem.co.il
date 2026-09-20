@@ -12,6 +12,10 @@ import { UserService } from '@kodem/platform/identity';
 import { NotificationService } from '@kodem/platform/notifications';
 import { AuditService } from '@kodem/platform/audit';
 import {
+  validateSignupConsents,
+} from '@kodem/platform/legal';
+import { LegalConsentService } from '@kodem/platform/legal/consent';
+import {
   WorkspaceResolver,
   ResolvedWorkspace,
   WorkspaceService,
@@ -24,6 +28,12 @@ import { UserRepository } from '@kodem/database';
 
 const accessTtl = process.env['ACCESS_TOKEN_TTL'] ?? '15m';
 
+export type RegisterContext = {
+  ip?: string;
+  userAgent?: string;
+  locale?: string;
+};
+
 export class AuthService {
   private readonly userService = new UserService();
   private readonly userRepo = new UserRepository();
@@ -32,6 +42,7 @@ export class AuthService {
   private readonly tokenService = new AuthTokenService();
   private readonly notifications = new NotificationService();
   private readonly audit = new AuditService();
+  private readonly legalConsent = new LegalConsentService();
   private readonly loginLimiter = new RateLimitService(20, 15 * 60 * 1000);
   private readonly resetLimiter = new RateLimitService(5, 15 * 60 * 1000);
   private readonly verifyLimiter = new RateLimitService(5, 15 * 60 * 1000);
@@ -43,9 +54,27 @@ export class AuthService {
 
   async register(
     input: RegisterInput,
+    context: RegisterContext = {},
   ): Promise<AuthResult & { refreshToken: string }> {
+    const consentCheck = validateSignupConsents(input.legalConsents);
+    if (consentCheck.ok === false) {
+      throw new Error(consentCheck.message);
+    }
+
     const user = await this.userService.createWithPassword(input);
     const resolved = await this.workspaceResolver.resolveForUser(user);
+
+    await this.legalConsent.recordSignupConsents({
+      userId: user.id,
+      consents: input.legalConsents,
+      source: 'SIGNUP',
+      ip: context.ip,
+      userAgent: context.userAgent,
+      locale: context.locale ?? 'he-IL',
+      authMethod: 'password',
+      workspaceId: resolved.workspace.id,
+    });
+
     await this.sendEmailVerification(user);
     await this.notifyAdminOfSignup(user, 'password');
     return this.issueSession(user, resolved);

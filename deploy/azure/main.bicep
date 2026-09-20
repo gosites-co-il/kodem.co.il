@@ -61,6 +61,27 @@ param googleSheetsClientId string = ''
 @description('Google Sheets Connection OAuth client secret.')
 param googleSheetsClientSecret string = ''
 
+@description('Google Analytics Connection OAuth client id.')
+param googleAnalyticsClientId string = ''
+
+@secure()
+@description('Google Analytics Connection OAuth client secret.')
+param googleAnalyticsClientSecret string = ''
+
+@description('Google Business Profile Connection OAuth client id.')
+param googleBusinessClientId string = ''
+
+@secure()
+@description('Google Business Profile Connection OAuth client secret.')
+param googleBusinessClientSecret string = ''
+
+@description('Google Workspace Connection OAuth client id.')
+param googleWorkspaceClientId string = ''
+
+@secure()
+@description('Google Workspace Connection OAuth client secret.')
+param googleWorkspaceClientSecret string = ''
+
 @secure()
 @description('AES key material for encrypting workspace connection credentials. Leave empty for a deploy placeholder (set a real secret before using Connections).')
 param connectionCredentialsKey string = ''
@@ -322,6 +343,18 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
           value: empty(googleSheetsClientSecret) ? 'google-sheets-client-secret' : googleSheetsClientSecret
         }
         {
+          name: 'google-analytics-client-secret'
+          value: empty(googleAnalyticsClientSecret) ? 'google-analytics-client-secret' : googleAnalyticsClientSecret
+        }
+        {
+          name: 'google-business-client-secret'
+          value: empty(googleBusinessClientSecret) ? 'google-business-client-secret' : googleBusinessClientSecret
+        }
+        {
+          name: 'google-workspace-client-secret'
+          value: empty(googleWorkspaceClientSecret) ? 'google-workspace-client-secret' : googleWorkspaceClientSecret
+        }
+        {
           name: 'connection-credentials-key'
           value: empty(connectionCredentialsKey) ? 'connection-credentials-key-change-me' : connectionCredentialsKey
         }
@@ -372,6 +405,15 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
             { name: 'GOOGLE_SHEETS_CLIENT_ID', value: googleSheetsClientId }
             { name: 'GOOGLE_SHEETS_CLIENT_SECRET', secretRef: 'google-sheets-client-secret' }
             { name: 'GOOGLE_SHEETS_CALLBACK_URL', value: '${resolvedAppUrl}/api/connections/oauth/google/google_sheets/callback' }
+            { name: 'GOOGLE_ANALYTICS_CLIENT_ID', value: googleAnalyticsClientId }
+            { name: 'GOOGLE_ANALYTICS_CLIENT_SECRET', secretRef: 'google-analytics-client-secret' }
+            { name: 'GOOGLE_ANALYTICS_CALLBACK_URL', value: '${resolvedAppUrl}/api/connections/oauth/google/google_analytics/callback' }
+            { name: 'GOOGLE_BUSINESS_CLIENT_ID', value: googleBusinessClientId }
+            { name: 'GOOGLE_BUSINESS_CLIENT_SECRET', secretRef: 'google-business-client-secret' }
+            { name: 'GOOGLE_BUSINESS_CALLBACK_URL', value: '${resolvedAppUrl}/api/connections/oauth/google/google_business/callback' }
+            { name: 'GOOGLE_WORKSPACE_CLIENT_ID', value: googleWorkspaceClientId }
+            { name: 'GOOGLE_WORKSPACE_CLIENT_SECRET', secretRef: 'google-workspace-client-secret' }
+            { name: 'GOOGLE_WORKSPACE_CALLBACK_URL', value: '${resolvedAppUrl}/api/connections/oauth/google/google_workspace/callback' }
             { name: 'CONNECTION_CREDENTIALS_KEY', secretRef: 'connection-credentials-key' }
             { name: 'GITHUB_CLIENT_ID', value: empty(githubClientId) ? 'github-client-id' : githubClientId }
             { name: 'GITHUB_CLIENT_SECRET', secretRef: 'github-client-secret' }

@@ -30,13 +30,8 @@ const adapters: ConnectionProviderAdapter[] = [
     ['messaging.web_chat.send', 'messaging.web_chat.receive'],
     'Kodem Web Chat',
   ),
-  stubAdapter('google_analytics', ['analytics.read'], 'Google Analytics'),
+  // google_analytics / google_business use provider `google` (shared adapter).
   stubAdapter('google_ads', ['ads.read'], 'Google Ads'),
-  stubAdapter(
-    'google_business',
-    ['local.reviews.read', 'local.listing.read'],
-    'Google Business Profile',
-  ),
 ];
 
 const byProvider = new Map(
