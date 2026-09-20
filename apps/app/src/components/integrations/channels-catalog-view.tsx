@@ -6,6 +6,7 @@ import { ArrowLeftIcon } from 'lucide-react';
 import type {
   ChannelCatalogItem,
   ConnectionCatalogItem,
+  ConnectionId,
   WorkspaceConnection,
 } from '@kodem/contracts';
 import { Badge } from '@kodem/design-system/components/ui/badge';
@@ -70,7 +71,7 @@ export function ChannelsCatalogView() {
     [connCatalog],
   );
 
-  async function configureEmail(connectionId: string) {
+  async function configureEmail(connectionId: ConnectionId) {
     if (!canManage) return;
     setBusy(true);
     setError(null);

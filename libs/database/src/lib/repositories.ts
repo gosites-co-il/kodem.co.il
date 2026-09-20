@@ -93,6 +93,9 @@ export class WorkspaceRepository {
           onboardingStatus: 'NOT_STARTED',
           onboardingStep: 0,
           websiteUrl: input.websiteUrl,
+          setupData: input.setupData
+            ? JSON.stringify(input.setupData)
+            : undefined,
         },
       }),
       this.db.member.create({
@@ -119,6 +122,7 @@ export class WorkspaceRepository {
         onboardingStatus: 'NOT_STARTED',
         onboardingStep: 0,
         websiteUrl: input.websiteUrl,
+        setupData: input.setupData,
         createdAt: now,
         updatedAt: now,
       },

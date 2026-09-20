@@ -11,28 +11,23 @@ import { useMarketingAuth } from '../../lib/marketing-auth';
 
 function GuestActions({
   mobile,
-  appLoginUrl,
   appRegisterUrl,
   onNavigate,
 }: {
   mobile?: boolean;
-  appLoginUrl: string;
   appRegisterUrl: string;
   onNavigate?: () => void;
 }) {
+  const href = appRegisterUrl || NAV_SIGNUP_HREF;
+
   if (mobile) {
     return (
-      <div className="mt-3 flex flex-col gap-2">
-        <Button asChild variant="outline" className="h-12 w-full cursor-pointer rounded-full">
-          <a href={appLoginUrl} onClick={onNavigate}>
-            התחברות
-          </a>
-        </Button>
+      <div className="mt-3">
         <Button
           asChild
           className="h-12 w-full cursor-pointer rounded-full bg-cta text-cta-foreground hover:bg-cta/90"
         >
-          <a href={appRegisterUrl || NAV_SIGNUP_HREF} onClick={onNavigate}>
+          <a href={href} onClick={onNavigate}>
             {NAV_SIGNUP_LABEL}
           </a>
         </Button>
@@ -41,23 +36,13 @@ function GuestActions({
   }
 
   return (
-    <>
-      <Button
-        asChild
-        size="sm"
-        variant="ghost"
-        className="hidden h-10 cursor-pointer rounded-full sm:inline-flex"
-      >
-        <a href={appLoginUrl}>התחברות</a>
-      </Button>
-      <Button
-        asChild
-        size="sm"
-        className="hidden h-10 cursor-pointer rounded-full bg-cta px-5 text-cta-foreground hover:bg-cta/90 sm:inline-flex"
-      >
-        <a href={appRegisterUrl || NAV_SIGNUP_HREF}>{NAV_SIGNUP_LABEL}</a>
-      </Button>
-    </>
+    <Button
+      asChild
+      size="sm"
+      className="hidden h-10 cursor-pointer rounded-full bg-cta px-5 text-cta-foreground hover:bg-cta/90 sm:inline-flex"
+    >
+      <a href={href}>{NAV_SIGNUP_LABEL}</a>
+    </Button>
   );
 }
 
@@ -128,7 +113,6 @@ export function AuthAccountMenu(
       <GuestActions
         mobile={mobile}
         onNavigate={onNavigate}
-        appLoginUrl={auth.appLoginUrl}
         appRegisterUrl={auth.appRegisterUrl}
       />
     );

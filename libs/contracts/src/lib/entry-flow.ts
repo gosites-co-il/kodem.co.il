@@ -30,13 +30,15 @@ export class EntryFlowService {
 
     const active = this.resolveActiveWorkspace(context);
 
-    // Incomplete active workspace always continues setup (skip select hop).
-    if (active && requiresOnboarding(active)) {
-      return this.resolveForWorkspace(active);
-    }
-
+    // Multi-workspace accounts always get select unless they already chose one —
+    // even when the current active workspace is mid-setup (switch / create new).
     if (context.memberships.length > 1 && !context.workspaceSelected) {
       return this.phase('workspace_select', ENTRY_ROUTES.workspaceSelect);
+    }
+
+    // Single incomplete active workspace continues setup (skip select hop).
+    if (active && requiresOnboarding(active)) {
+      return this.resolveForWorkspace(active);
     }
 
     if (!active) {

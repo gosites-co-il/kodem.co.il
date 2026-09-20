@@ -2,13 +2,15 @@ import {
   UserId,
   WorkspaceId,
   Member,
+  SETUP_JOURNEY_VERSION,
+  requiresOnboarding,
 } from '@kodem/contracts';
 import {
   WorkspaceRepository,
   MemberRepository,
   UserRepository,
 } from '@kodem/database';
-import { SubscriptionService } from '@kodem/platform/subscription';
+import { SubscriptionService, EntitlementsService } from '@kodem/platform/subscription';
 import {
   WorkspaceResolver,
   ResolvedWorkspace,
@@ -23,6 +25,7 @@ export class WorkspaceService {
   private readonly resolver = new WorkspaceResolver();
   private readonly subscriptions = new SubscriptionService();
   private readonly modules = new WorkspaceModuleService();
+  private readonly entitlements = new EntitlementsService();
 
   async getCurrentForUser(userId: UserId): Promise<ResolvedWorkspace | null> {
     const user = await this.userRepo.findById(userId);
@@ -39,10 +42,32 @@ export class WorkspaceService {
       throw new Error('User not found');
     }
 
-    const slug = input.slug ?? slugify(input.name);
+    const existingMemberships = await this.listForUser(userId);
+    // Incomplete (mid-setup) workspaces must not block starting another client.
+    const completedCount = existingMemberships.filter(
+      (m) => !requiresOnboarding(m.workspace),
+    ).length;
+    const referenceWorkspaceId =
+      existingMemberships[0]?.workspace.id ??
+      ((await this.userRepo.getActiveWorkspaceId(userId)) as WorkspaceId | null);
+    if (referenceWorkspaceId) {
+      await this.entitlements.assertLimit(
+        referenceWorkspaceId,
+        'workspaces',
+        completedCount,
+      );
+    }
+
+    let slug = input.slug?.trim()
+      ? slugify(input.slug)
+      : slugify(input.name || `ws-${Date.now().toString(36)}`);
+    // Guarantee a valid unique slug even for non-Latin names.
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length < 2) {
+      slug = `ws-${crypto.randomUUID().slice(0, 10)}`;
+    }
     const existing = await this.workspaceRepo.findBySlug(slug);
     if (existing) {
-      throw new Error(`Workspace slug "${slug}" already exists`);
+      slug = `ws-${crypto.randomUUID().slice(0, 10)}`;
     }
 
     const { workspace, memberId } = await this.workspaceRepo.createForUser({
@@ -50,6 +75,11 @@ export class WorkspaceService {
       slug,
       ownerId: userId,
       websiteUrl: input.websiteUrl,
+      setupData: {
+        setupJourneyVersion: SETUP_JOURNEY_VERSION,
+        // Same blank identity path as start-over — no corporate-email peek.
+        identityMode: 'manual',
+      },
     });
 
     await this.userRepo.setActiveWorkspace(userId, workspace.id);

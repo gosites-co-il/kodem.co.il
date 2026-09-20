@@ -37,4 +37,5 @@ export interface CreateWorkspaceForUserInput {
   slug: string;
   ownerId: UserId;
   websiteUrl?: string;
+  setupData?: WorkspaceSetupData;
 }

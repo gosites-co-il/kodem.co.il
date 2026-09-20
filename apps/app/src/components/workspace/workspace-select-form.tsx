@@ -14,7 +14,7 @@ import { Input } from '@kodem/design-system/components/ui/input';
 import { Label } from '@kodem/design-system/components/ui/label';
 import { requiresOnboarding } from '@kodem/contracts';
 import { api, isApiError, type WorkspaceListItem } from '../../lib/api';
-import { ROUTES } from '../../lib/constants';
+import { setupStartOverHref } from '../../lib/setup/routes';
 import { useAuth } from '../../providers/auth-provider';
 import { AuthShell } from '../auth/auth-shell';
 
@@ -95,10 +95,16 @@ export function WorkspaceSelectForm() {
         role: result.role,
         token: result.token,
       });
-      router.replace(ROUTES.setup);
+      // Manual identity — same path as start-over (no email domain peek).
+      router.replace(setupStartOverHref());
     } catch (err) {
+      const message = isApiError(err)
+        ? err.message
+        : 'לא ניתן ליצור סביבת עבודה.';
       setError(
-        isApiError(err) ? err.message : 'לא ניתן ליצור סביבת עבודה.',
+        /workspaces|Usage limit/i.test(message)
+          ? 'הגעתם למגבלת מספר הסביבות בתוכנית. השלימו סביבה קיימת או שדרגו תוכנית.'
+          : message,
       );
       setIsCreating(false);
       try {
