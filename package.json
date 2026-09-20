@@ -4,7 +4,7 @@
     "nx": "node node_modules/nx/dist/bin/nx.js",
     "build": "npm run nx -- run-many -t build --projects=app,api,worker,marketing",
     "prepare": "husky install && prisma generate --schema=libs/database/prisma/schema.prisma",
-    "dev": "concurrently -n next,api -c blue,green \"npm run nx -- dev app\" \"npm run nx -- serve api\"",
+    "dev": "concurrently -n next,api,marketing -c blue,green,magenta \"npm run nx -- dev app\" \"npm run nx -- serve api\" \"npm run nx -- dev marketing\"",
     "dev:app": "npm run nx -- dev app",
     "dev:api": "npm run nx -- serve api",
     "dev:worker": "npm run nx -- serve worker",
