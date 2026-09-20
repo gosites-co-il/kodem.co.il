@@ -11,7 +11,7 @@ import { LegalConsentRepository } from '@kodem/database';
 import {
   getLegalDocumentByCode,
   getRequiredSignupConsents,
-} from '../documents/registry';
+} from '@kodem/platform/legal';
 
 /**
  * Users created before this instant are grandfathered for signup-required

@@ -32,7 +32,8 @@
       "@kodem/platform/connections": ["libs/platform/connections/src/index.ts"],
       "@kodem/platform/channels": ["libs/platform/channels/src/index.ts"],
       "@kodem/platform/legal": ["libs/platform/legal/src/index.ts"],
-      "@kodem/platform/legal/consent": ["libs/platform/legal/src/consent.ts"],
+      "@kodem/platform/legal/consent": ["libs/platform/legal-consent/src/index.ts"],
+
       "@kodem/workspace/bkm": ["libs/workspace/bkm/src/index.ts"],
       "@kodem/modules/crm": ["libs/modules/crm/src/index.ts"],
       "@kodem/modules/crm/feature-leads": ["libs/modules/crm/feature-leads/src/index.ts"],

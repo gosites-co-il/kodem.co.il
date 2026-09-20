@@ -27,7 +27,10 @@ import type {
   InvitePublicView,
   Lead,
   LeadStatus,
+  LegalAuthMethod,
+  LegalConsentSource,
   Member,
+  PendingLegalDocument,
   PlanDefinition,
   PlanId,
   Recommendation,
@@ -46,6 +49,7 @@ import type {
   WorkspaceChannel,
   WorkspaceInvite,
 } from '@kodem/contracts';
+
 import { API_URL } from './constants';
 import { clearToken, getToken, setToken } from './auth/storage';
 import type { CrmOverviewResponse } from './crm';
@@ -743,19 +747,17 @@ export const api = {
   },
 
   getLegalStatus() {
-    return request<{ pending: import('@kodem/contracts').PendingLegalDocument[] }>(
-      '/legal/status',
-    );
+    return request<{ pending: PendingLegalDocument[] }>('/legal/status');
   },
 
   acceptLegalConsent(body: {
     consents: Array<{ document: string; version: string }>;
-    source?: import('@kodem/contracts').LegalConsentSource;
-    authMethod?: import('@kodem/contracts').LegalAuthMethod;
+    source?: LegalConsentSource;
+    authMethod?: LegalAuthMethod;
   }) {
     return request<{
       ok: true;
-      status: { pending: import('@kodem/contracts').PendingLegalDocument[] };
+      status: { pending: PendingLegalDocument[] };
     }>('/legal/consent', {
       method: 'POST',
       body: JSON.stringify(body),
