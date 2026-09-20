@@ -134,6 +134,10 @@ Variables:
 | `OAUTH_GOOGLE_ANALYTICS_CLIENT_ID` | Optional; Google Analytics Connection OAuth client id |
 | `OAUTH_GOOGLE_BUSINESS_CLIENT_ID` | Optional; Google Business Profile Connection OAuth client id |
 | `OAUTH_GOOGLE_WORKSPACE_CLIENT_ID` | Optional; Google Workspace Connection OAuth client id |
+| `OAUTH_META_FACEBOOK_CLIENT_ID` | Optional; Meta Facebook Connection (not login) |
+| `OAUTH_META_INSTAGRAM_CLIENT_ID` | Optional; Meta Instagram Connection |
+| `OAUTH_META_WHATSAPP_CLIENT_ID` | Optional; Meta WhatsApp Connection |
+| `META_WEBHOOK_VERIFY_TOKEN` | Optional; Meta webhook hub.verify_token |
 | `MAIL_PROVIDER` | Optional (`stub` default, set `smtp` for real mail) |
 | `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER` | Optional SMTP settings |
 | `SIGNUP_ADMIN_EMAIL` | Optional; prod signup alerts (default `admin@kodem.co.il`) |
@@ -149,6 +153,10 @@ Secrets:
 | `OAUTH_GOOGLE_ANALYTICS_CLIENT_SECRET` | Optional; Google Analytics Connection OAuth client secret |
 | `OAUTH_GOOGLE_BUSINESS_CLIENT_SECRET` | Optional; Google Business Profile Connection OAuth client secret |
 | `OAUTH_GOOGLE_WORKSPACE_CLIENT_SECRET` | Optional; Google Workspace Connection OAuth client secret |
+| `OAUTH_META_FACEBOOK_CLIENT_SECRET` | Optional; Meta Facebook Connection secret |
+| `OAUTH_META_INSTAGRAM_CLIENT_SECRET` | Optional; Meta Instagram Connection secret |
+| `OAUTH_META_WHATSAPP_CLIENT_SECRET` | Optional; Meta WhatsApp Connection secret |
+| `META_APP_SECRET` | Optional; Meta webhook signature (`X-Hub-Signature-256`) |
 | `CONNECTION_CREDENTIALS_KEY` | Optional but required before using Connections in cloud; encrypts stored OAuth tokens |
 | `SMTP_PASS` | Optional SMTP password when `MAIL_PROVIDER=smtp` |
 

@@ -26,10 +26,18 @@ Dedicated OAuth client. Azure: `OAUTH_GOOGLE_BUSINESS_CLIENT_ID` / `_SECRET`.
 
 ## Enable APIs
 
-1. **My Business Account Management API**
-2. **My Business Business Information API**
+1. **My Business Account Management API** (`mybusinessaccountmanagement.googleapis.com`)
+2. **My Business Business Information API** (`mybusinessbusinessinformation.googleapis.com`)
 
-(Exact names in Cloud Console may be “Business Profile …”.)
+### Quota `0` / 429 RESOURCE_EXHAUSTED
+
+If list/bind fails with `quota_limit_value: "0"`, the project has **no** Requests-per-minute quota yet (not a temporary burst).
+
+1. Cloud Console → **APIs & Services → Enabled APIs** — confirm both APIs above are enabled on the **same** project as the OAuth client.
+2. **IAM & Admin → Quotas** (or API → Quotas) → find `DefaultRequestsPerMinutePerProject` for Account Management → **Edit quotas** / request increase (even a small limit like 60).
+3. Wait for Google to approve; until then use **קשר לפי מזהה** in the UI (`locations/{id}`).
+
+Binding by location id still calls Business Information API (get location) — that API needs quota too.
 
 ## Install (local)
 

@@ -1,5 +1,7 @@
 const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
 const PREVIEW_ROW_CAP = 20;
+export const SHEETS_IMPORT_ROW_CAP = 500;
+export const SHEETS_IMPORT_ROW_HARD_CAP = 1000;
 
 /** Accepts a full Sheets URL or a bare spreadsheet id. */
 export function parseSpreadsheetId(urlOrId: string): string | null {
@@ -59,7 +61,12 @@ export async function getValues(
   accessToken: string,
   spreadsheetId: string,
   range: string,
+  opts?: { maxRows?: number },
 ): Promise<{ range: string; values: string[][] }> {
+  const maxRows = Math.min(
+    Math.max(opts?.maxRows ?? PREVIEW_ROW_CAP, 1),
+    SHEETS_IMPORT_ROW_HARD_CAP,
+  );
   const encodedRange = encodeURIComponent(range);
   const url = `${SHEETS_API}/${encodeURIComponent(spreadsheetId)}/values/${encodedRange}?majorDimension=ROWS`;
 
@@ -74,7 +81,7 @@ export async function getValues(
     range?: string;
     values?: string[][];
   };
-  const values = (json.values ?? []).slice(0, PREVIEW_ROW_CAP).map((row) =>
+  const values = (json.values ?? []).slice(0, maxRows).map((row) =>
     row.map((cell) => String(cell ?? '')),
   );
 
@@ -84,11 +91,30 @@ export async function getValues(
   };
 }
 
-export function defaultPreviewRange(sheetTitle: string): string {
-  const escaped = sheetTitle.includes("'") || /[\s!]/.test(sheetTitle)
+function quoteSheetTitle(sheetTitle: string): string {
+  return sheetTitle.includes("'") || /[\s!]/.test(sheetTitle)
     ? `'${sheetTitle.replace(/'/g, "''")}'`
     : sheetTitle;
-  return `${escaped}!A1:Z${PREVIEW_ROW_CAP}`;
+}
+
+export function defaultSheetRange(sheetTitle: string, endRow: number): string {
+  return `${quoteSheetTitle(sheetTitle)}!A1:Z${endRow}`;
+}
+
+export function defaultPreviewRange(sheetTitle: string): string {
+  return defaultSheetRange(sheetTitle, PREVIEW_ROW_CAP);
+}
+
+export function defaultImportRange(
+  sheetTitle: string,
+  maxRows = SHEETS_IMPORT_ROW_CAP,
+): string {
+  const capped = Math.min(
+    Math.max(maxRows, 1),
+    SHEETS_IMPORT_ROW_HARD_CAP,
+  );
+  // +1 so header row is included in the fetch window
+  return defaultSheetRange(sheetTitle, capped + 1);
 }
 
 function googleSheetsError(status: number, body: string): Error {

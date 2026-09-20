@@ -9,9 +9,9 @@ Workspace integrations for external providers (**Connections**) and customer com
 | **Connections** | [`connections/README.md`](connections/README.md) |
 | **Channels** | [`channels/README.md`](channels/README.md) |
 
-**Available:** [Sheets](connections/google-sheets.md), [Analytics](connections/google-analytics.md), [Business Profile](connections/google-business.md), [Workspace](connections/google-workspace.md) + [Email channel stubs](channels/email.md).
+**Available:** [Sheets](connections/google-sheets.md), [Analytics](connections/google-analytics.md), [Business Profile](connections/google-business.md), [Workspace](connections/google-workspace.md) + [Email](channels/email.md); [Facebook](connections/facebook.md), [Instagram](connections/instagram.md), [WhatsApp](connections/whatsapp.md) + matching channels.
 
-**Next phase:** [Google Ads](connections/google-ads.md) (developer token).
+**Later:** [Google Ads](connections/google-ads.md) (developer token).
 
 ## Concepts
 
@@ -78,6 +78,11 @@ Per-connection install guides under [`connections/`](connections/). Azure deploy
 ## Phase status
 
 - **Phase 0–0.6 (done):** Sheets OAuth, bind/preview, multi-connection, connected vs active, detail routes.
-- **Phase 1 (done):** Analytics + Business Profile (bind resource + test); Workspace OAuth + Email channel stubs.
-- **Sheets next:** TODO in [`connections/google-sheets.md`](connections/google-sheets.md).
-- **Ads next:** developer token — [`connections/google-ads.md`](connections/google-ads.md). Then Meta → WhatsApp Channel.
+- **Phase 1 (done):** Analytics + Business Profile; Workspace + Email; Sheets CRM import.
+- **Phase 2 (done):** Meta — Facebook / Instagram / WhatsApp Connections + Channels (send/list + webhook receive).
+- **Next:**
+  1. **Fix Business Profile quota** (ops) — see [`connections/google-business.md`](connections/google-business.md).
+  2. Meta App Review / Advanced Access for production messaging.
+  3. WhatsApp Embedded Signup fallback when phone list is empty.
+- **Later:** Google Ads — [`connections/google-ads.md`](connections/google-ads.md).
+- **Sheets backlog:** unbind, reconnect UX, primary tab, sync, Picker — see [`connections/google-sheets.md`](connections/google-sheets.md).

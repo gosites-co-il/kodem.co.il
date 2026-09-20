@@ -4,17 +4,23 @@
 |-------|--------|
 | **Type** | `whatsapp` |
 | **Name** | WhatsApp |
-| **Status** | coming_soon |
+| **Status** | **available** |
 | **Allowed providers** | `meta` |
-
-WhatsApp Business messaging with contacts and campaigns.
 
 ## Related Connections
 
 - [WhatsApp Connection](../connections/whatsapp.md)
-- [Meta](../connections/meta.md)
 
-## Notes
+## Configure
 
-- Highest-priority Channel after Sheets Connection usefulness for Israeli SMB + CRM.
-- Requires Meta Business / Cloud API app, webhooks, and phone number binding in Connection metadata.
+1. Connect + bind phone under חיבורים.
+2. ערוצים → WhatsApp → **הגדר עם …**.
+3. **שלח** / **טען תיבה** (inbound from webhook buffer).
+
+## APIs
+
+| Method | Route |
+|--------|-------|
+| POST | `/api/channels/whatsapp/send` `{ to, body }` |
+| GET | `/api/channels/whatsapp/messages` |
+| GET/POST | `/api/channels/meta/webhook` |

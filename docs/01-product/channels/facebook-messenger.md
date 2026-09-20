@@ -4,15 +4,16 @@
 |-------|--------|
 | **Type** | `facebook_messenger` |
 | **Name** | Facebook Messenger |
-| **Status** | coming_soon |
+| **Status** | **available** |
 | **Allowed providers** | `meta` |
-
-Messenger conversations with Page contacts.
 
 ## Related Connections
 
-- [Meta](../connections/meta.md)
+- [Facebook](../connections/facebook.md)
 
-## Notes
+## APIs
 
-- Shares Meta Connection with Instagram / WhatsApp where the app allows.
+| Method | Route |
+|--------|-------|
+| POST | `/api/channels/facebook-messenger/send` `{ to, body }` |
+| GET | `/api/channels/facebook-messenger/messages` |

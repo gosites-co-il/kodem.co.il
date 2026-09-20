@@ -50,6 +50,7 @@ Azure (GitHub Environment): `OAUTH_GOOGLE_SHEETS_CLIENT_ID`, `OAUTH_GOOGLE_SHEET
 7. After OAuth, URL becomes `/workspace/integrations/connections/google_sheets` and the left detail sheet opens.
 8. On each connection instance: Status (**מחובר**), **פעיל** switch, **בדוק חיבור**, permission badge.
 9. With the instance **active**, paste a spreadsheet URL → **קשר קובץ** → pick tab → preview.
+10. Map columns → **ייבא לאנשי קשר** (one-shot; requires CRM module).
 
 ## Connected vs active
 
@@ -71,6 +72,7 @@ A workspace may have **multiple** Google Sheets connections (different Google ac
 | POST | `/api/connections/:id/resource` | `connections:manage` |
 | GET | `/api/connections/:id/sheets` | `connections:use` |
 | GET | `/api/connections/:id/preview?sheet=` | `connections:use` |
+| POST | `/api/connections/:id/import/contacts` | `connections:use` + CRM module |
 | POST | `/api/connections/:id/active` | `connections:manage` |
 | POST | `/api/connections/:id/test` | `connections:manage` |
 
@@ -118,7 +120,7 @@ OAuth uses `include_granted_scopes=false` so a prior full grant on the same Goog
 
 Leave for later (do not block current Sheets connection work):
 
-1. **Column mapping → CRM** — Infer headers from the preview row, map to contact fields, one-shot import (product payoff of bind + preview).
+1. ~~**Column mapping → CRM**~~ **(done)** — Infer headers from preview, map to contact fields, one-shot import (`POST .../import/contacts`).
 2. **Change / clear bound file** — Unbind or replace spreadsheet URL without deleting the OAuth connection.
 3. **Expired / error recovery** — On `expired` / `error`, clear **חדש חיבור** that reuses the same connection instance.
 4. **Primary tab** — Persist chosen sheet tab in `metadata` (not only for preview) so sync/import always target the right tab.
@@ -127,5 +129,6 @@ Leave for later (do not block current Sheets connection work):
 7. **Recurring sync** — Worker job: pull rows on a schedule or on demand (needs mapping + primary tab first).
 8. **Quota / rate-limit messaging** — Friendly Hebrew errors for Google 429 / 403 instead of generic failure.
 9. **Google Picker (browse)** — Optional browse via Picker under `drive.file`; keep paste URL for shared / read-only. Do **not** add broad Drive list scopes for a custom file browser.
+10. **Import upgrades** — Dedupe by email, update existing contacts, raise row cap / pagination.
 
-Suggested order: **1 → 2 → 3**, then sync after mapping exists.
+Suggested Sheets order next: **2 → 3 → 4**, then sync after primary tab exists.

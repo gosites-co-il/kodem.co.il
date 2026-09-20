@@ -1,26 +1,23 @@
-# Connection: Meta
+# Meta connections (index)
 
-| Field | Value |
-|-------|--------|
-| **Id** | `meta` |
-| **Provider** | `meta` |
-| **Category** | social |
-| **Status** | coming_soon |
-| **Capabilities** | Instagram / Messenger / WhatsApp messaging send & receive |
-| **Backs channels** | [Instagram](../channels/instagram.md), [Facebook Messenger](../channels/facebook-messenger.md), [WhatsApp](../channels/whatsapp.md) |
+Meta messaging is split into **three Connections** (not one Meta card):
 
-Facebook / Instagram (and WhatsApp capabilities via Meta) as a single Connection that can back multiple Channels.
+| Id | Doc | Backs channel |
+|----|-----|---------------|
+| `facebook` | [facebook.md](facebook.md) | [Facebook Messenger](../channels/facebook-messenger.md) |
+| `instagram` | [instagram.md](instagram.md) | [Instagram](../channels/instagram.md) |
+| `whatsapp` | [whatsapp.md](whatsapp.md) | [WhatsApp](../channels/whatsapp.md) |
 
-## Planned env
+Shared provider adapter: `meta`. OAuth callback:
 
-```env
-META_CLIENT_ID=
-META_CLIENT_SECRET=
-META_CALLBACK_URL=http://localhost:3000/api/connections/oauth/meta/meta/callback
-# Webhooks / app secret / verify token as needed
+```
+{APP_URL}/api/connections/oauth/meta/{integrationId}/callback
 ```
 
-## Notes
+Webhook (inbound):
 
-- Prefer Meta Connection + Channel bindings over duplicating OAuth per messaging surface where Meta allows one app.
-- Related catalog entry: [`whatsapp.md`](whatsapp.md) (WhatsApp-focused Connection).
+```
+{APP_URL}/api/channels/meta/webhook
+```
+
+Do **not** reuse login `FACEBOOK_CLIENT_*` — use `META_FACEBOOK_*` / `META_INSTAGRAM_*` / `META_WHATSAPP_*`.

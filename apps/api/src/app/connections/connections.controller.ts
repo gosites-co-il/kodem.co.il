@@ -11,12 +11,15 @@ import {
 import type {
   BindConnectionResourceInput,
   ConnectionActionResult,
+  ImportContactsFromSheetsInput,
   IntegrationId,
   PlatformContext,
 } from '@kodem/contracts';
 import { ConnectionService } from '@kodem/platform/connections';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ModuleGuard } from '../auth/guards/module.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequireModule } from '../auth/decorators/require-module.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { CurrentContext } from '../auth/decorators/current-context.decorator';
 
@@ -91,6 +94,54 @@ export class ConnectionsController {
     return result;
   }
 
+  @Get(':id/facebook/pages')
+  @RequirePermissions('connections:use')
+  async listFacebookPages(
+    @CurrentContext() context: PlatformContext,
+    @Param('id') id: string,
+  ) {
+    const result = await this.connections.listFacebookPages(
+      context.workspace.id,
+      id,
+    );
+    if (isActionResult(result) && !result.success) {
+      return result;
+    }
+    return result;
+  }
+
+  @Get(':id/instagram/accounts')
+  @RequirePermissions('connections:use')
+  async listInstagramAccounts(
+    @CurrentContext() context: PlatformContext,
+    @Param('id') id: string,
+  ) {
+    const result = await this.connections.listInstagramAccounts(
+      context.workspace.id,
+      id,
+    );
+    if (isActionResult(result) && !result.success) {
+      return result;
+    }
+    return result;
+  }
+
+  @Get(':id/whatsapp/phone-numbers')
+  @RequirePermissions('connections:use')
+  async listWhatsAppPhoneNumbers(
+    @CurrentContext() context: PlatformContext,
+    @Param('id') id: string,
+  ) {
+    const result = await this.connections.listWhatsAppPhoneNumbers(
+      context.workspace.id,
+      id,
+    );
+    if (isActionResult(result) && !result.success) {
+      return result;
+    }
+    return result;
+  }
+
   @Get(':id/preview')
   @RequirePermissions('connections:use')
   async preview(
@@ -107,6 +158,22 @@ export class ConnectionsController {
       return result;
     }
     return result;
+  }
+
+  @Post(':id/import/contacts')
+  @UseGuards(ModuleGuard)
+  @RequireModule('crm')
+  @RequirePermissions('connections:use')
+  async importContacts(
+    @CurrentContext() context: PlatformContext,
+    @Param('id') id: string,
+    @Body() body: ImportContactsFromSheetsInput,
+  ) {
+    return this.connections.importContactsFromSheets(
+      context.workspace.id,
+      id,
+      body ?? { sheet: '', mapping: {} },
+    );
   }
 
   @Get(':id')

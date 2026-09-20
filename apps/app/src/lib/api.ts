@@ -10,8 +10,11 @@ import type {
   ConnectionBusinessLocationsResult,
   ConnectionCapability,
   ConnectionCatalogItem,
+  ConnectionFacebookPagesResult,
+  ConnectionInstagramAccountsResult,
   ConnectionPreviewResult,
   ConnectionSheetsListResult,
+  ConnectionWhatsAppPhoneNumbersResult,
   Contact,
   CreateContactInput,
   CreateCrmBoardInput,
@@ -22,8 +25,16 @@ import type {
   CrmBoardDetail,
   CrmBoardItem,
   CrmBoardPresetDefinition,
+  EmailMessagesResult,
+  EmailSendInput,
+  EmailSendResult,
   EntryResolution,
+  ImportContactsFromSheetsInput,
+  ImportContactsFromSheetsResult,
   Insight,
+  MessagingMessagesResult,
+  MessagingSendInput,
+  MessagingSendResult,
   InvitePublicView,
   Lead,
   LeadStatus,
@@ -666,6 +677,10 @@ export const api = {
       spreadsheetId?: string;
       propertyId?: string;
       locationName?: string;
+      pageId?: string;
+      igUserId?: string;
+      phoneNumberId?: string;
+      wabaId?: string;
     },
   ) {
     return request<ConnectionActionResult>(`/connections/${id}/resource`, {
@@ -692,6 +707,24 @@ export const api = {
     );
   },
 
+  listConnectionFacebookPages(id: string) {
+    return request<ConnectionFacebookPagesResult | ConnectionActionResult>(
+      `/connections/${id}/facebook/pages`,
+    );
+  },
+
+  listConnectionInstagramAccounts(id: string) {
+    return request<ConnectionInstagramAccountsResult | ConnectionActionResult>(
+      `/connections/${id}/instagram/accounts`,
+    );
+  },
+
+  listConnectionWhatsAppPhoneNumbers(id: string) {
+    return request<
+      ConnectionWhatsAppPhoneNumbersResult | ConnectionActionResult
+    >(`/connections/${id}/whatsapp/phone-numbers`);
+  },
+
   previewConnectionSheet(
     id: string,
     params?: { sheet?: string; range?: string },
@@ -702,6 +735,13 @@ export const api = {
     const qs = q.toString();
     return request<ConnectionPreviewResult | ConnectionActionResult>(
       `/connections/${id}/preview${qs ? `?${qs}` : ''}`,
+    );
+  },
+
+  importContactsFromSheets(id: string, body: ImportContactsFromSheetsInput) {
+    return request<ImportContactsFromSheetsResult>(
+      `/connections/${id}/import/contacts`,
+      { method: 'POST', body: JSON.stringify(body) },
     );
   },
 
@@ -734,16 +774,59 @@ export const api = {
   },
 
   stubEmailSend(body: { to?: string; subject?: string; body?: string }) {
-    return request<{ success: boolean; stub: true; message: string }>(
-      '/channels/email/send',
-      { method: 'POST', body: JSON.stringify(body) },
-    );
+    return this.sendEmail({
+      to: body.to ?? '',
+      subject: body.subject,
+      body: body.body,
+    });
   },
 
   stubEmailMessages() {
-    return request<{ messages: []; stub: true; message?: string }>(
-      '/channels/email/messages',
-    );
+    return this.listEmailMessages();
+  },
+
+  sendEmail(body: EmailSendInput) {
+    return request<EmailSendResult>('/channels/email/send', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  listEmailMessages(maxResults?: number) {
+    const q =
+      maxResults != null
+        ? `?maxResults=${encodeURIComponent(String(maxResults))}`
+        : '';
+    return request<EmailMessagesResult>(`/channels/email/messages${q}`);
+  },
+
+  sendMessaging(
+    type: 'whatsapp' | 'instagram' | 'facebook_messenger',
+    body: MessagingSendInput,
+  ) {
+    const path =
+      type === 'facebook_messenger'
+        ? '/channels/facebook-messenger/send'
+        : `/channels/${type}/send`;
+    return request<MessagingSendResult>(path, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  listMessaging(
+    type: 'whatsapp' | 'instagram' | 'facebook_messenger',
+    maxResults?: number,
+  ) {
+    const base =
+      type === 'facebook_messenger'
+        ? '/channels/facebook-messenger/messages'
+        : `/channels/${type}/messages`;
+    const q =
+      maxResults != null
+        ? `?maxResults=${encodeURIComponent(String(maxResults))}`
+        : '';
+    return request<MessagingMessagesResult>(`${base}${q}`);
   },
 
   getLegalStatus() {

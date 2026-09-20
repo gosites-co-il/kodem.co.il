@@ -4,23 +4,34 @@ import type {
   ConnectionAnalyticsPropertiesResult,
   ConnectionBusinessLocationsResult,
   ConnectionCatalogItem,
+  ConnectionFacebookPagesResult,
+  ConnectionInstagramAccountsResult,
   ConnectionPreviewResult,
   ConnectionSheetsListResult,
+  ConnectionWhatsAppPhoneNumbersResult,
+  FacebookConnectionMetadata,
   GoogleAnalyticsConnectionMetadata,
   GoogleBusinessConnectionMetadata,
   GoogleSheetsConnectionMetadata,
+  ImportContactsFromSheetsInput,
+  ImportContactsFromSheetsResult,
+  InstagramConnectionMetadata,
   IntegrationId,
+  SheetsContactImportField,
   UserId,
+  WhatsAppConnectionMetadata,
   WorkspaceConnection,
   WorkspaceId,
 } from '@kodem/contracts';
 import {
   ConnectionCredentialRepository,
+  CrmContactRepository,
   PrismaEventStore,
   WorkspaceConnectionRepository,
 } from '@kodem/database';
 import { EVENT_TYPES, KodemEventBus } from '@kodem/events';
 import {
+  defaultImportRange,
   defaultPreviewRange,
   getAnalyticsProperty,
   getBusinessLocation,
@@ -30,9 +41,14 @@ import {
   googleConnectionClientConfig,
   listAnalyticsProperties,
   listBusinessLocations,
+  listFacebookPages,
+  listInstagramAccounts,
+  listWhatsAppPhoneNumbers,
   parseSpreadsheetId,
   refreshGoogleAccessToken,
   runAnalyticsSessionsSmoke,
+  SHEETS_IMPORT_ROW_CAP,
+  SHEETS_IMPORT_ROW_HARD_CAP,
 } from '@kodem/integrations';
 import {
   PLATFORM_INTEGRATIONS,
@@ -91,6 +107,52 @@ function businessMetadata(
   };
 }
 
+function facebookMetadata(
+  connection: WorkspaceConnection,
+): FacebookConnectionMetadata | null {
+  const meta = connection.metadata;
+  if (!meta || typeof meta['pageId'] !== 'string') return null;
+  return {
+    pageId: meta['pageId'],
+    pageName:
+      typeof meta['pageName'] === 'string' ? meta['pageName'] : undefined,
+    lastBoundAt:
+      typeof meta['lastBoundAt'] === 'string' ? meta['lastBoundAt'] : undefined,
+  };
+}
+
+function instagramMetadata(
+  connection: WorkspaceConnection,
+): InstagramConnectionMetadata | null {
+  const meta = connection.metadata;
+  if (!meta || typeof meta['igUserId'] !== 'string') return null;
+  return {
+    igUserId: meta['igUserId'],
+    igUsername:
+      typeof meta['igUsername'] === 'string' ? meta['igUsername'] : undefined,
+    pageId: typeof meta['pageId'] === 'string' ? meta['pageId'] : undefined,
+    lastBoundAt:
+      typeof meta['lastBoundAt'] === 'string' ? meta['lastBoundAt'] : undefined,
+  };
+}
+
+function whatsappMetadata(
+  connection: WorkspaceConnection,
+): WhatsAppConnectionMetadata | null {
+  const meta = connection.metadata;
+  if (!meta || typeof meta['phoneNumberId'] !== 'string') return null;
+  return {
+    phoneNumberId: meta['phoneNumberId'],
+    displayPhoneNumber:
+      typeof meta['displayPhoneNumber'] === 'string'
+        ? meta['displayPhoneNumber']
+        : undefined,
+    wabaId: typeof meta['wabaId'] === 'string' ? meta['wabaId'] : undefined,
+    lastBoundAt:
+      typeof meta['lastBoundAt'] === 'string' ? meta['lastBoundAt'] : undefined,
+  };
+}
+
 function requireActive(
   existing: WorkspaceConnection,
   inactiveMessage: string,
@@ -105,9 +167,22 @@ function requireActive(
   };
 }
 
+function resolveImportColumns(
+  mapping: Record<string, SheetsContactImportField>,
+): Partial<Record<'name' | 'email' | 'phone' | 'notes', string>> {
+  const out: Partial<Record<'name' | 'email' | 'phone' | 'notes', string>> = {};
+  for (const [header, field] of Object.entries(mapping)) {
+    const key = header.trim();
+    if (!key || field === 'skip') continue;
+    if (!out[field]) out[field] = key;
+  }
+  return out;
+}
+
 export class ConnectionService {
   private readonly connections = new WorkspaceConnectionRepository();
   private readonly credentials = new ConnectionCredentialRepository();
+  private readonly contacts = new CrmContactRepository();
   private readonly store = new ConnectionCredentialsStore();
   private readonly eventBus = new KodemEventBus(new PrismaEventStore());
   private readonly audit = new AuditService();
@@ -384,10 +459,12 @@ export class ConnectionService {
 
   /**
    * Decrypts stored OAuth credentials and refreshes the access token when near expiry.
+   * For Meta, prefers `pageAccessToken` when present (Page / IG messaging).
    */
   async getValidAccessToken(
     workspaceId: WorkspaceId,
     connectionId: string,
+    opts?: { preferPageToken?: boolean },
   ): Promise<string> {
     const existing = await this.connections.findById(workspaceId, connectionId);
     if (!existing) {
@@ -396,7 +473,7 @@ export class ConnectionService {
     if (existing.status !== 'connected') {
       throw new Error(
         existing.status === 'inactive'
-          ? 'החיבור אינו פעיל — הפעילו אותו כדי להשתמש בגיליון'
+          ? 'החיבור אינו פעיל — הפעילו אותו כדי להשתמש בחיבור'
           : 'Connection is not active',
       );
     }
@@ -407,6 +484,10 @@ export class ConnectionService {
     }
 
     const creds = this.store.decrypt(ciphertext);
+    if (opts?.preferPageToken !== false && creds['pageAccessToken']) {
+      return creds['pageAccessToken'];
+    }
+
     const accessToken = creds['accessToken'];
     if (!accessToken) {
       throw new Error('Stored credentials are missing an access token');
@@ -422,10 +503,16 @@ export class ConnectionService {
       return accessToken;
     }
 
+    if (existing.provider === 'meta') {
+      throw new Error(
+        'תוקף הגישה ל-Meta פג — חברו מחדש את החיבור',
+      );
+    }
+
     const refreshToken = creds['refreshToken'];
     if (!refreshToken) {
       throw new Error(
-        'תוקף הגישה פג ואין refresh token — חברו מחדש את Google Sheets',
+        'תוקף הגישה פג ואין refresh token — חברו מחדש את החיבור',
       );
     }
 
@@ -493,12 +580,279 @@ export class ConnectionService {
         input,
       );
     }
+    if (existing.integrationId === 'facebook') {
+      return this.bindFacebookResource(
+        workspaceId,
+        id,
+        actorId,
+        existing,
+        input,
+      );
+    }
+    if (existing.integrationId === 'instagram') {
+      return this.bindInstagramResource(
+        workspaceId,
+        id,
+        actorId,
+        existing,
+        input,
+      );
+    }
+    if (existing.integrationId === 'whatsapp') {
+      return this.bindWhatsAppResource(
+        workspaceId,
+        id,
+        actorId,
+        existing,
+        input,
+      );
+    }
 
     return {
       success: false,
       code: 'error',
       message: 'קשירת משאב אינה זמינה לחיבור זה',
     };
+  }
+
+  private async mergeCredentials(
+    connectionId: string,
+    patch: Record<string, string>,
+  ): Promise<void> {
+    const id = connectionId as import('@kodem/contracts').ConnectionId;
+    const ciphertext = await this.credentials.findCiphertext(id);
+    if (!ciphertext) {
+      throw new Error('No credentials stored for this connection');
+    }
+    const creds = this.store.decrypt(ciphertext);
+    const encrypted = this.store.encrypt({ ...creds, ...patch });
+    await this.credentials.upsert(
+      id,
+      encrypted.ciphertext,
+      encrypted.keyVersion,
+    );
+  }
+
+  private async bindFacebookResource(
+    workspaceId: WorkspaceId,
+    id: string,
+    actorId: UserId,
+    existing: WorkspaceConnection,
+    input: BindConnectionResourceInput,
+  ): Promise<ConnectionActionResult> {
+    const inactive = requireActive(
+      existing,
+      'החיבור מחובר אך לא פעיל — הפעילו אותו לפני בחירת דף',
+      'יש לחבר את Facebook תחילה',
+    );
+    if (inactive) return inactive;
+
+    const pageId = input.pageId?.trim();
+    if (!pageId) {
+      return {
+        success: false,
+        code: 'error',
+        message: 'נא לבחור דף Facebook',
+      };
+    }
+
+    try {
+      const userToken = await this.getValidAccessToken(workspaceId, id, {
+        preferPageToken: false,
+      });
+      const pages = await listFacebookPages(userToken);
+      const page = pages.find((p) => p.pageId === pageId);
+      if (!page) {
+        return {
+          success: false,
+          code: 'error',
+          message: 'הדף לא נמצא בחשבון המחובר',
+        };
+      }
+      await this.mergeCredentials(id, { pageAccessToken: page.accessToken });
+      const meta: FacebookConnectionMetadata = {
+        pageId: page.pageId,
+        pageName: page.name,
+        lastBoundAt: new Date().toISOString(),
+      };
+      const connection = await this.connections.updateMetadata(
+        workspaceId,
+        id,
+        meta as unknown as Record<string, unknown>,
+      );
+      await this.audit.record({
+        workspaceId,
+        actorId,
+        targetId: id,
+        action: 'connection.reconnected',
+        metadata: { integrationId: 'facebook', pageId },
+      });
+      return {
+        success: true,
+        code: 'ok',
+        message: `הדף נקשר: ${page.name}`,
+        connection: connection ?? existing,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        code: 'error',
+        message: err instanceof Error ? err.message : 'קשירת הדף נכשלה',
+        connection: existing,
+      };
+    }
+  }
+
+  private async bindInstagramResource(
+    workspaceId: WorkspaceId,
+    id: string,
+    actorId: UserId,
+    existing: WorkspaceConnection,
+    input: BindConnectionResourceInput,
+  ): Promise<ConnectionActionResult> {
+    const inactive = requireActive(
+      existing,
+      'החיבור מחובר אך לא פעיל — הפעילו אותו לפני בחירת חשבון',
+      'יש לחבר את Instagram תחילה',
+    );
+    if (inactive) return inactive;
+
+    const igUserId = input.igUserId?.trim();
+    if (!igUserId) {
+      return {
+        success: false,
+        code: 'error',
+        message: 'נא לבחור חשבון Instagram',
+      };
+    }
+
+    try {
+      const userToken = await this.getValidAccessToken(workspaceId, id, {
+        preferPageToken: false,
+      });
+      const accounts = await listInstagramAccounts(userToken);
+      const account = accounts.find((a) => a.igUserId === igUserId);
+      if (!account) {
+        return {
+          success: false,
+          code: 'error',
+          message: 'חשבון Instagram לא נמצא',
+        };
+      }
+      await this.mergeCredentials(id, {
+        pageAccessToken: account.pageAccessToken,
+      });
+      const meta: InstagramConnectionMetadata = {
+        igUserId: account.igUserId,
+        igUsername: account.username,
+        pageId: account.pageId,
+        lastBoundAt: new Date().toISOString(),
+      };
+      const connection = await this.connections.updateMetadata(
+        workspaceId,
+        id,
+        meta as unknown as Record<string, unknown>,
+      );
+      await this.audit.record({
+        workspaceId,
+        actorId,
+        targetId: id,
+        action: 'connection.reconnected',
+        metadata: { integrationId: 'instagram', igUserId },
+      });
+      return {
+        success: true,
+        code: 'ok',
+        message: `Instagram נקשר: @${account.username}`,
+        connection: connection ?? existing,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        code: 'error',
+        message: err instanceof Error ? err.message : 'קשירת Instagram נכשלה',
+        connection: existing,
+      };
+    }
+  }
+
+  private async bindWhatsAppResource(
+    workspaceId: WorkspaceId,
+    id: string,
+    actorId: UserId,
+    existing: WorkspaceConnection,
+    input: BindConnectionResourceInput,
+  ): Promise<ConnectionActionResult> {
+    const inactive = requireActive(
+      existing,
+      'החיבור מחובר אך לא פעיל — הפעילו אותו לפני בחירת מספר',
+      'יש לחבר את WhatsApp תחילה',
+    );
+    if (inactive) return inactive;
+
+    const phoneNumberId = input.phoneNumberId?.trim();
+    if (!phoneNumberId) {
+      return {
+        success: false,
+        code: 'error',
+        message: 'נא לבחור מספר WhatsApp',
+      };
+    }
+
+    try {
+      const userToken = await this.getValidAccessToken(workspaceId, id, {
+        preferPageToken: false,
+      });
+      const phones = await listWhatsAppPhoneNumbers(userToken);
+      const phone =
+        phones.find((p) => p.phoneNumberId === phoneNumberId) ??
+        (input.wabaId
+          ? {
+              phoneNumberId,
+              displayPhoneNumber: phoneNumberId,
+              wabaId: input.wabaId,
+            }
+          : null);
+      if (!phone) {
+        return {
+          success: false,
+          code: 'error',
+          message:
+            'מספר WhatsApp לא נמצא — ודאו הרשאות Business / Embedded Signup',
+        };
+      }
+      const meta: WhatsAppConnectionMetadata = {
+        phoneNumberId: phone.phoneNumberId,
+        displayPhoneNumber: phone.displayPhoneNumber,
+        wabaId: phone.wabaId,
+        lastBoundAt: new Date().toISOString(),
+      };
+      const connection = await this.connections.updateMetadata(
+        workspaceId,
+        id,
+        meta as unknown as Record<string, unknown>,
+      );
+      await this.audit.record({
+        workspaceId,
+        actorId,
+        targetId: id,
+        action: 'connection.reconnected',
+        metadata: { integrationId: 'whatsapp', phoneNumberId },
+      });
+      return {
+        success: true,
+        code: 'ok',
+        message: `WhatsApp נקשר: ${phone.displayPhoneNumber}`,
+        connection: connection ?? existing,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        code: 'error',
+        message: err instanceof Error ? err.message : 'קשירת WhatsApp נכשלה',
+        connection: existing,
+      };
+    }
   }
 
   private async bindSheetsResource(
@@ -771,6 +1125,136 @@ export class ConnectionService {
     }
   }
 
+  async listFacebookPages(
+    workspaceId: WorkspaceId,
+    id: string,
+  ): Promise<ConnectionFacebookPagesResult | ConnectionActionResult> {
+    const existing = await this.connections.findById(workspaceId, id);
+    if (!existing) {
+      return { success: false, code: 'error', message: 'Connection not found' };
+    }
+    if (existing.integrationId !== 'facebook') {
+      return {
+        success: false,
+        code: 'error',
+        message: 'רשימת דפים זמינה רק לחיבור Facebook',
+      };
+    }
+    const inactive = requireActive(
+      existing,
+      'החיבור מחובר אך לא פעיל — הפעילו אותו כדי לטעון דפים',
+      'יש לחבר את Facebook תחילה',
+    );
+    if (inactive) return inactive;
+
+    try {
+      const accessToken = await this.getValidAccessToken(workspaceId, id, {
+        preferPageToken: false,
+      });
+      const pages = await listFacebookPages(accessToken);
+      return {
+        pages: pages.map((p) => ({ pageId: p.pageId, name: p.name })),
+      };
+    } catch (err) {
+      return {
+        success: false,
+        code: 'error',
+        message: err instanceof Error ? err.message : 'טעינת הדפים נכשלה',
+        connection: existing,
+      };
+    }
+  }
+
+  async listInstagramAccounts(
+    workspaceId: WorkspaceId,
+    id: string,
+  ): Promise<ConnectionInstagramAccountsResult | ConnectionActionResult> {
+    const existing = await this.connections.findById(workspaceId, id);
+    if (!existing) {
+      return { success: false, code: 'error', message: 'Connection not found' };
+    }
+    if (existing.integrationId !== 'instagram') {
+      return {
+        success: false,
+        code: 'error',
+        message: 'רשימת חשבונות זמינה רק לחיבור Instagram',
+      };
+    }
+    const inactive = requireActive(
+      existing,
+      'החיבור מחובר אך לא פעיל — הפעילו אותו כדי לטעון חשבונות',
+      'יש לחבר את Instagram תחילה',
+    );
+    if (inactive) return inactive;
+
+    try {
+      const accessToken = await this.getValidAccessToken(workspaceId, id, {
+        preferPageToken: false,
+      });
+      const accounts = await listInstagramAccounts(accessToken);
+      return {
+        accounts: accounts.map((a) => ({
+          igUserId: a.igUserId,
+          username: a.username,
+          pageId: a.pageId,
+          pageName: a.pageName,
+        })),
+      };
+    } catch (err) {
+      return {
+        success: false,
+        code: 'error',
+        message: err instanceof Error ? err.message : 'טעינת חשבונות Instagram נכשלה',
+        connection: existing,
+      };
+    }
+  }
+
+  async listWhatsAppPhoneNumbers(
+    workspaceId: WorkspaceId,
+    id: string,
+  ): Promise<ConnectionWhatsAppPhoneNumbersResult | ConnectionActionResult> {
+    const existing = await this.connections.findById(workspaceId, id);
+    if (!existing) {
+      return { success: false, code: 'error', message: 'Connection not found' };
+    }
+    if (existing.integrationId !== 'whatsapp') {
+      return {
+        success: false,
+        code: 'error',
+        message: 'רשימת מספרים זמינה רק לחיבור WhatsApp',
+      };
+    }
+    const inactive = requireActive(
+      existing,
+      'החיבור מחובר אך לא פעיל — הפעילו אותו כדי לטעון מספרים',
+      'יש לחבר את WhatsApp תחילה',
+    );
+    if (inactive) return inactive;
+
+    try {
+      const accessToken = await this.getValidAccessToken(workspaceId, id, {
+        preferPageToken: false,
+      });
+      const phoneNumbers = await listWhatsAppPhoneNumbers(accessToken);
+      return {
+        phoneNumbers: phoneNumbers.map((p) => ({
+          phoneNumberId: p.phoneNumberId,
+          displayPhoneNumber: p.displayPhoneNumber,
+          verifiedName: p.verifiedName,
+          wabaId: p.wabaId,
+        })),
+      };
+    } catch (err) {
+      return {
+        success: false,
+        code: 'error',
+        message: err instanceof Error ? err.message : 'טעינת מספרי WhatsApp נכשלה',
+        connection: existing,
+      };
+    }
+  }
+
   async listSheets(
     workspaceId: WorkspaceId,
     id: string,
@@ -864,6 +1348,187 @@ export class ConnectionService {
         code: 'error',
         message: err instanceof Error ? err.message : 'תצוגה מקדימה נכשלה',
         connection: existing,
+      };
+    }
+  }
+
+  async importContactsFromSheets(
+    workspaceId: WorkspaceId,
+    id: string,
+    input: ImportContactsFromSheetsInput,
+  ): Promise<ImportContactsFromSheetsResult> {
+    const empty: ImportContactsFromSheetsResult = {
+      success: false,
+      created: 0,
+      skipped: 0,
+      errors: [],
+    };
+
+    const existing = await this.connections.findById(workspaceId, id);
+    if (!existing) {
+      return { ...empty, message: 'Connection not found', code: 'error' };
+    }
+    if (existing.integrationId !== 'google_sheets') {
+      return {
+        ...empty,
+        message: 'ייבוא אנשי קשר זמין רק לחיבור Google Sheets',
+        code: 'error',
+      };
+    }
+    const inactive = requireActive(
+      existing,
+      'החיבור מחובר אך לא פעיל — הפעילו אותו כדי לייבא',
+      'יש לחבר את Google Sheets תחילה',
+    );
+    if (inactive) {
+      return {
+        ...empty,
+        message: inactive.message,
+        code: inactive.code,
+      };
+    }
+
+    const bound = sheetsMetadata(existing);
+    if (!bound) {
+      return {
+        ...empty,
+        message: 'לא נבחר גיליון — הדביקו קישור לקובץ Sheets',
+        code: 'error',
+      };
+    }
+
+    const sheet = input.sheet?.trim();
+    if (!sheet) {
+      return { ...empty, message: 'נא לבחור גיליון', code: 'error' };
+    }
+
+    const headerRow = Math.max(0, Math.floor(input.headerRow ?? 0));
+    const dataCap = Math.min(
+      Math.max(input.maxRows ?? SHEETS_IMPORT_ROW_CAP, 1),
+      SHEETS_IMPORT_ROW_HARD_CAP,
+    );
+
+    const mapping = input.mapping ?? {};
+    const fieldColumns = resolveImportColumns(mapping);
+    if (!fieldColumns.name) {
+      return {
+        ...empty,
+        message: 'יש למפות לפחות עמודה אחת לשדה שם',
+        code: 'error',
+      };
+    }
+
+    try {
+      const accessToken = await this.getValidAccessToken(workspaceId, id);
+      const range = defaultImportRange(sheet, dataCap + headerRow);
+      const fetched = await getValues(
+        accessToken,
+        bound.spreadsheetId,
+        range,
+        { maxRows: dataCap + headerRow + 1 },
+      );
+      const rows = fetched.values;
+      if (rows.length <= headerRow) {
+        return {
+          success: true,
+          spreadsheetId: bound.spreadsheetId,
+          sheet,
+          created: 0,
+          skipped: 0,
+          errors: [],
+          message: 'אין שורות לייבוא',
+        };
+      }
+
+      const headers = (rows[headerRow] ?? []).map((h) => h.trim());
+      const colIndex = (header: string) =>
+        headers.findIndex((h) => h === header);
+
+      const nameIdx = colIndex(fieldColumns.name);
+      if (nameIdx < 0) {
+        return {
+          ...empty,
+          message: `עמודת השם "${fieldColumns.name}" לא נמצאה בכותרות`,
+          code: 'error',
+        };
+      }
+      const emailIdx = fieldColumns.email
+        ? colIndex(fieldColumns.email)
+        : -1;
+      const phoneIdx = fieldColumns.phone
+        ? colIndex(fieldColumns.phone)
+        : -1;
+      const notesIdx = fieldColumns.notes
+        ? colIndex(fieldColumns.notes)
+        : -1;
+
+      let created = 0;
+      let skipped = 0;
+      const errors: Array<{ row: number; message: string }> = [];
+      const contactIds: string[] = [];
+      const dataRows = rows.slice(headerRow + 1, headerRow + 1 + dataCap);
+
+      for (let i = 0; i < dataRows.length; i++) {
+        const row = dataRows[i] ?? [];
+        const sheetRowNumber = headerRow + 2 + i; // 1-based spreadsheet row
+        const cell = (idx: number) =>
+          idx >= 0 ? (row[idx] ?? '').trim() : '';
+        const name = cell(nameIdx);
+        const email = cell(emailIdx);
+        const phone = cell(phoneIdx);
+        const notes = cell(notesIdx);
+
+        if (!name && !email && !phone && !notes) {
+          skipped += 1;
+          continue;
+        }
+        if (!name) {
+          skipped += 1;
+          errors.push({
+            row: sheetRowNumber,
+            message: 'חסר שם',
+          });
+          continue;
+        }
+
+        try {
+          const contact = await this.contacts.create(workspaceId, {
+            name,
+            ...(email ? { email } : {}),
+            ...(phone ? { phone } : {}),
+            ...(notes ? { notes } : {}),
+          });
+          created += 1;
+          contactIds.push(contact.id);
+        } catch (err) {
+          errors.push({
+            row: sheetRowNumber,
+            message:
+              err instanceof Error ? err.message : 'יצירת איש קשר נכשלה',
+          });
+        }
+      }
+
+      return {
+        success: true,
+        spreadsheetId: bound.spreadsheetId,
+        sheet,
+        created,
+        skipped,
+        errors: errors.slice(0, 25),
+        contactIds,
+        message:
+          created > 0
+            ? `יובאו ${created} אנשי קשר${skipped ? ` (דולגו ${skipped})` : ''}`
+            : skipped
+              ? `לא יובאו אנשי קשר — דולגו ${skipped} שורות`
+              : 'אין שורות לייבוא',
+      };
+    } catch (err) {
+      return {
+        ...empty,
+        message: err instanceof Error ? err.message : 'ייבוא אנשי הקשר נכשל',
+        code: 'error',
       };
     }
   }
@@ -1058,6 +1723,54 @@ export class ConnectionService {
           message: existing.externalAccountName
             ? `החיבור תקין: ${existing.externalAccountName}`
             : 'החיבור תקין',
+          connection: existing,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          code: 'error',
+          message: err instanceof Error ? err.message : 'בדיקת החיבור נכשלה',
+          connection: existing,
+        };
+      }
+    }
+
+    if (
+      existing.integrationId === 'facebook' ||
+      existing.integrationId === 'instagram' ||
+      existing.integrationId === 'whatsapp'
+    ) {
+      try {
+        await this.getValidAccessToken(workspaceId, id, {
+          preferPageToken: false,
+        });
+        const bound =
+          existing.integrationId === 'facebook'
+            ? facebookMetadata(existing)
+            : existing.integrationId === 'instagram'
+              ? instagramMetadata(existing)
+              : whatsappMetadata(existing);
+        if (!bound) {
+          return {
+            success: true,
+            code: 'ok',
+            message: 'החיבור תקין — עדיין לא נבחר משאב',
+            connection: existing,
+          };
+        }
+        const label =
+          existing.integrationId === 'facebook'
+            ? (bound as FacebookConnectionMetadata).pageName ??
+              (bound as FacebookConnectionMetadata).pageId
+            : existing.integrationId === 'instagram'
+              ? (bound as InstagramConnectionMetadata).igUsername ??
+                (bound as InstagramConnectionMetadata).igUserId
+              : (bound as WhatsAppConnectionMetadata).displayPhoneNumber ??
+                (bound as WhatsAppConnectionMetadata).phoneNumberId;
+        return {
+          success: true,
+          code: 'ok',
+          message: `החיבור תקין: ${label}`,
           connection: existing,
         };
       } catch (err) {

@@ -82,6 +82,34 @@ param googleWorkspaceClientId string = ''
 @description('Google Workspace Connection OAuth client secret.')
 param googleWorkspaceClientSecret string = ''
 
+@description('Meta Facebook Connection OAuth client id (not login FACEBOOK_CLIENT_ID).')
+param metaFacebookClientId string = ''
+
+@secure()
+@description('Meta Facebook Connection OAuth client secret.')
+param metaFacebookClientSecret string = ''
+
+@description('Meta Instagram Connection OAuth client id.')
+param metaInstagramClientId string = ''
+
+@secure()
+@description('Meta Instagram Connection OAuth client secret.')
+param metaInstagramClientSecret string = ''
+
+@description('Meta WhatsApp Connection OAuth client id.')
+param metaWhatsappClientId string = ''
+
+@secure()
+@description('Meta WhatsApp Connection OAuth client secret.')
+param metaWhatsappClientSecret string = ''
+
+@secure()
+@description('Meta app secret for webhook signature verification.')
+param metaAppSecret string = ''
+
+@description('Meta webhook verify token (hub.verify_token).')
+param metaWebhookVerifyToken string = ''
+
 @secure()
 @description('AES key material for encrypting workspace connection credentials. Leave empty for a deploy placeholder (set a real secret before using Connections).')
 param connectionCredentialsKey string = ''
@@ -355,6 +383,22 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
           value: empty(googleWorkspaceClientSecret) ? 'google-workspace-client-secret' : googleWorkspaceClientSecret
         }
         {
+          name: 'meta-facebook-client-secret'
+          value: empty(metaFacebookClientSecret) ? 'meta-facebook-client-secret' : metaFacebookClientSecret
+        }
+        {
+          name: 'meta-instagram-client-secret'
+          value: empty(metaInstagramClientSecret) ? 'meta-instagram-client-secret' : metaInstagramClientSecret
+        }
+        {
+          name: 'meta-whatsapp-client-secret'
+          value: empty(metaWhatsappClientSecret) ? 'meta-whatsapp-client-secret' : metaWhatsappClientSecret
+        }
+        {
+          name: 'meta-app-secret'
+          value: empty(metaAppSecret) ? 'meta-app-secret' : metaAppSecret
+        }
+        {
           name: 'connection-credentials-key'
           value: empty(connectionCredentialsKey) ? 'connection-credentials-key-change-me' : connectionCredentialsKey
         }
@@ -414,6 +458,17 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
             { name: 'GOOGLE_WORKSPACE_CLIENT_ID', value: googleWorkspaceClientId }
             { name: 'GOOGLE_WORKSPACE_CLIENT_SECRET', secretRef: 'google-workspace-client-secret' }
             { name: 'GOOGLE_WORKSPACE_CALLBACK_URL', value: '${resolvedAppUrl}/api/connections/oauth/google/google_workspace/callback' }
+            { name: 'META_FACEBOOK_CLIENT_ID', value: metaFacebookClientId }
+            { name: 'META_FACEBOOK_CLIENT_SECRET', secretRef: 'meta-facebook-client-secret' }
+            { name: 'META_FACEBOOK_CALLBACK_URL', value: '${resolvedAppUrl}/api/connections/oauth/meta/facebook/callback' }
+            { name: 'META_INSTAGRAM_CLIENT_ID', value: metaInstagramClientId }
+            { name: 'META_INSTAGRAM_CLIENT_SECRET', secretRef: 'meta-instagram-client-secret' }
+            { name: 'META_INSTAGRAM_CALLBACK_URL', value: '${resolvedAppUrl}/api/connections/oauth/meta/instagram/callback' }
+            { name: 'META_WHATSAPP_CLIENT_ID', value: metaWhatsappClientId }
+            { name: 'META_WHATSAPP_CLIENT_SECRET', secretRef: 'meta-whatsapp-client-secret' }
+            { name: 'META_WHATSAPP_CALLBACK_URL', value: '${resolvedAppUrl}/api/connections/oauth/meta/whatsapp/callback' }
+            { name: 'META_APP_SECRET', secretRef: 'meta-app-secret' }
+            { name: 'META_WEBHOOK_VERIFY_TOKEN', value: metaWebhookVerifyToken }
             { name: 'CONNECTION_CREDENTIALS_KEY', secretRef: 'connection-credentials-key' }
             { name: 'GITHUB_CLIENT_ID', value: empty(githubClientId) ? 'github-client-id' : githubClientId }
             { name: 'GITHUB_CLIENT_SECRET', secretRef: 'github-client-secret' }

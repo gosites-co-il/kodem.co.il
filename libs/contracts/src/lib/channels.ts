@@ -52,8 +52,69 @@ export interface ConfigureChannelInput {
   isPrimary?: boolean;
 }
 
+export interface EmailSendInput {
+  to: string;
+  subject?: string;
+  body?: string;
+}
+
+export interface EmailSendResult {
+  success: boolean;
+  message?: string;
+  messageId?: string;
+  threadId?: string;
+}
+
+export interface EmailMessageItem {
+  id: string;
+  threadId?: string;
+  snippet?: string;
+  subject?: string;
+  from?: string;
+  date?: string;
+}
+
+export interface EmailMessagesResult {
+  success: boolean;
+  messages: EmailMessageItem[];
+  message?: string;
+}
+
 /** Contracts-only messaging shapes for future omnichannel work. */
 export type MessageDirection = 'inbound' | 'outbound';
+
+/** Shared send/list shapes for WhatsApp / Instagram / Messenger. */
+export interface MessagingSendInput {
+  to: string;
+  body: string;
+}
+
+export interface MessagingSendResult {
+  success: boolean;
+  message?: string;
+  messageId?: string;
+}
+
+export interface MessagingMessageItem {
+  id: string;
+  from?: string;
+  to?: string;
+  body?: string;
+  timestamp?: string;
+  direction?: MessageDirection;
+}
+
+export interface MessagingMessagesResult {
+  success: boolean;
+  messages: MessagingMessageItem[];
+  message?: string;
+}
+
+export interface MetaWebhookVerifyQuery {
+  'hub.mode'?: string;
+  'hub.verify_token'?: string;
+  'hub.challenge'?: string;
+}
 
 export interface ConversationRef {
   workspaceId: WorkspaceId;

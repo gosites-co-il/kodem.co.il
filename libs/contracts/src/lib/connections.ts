@@ -149,6 +149,14 @@ export interface BindConnectionResourceInput {
   propertyId?: string;
   /** Business Profile location resource name. */
   locationName?: string;
+  /** Facebook Page id. */
+  pageId?: string;
+  /** Instagram Business account id. */
+  igUserId?: string;
+  /** WhatsApp Business phone number id. */
+  phoneNumberId?: string;
+  /** WhatsApp Business Account id. */
+  wabaId?: string;
 }
 
 export interface ConnectionSheetTab {
@@ -186,4 +194,92 @@ export interface ConnectionBusinessLocation {
 
 export interface ConnectionBusinessLocationsResult {
   locations: ConnectionBusinessLocation[];
+}
+
+/** facebook connection metadata */
+export interface FacebookConnectionMetadata {
+  pageId: string;
+  pageName?: string;
+  lastBoundAt?: string;
+}
+
+/** instagram connection metadata */
+export interface InstagramConnectionMetadata {
+  igUserId: string;
+  igUsername?: string;
+  pageId?: string;
+  lastBoundAt?: string;
+}
+
+/** whatsapp connection metadata */
+export interface WhatsAppConnectionMetadata {
+  phoneNumberId: string;
+  displayPhoneNumber?: string;
+  wabaId?: string;
+  lastBoundAt?: string;
+}
+
+export interface ConnectionFacebookPage {
+  pageId: string;
+  name: string;
+}
+
+export interface ConnectionFacebookPagesResult {
+  pages: ConnectionFacebookPage[];
+}
+
+export interface ConnectionInstagramAccount {
+  igUserId: string;
+  username: string;
+  pageId?: string;
+  pageName?: string;
+}
+
+export interface ConnectionInstagramAccountsResult {
+  accounts: ConnectionInstagramAccount[];
+}
+
+export interface ConnectionWhatsAppPhoneNumber {
+  phoneNumberId: string;
+  displayPhoneNumber: string;
+  verifiedName?: string;
+  wabaId?: string;
+}
+
+export interface ConnectionWhatsAppPhoneNumbersResult {
+  phoneNumbers: ConnectionWhatsAppPhoneNumber[];
+}
+
+/** Target CRM contact fields when importing from Sheets (or skip the column). */
+export type SheetsContactImportField =
+  | 'name'
+  | 'email'
+  | 'phone'
+  | 'notes'
+  | 'skip';
+
+export interface ImportContactsFromSheetsInput {
+  /** Tab title (same as preview `sheet`). */
+  sheet: string;
+  /** 0-based header row index. Default 0. */
+  headerRow?: number;
+  /**
+   * Header cell text → contact field.
+   * At least one column must map to `name`.
+   */
+  mapping: Record<string, SheetsContactImportField>;
+  /** Max data rows to read (excluding header). Default 500, hard cap 1000. */
+  maxRows?: number;
+}
+
+export interface ImportContactsFromSheetsResult {
+  success: boolean;
+  spreadsheetId?: string;
+  sheet?: string;
+  created: number;
+  skipped: number;
+  errors: Array<{ row: number; message: string }>;
+  contactIds?: string[];
+  message?: string;
+  code?: string;
 }

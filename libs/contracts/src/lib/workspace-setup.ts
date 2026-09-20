@@ -38,11 +38,14 @@ export type IntegrationId =
   | 'microsoft_365'
   | 'google_analytics'
   | 'google_business'
-  | 'meta'
+  | 'facebook'
+  | 'instagram'
   | 'google_ads'
   | 'whatsapp'
   | 'slack'
-  | 'zoom';
+  | 'zoom'
+  /** @deprecated Use facebook / instagram / whatsapp */
+  | 'meta';
 
 export type AiProviderId =
   | 'kodem'

@@ -39,7 +39,7 @@ Dedicated OAuth client (not login, not Sheets). Azure: `OAUTH_GOOGLE_WORKSPACE_C
 2. Connect from **חיבורים** → detail `/workspace/integrations/connections/google_workspace`.
 3. **בדוק חיבור** validates token refresh.
 4. Open **ערוצים** → Email → **הגדר עם …** (links the Workspace connection).
-5. Stub **שלח** / **תיבה** — no real Gmail I/O yet (`stub: true`).
+5. **שלח** / **טען תיבה** call Gmail via the bound connection token.
 
 ## Scopes (current)
 
@@ -50,9 +50,9 @@ Dedicated OAuth client (not login, not Sheets). Azure: `OAUTH_GOOGLE_WORKSPACE_C
 ## Notes
 
 - No spreadsheet/property bind — the Google account is the resource.
-- Prefer shipping Email Channel wiring together with this Connection (done: channel `available` + stubs).
+- Email Channel send/list uses this connection’s access token (`libs/integrations/.../gmail.ts`).
 
 ## Roadmap
 
-- Real Gmail send / list via Channel
 - Calendar / Drive scopes when needed
+- Deeper mailbox UX on the [Email Channel](../channels/email.md)

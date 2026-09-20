@@ -240,6 +240,14 @@ jobs:
           OAUTH_GOOGLE_BUSINESS_CLIENT_SECRET: ${{ secrets.OAUTH_GOOGLE_BUSINESS_CLIENT_SECRET }}
           OAUTH_GOOGLE_WORKSPACE_CLIENT_ID: ${{ vars.OAUTH_GOOGLE_WORKSPACE_CLIENT_ID }}
           OAUTH_GOOGLE_WORKSPACE_CLIENT_SECRET: ${{ secrets.OAUTH_GOOGLE_WORKSPACE_CLIENT_SECRET }}
+          OAUTH_META_FACEBOOK_CLIENT_ID: ${{ vars.OAUTH_META_FACEBOOK_CLIENT_ID }}
+          OAUTH_META_FACEBOOK_CLIENT_SECRET: ${{ secrets.OAUTH_META_FACEBOOK_CLIENT_SECRET }}
+          OAUTH_META_INSTAGRAM_CLIENT_ID: ${{ vars.OAUTH_META_INSTAGRAM_CLIENT_ID }}
+          OAUTH_META_INSTAGRAM_CLIENT_SECRET: ${{ secrets.OAUTH_META_INSTAGRAM_CLIENT_SECRET }}
+          OAUTH_META_WHATSAPP_CLIENT_ID: ${{ vars.OAUTH_META_WHATSAPP_CLIENT_ID }}
+          OAUTH_META_WHATSAPP_CLIENT_SECRET: ${{ secrets.OAUTH_META_WHATSAPP_CLIENT_SECRET }}
+          META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
+          META_WEBHOOK_VERIFY_TOKEN: ${{ vars.META_WEBHOOK_VERIFY_TOKEN }}
           CONNECTION_CREDENTIALS_KEY: ${{ secrets.CONNECTION_CREDENTIALS_KEY }}
           OAUTH_GITHUB_CLIENT_ID: ${{ vars.OAUTH_GITHUB_CLIENT_ID }}
           OAUTH_GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
@@ -428,6 +436,14 @@ jobs:
                 googleBusinessClientSecret="${OAUTH_GOOGLE_BUSINESS_CLIENT_SECRET:-}" \
                 googleWorkspaceClientId="${OAUTH_GOOGLE_WORKSPACE_CLIENT_ID:-}" \
                 googleWorkspaceClientSecret="${OAUTH_GOOGLE_WORKSPACE_CLIENT_SECRET:-}" \
+                metaFacebookClientId="${OAUTH_META_FACEBOOK_CLIENT_ID:-}" \
+                metaFacebookClientSecret="${OAUTH_META_FACEBOOK_CLIENT_SECRET:-}" \
+                metaInstagramClientId="${OAUTH_META_INSTAGRAM_CLIENT_ID:-}" \
+                metaInstagramClientSecret="${OAUTH_META_INSTAGRAM_CLIENT_SECRET:-}" \
+                metaWhatsappClientId="${OAUTH_META_WHATSAPP_CLIENT_ID:-}" \
+                metaWhatsappClientSecret="${OAUTH_META_WHATSAPP_CLIENT_SECRET:-}" \
+                metaAppSecret="${META_APP_SECRET:-}" \
+                metaWebhookVerifyToken="${META_WEBHOOK_VERIFY_TOKEN:-}" \
                 connectionCredentialsKey="${CONNECTION_CREDENTIALS_KEY:-}" \
                 githubClientId="$OAUTH_GITHUB_CLIENT_ID" \
                 githubClientSecret="$OAUTH_GITHUB_CLIENT_SECRET" \

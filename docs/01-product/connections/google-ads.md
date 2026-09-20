@@ -11,9 +11,9 @@
 
 Search and display campaign data.
 
-## Next phase — not in current parallel pass
+## Next phase — Ads later
 
-Implement after Analytics / Business Profile / Workspace Email stubs.
+Do **after**: Business Profile quota → Workspace OAuth proven → real Email Channel → Sheets CRM import.
 
 ### Developer token checklist
 

@@ -8,11 +8,14 @@ Each Workspace Connection has its own product doc. Overview: [`../connections-an
 | `google_workspace` | [google-workspace.md](google-workspace.md) | available |
 | `google_analytics` | [google-analytics.md](google-analytics.md) | available |
 | `google_business` | [google-business.md](google-business.md) | available |
-| `google_ads` | [google-ads.md](google-ads.md) | coming_soon (next phase) |
+| `facebook` | [facebook.md](facebook.md) | available |
+| `instagram` | [instagram.md](instagram.md) | available |
+| `whatsapp` | [whatsapp.md](whatsapp.md) | available |
+| `google_ads` | [google-ads.md](google-ads.md) | coming_soon |
 | `microsoft_365` | [microsoft-365.md](microsoft-365.md) | coming_soon |
-| `meta` | [meta.md](meta.md) | coming_soon |
-| `whatsapp` | [whatsapp.md](whatsapp.md) | coming_soon |
 | `slack` | [slack.md](slack.md) | coming_soon |
 | `zoom` | [zoom.md](zoom.md) | coming_soon |
+
+Meta index: [`meta.md`](meta.md).
 
 Channels (communication media): [`../channels/README.md`](../channels/README.md).

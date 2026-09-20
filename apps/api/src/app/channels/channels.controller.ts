@@ -5,11 +5,14 @@ import {
   Get,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import type {
   ChannelType,
   ConfigureChannelInput,
+  EmailSendInput,
+  MessagingSendInput,
   PlatformContext,
 } from '@kodem/contracts';
 import { ChannelService } from '@kodem/platform/channels';
@@ -32,17 +35,89 @@ export class ChannelsController {
 
   @Get('email/messages')
   @RequirePermissions('connections:use')
-  async stubEmailMessages(@CurrentContext() context: PlatformContext) {
-    return this.channels.stubEmailMessages(context.workspace.id);
+  async listEmailMessages(
+    @CurrentContext() context: PlatformContext,
+    @Query('maxResults') maxResults?: string,
+  ) {
+    const parsed = maxResults ? Number(maxResults) : undefined;
+    return this.channels.listEmailMessages(context.workspace.id, {
+      maxResults: Number.isFinite(parsed) ? parsed : undefined,
+    });
   }
 
   @Post('email/send')
   @RequirePermissions('connections:use')
-  async stubEmailSend(
+  async sendEmail(
     @CurrentContext() context: PlatformContext,
-    @Body() body: { to?: string; subject?: string; body?: string },
+    @Body() body: EmailSendInput,
   ) {
-    return this.channels.stubEmailSend(context.workspace.id, body ?? {});
+    return this.channels.sendEmail(context.workspace.id, body ?? { to: '' });
+  }
+
+  @Get('whatsapp/messages')
+  @RequirePermissions('connections:use')
+  async listWhatsApp(
+    @CurrentContext() context: PlatformContext,
+    @Query('maxResults') maxResults?: string,
+  ) {
+    return this.listMessaging(context, 'whatsapp', maxResults);
+  }
+
+  @Post('whatsapp/send')
+  @RequirePermissions('connections:use')
+  async sendWhatsApp(
+    @CurrentContext() context: PlatformContext,
+    @Body() body: MessagingSendInput,
+  ) {
+    return this.channels.sendMessaging(
+      context.workspace.id,
+      'whatsapp',
+      body ?? { to: '', body: '' },
+    );
+  }
+
+  @Get('instagram/messages')
+  @RequirePermissions('connections:use')
+  async listInstagram(
+    @CurrentContext() context: PlatformContext,
+    @Query('maxResults') maxResults?: string,
+  ) {
+    return this.listMessaging(context, 'instagram', maxResults);
+  }
+
+  @Post('instagram/send')
+  @RequirePermissions('connections:use')
+  async sendInstagram(
+    @CurrentContext() context: PlatformContext,
+    @Body() body: MessagingSendInput,
+  ) {
+    return this.channels.sendMessaging(
+      context.workspace.id,
+      'instagram',
+      body ?? { to: '', body: '' },
+    );
+  }
+
+  @Get('facebook-messenger/messages')
+  @RequirePermissions('connections:use')
+  async listMessenger(
+    @CurrentContext() context: PlatformContext,
+    @Query('maxResults') maxResults?: string,
+  ) {
+    return this.listMessaging(context, 'facebook_messenger', maxResults);
+  }
+
+  @Post('facebook-messenger/send')
+  @RequirePermissions('connections:use')
+  async sendMessenger(
+    @CurrentContext() context: PlatformContext,
+    @Body() body: MessagingSendInput,
+  ) {
+    return this.channels.sendMessaging(
+      context.workspace.id,
+      'facebook_messenger',
+      body ?? { to: '', body: '' },
+    );
   }
 
   @Get(':type')
@@ -83,5 +158,16 @@ export class ChannelsController {
       context.user.id,
     );
     return { ok: true };
+  }
+
+  private listMessaging(
+    context: PlatformContext,
+    type: 'whatsapp' | 'instagram' | 'facebook_messenger',
+    maxResults?: string,
+  ) {
+    const parsed = maxResults ? Number(maxResults) : undefined;
+    return this.channels.listMessaging(context.workspace.id, type, {
+      maxResults: Number.isFinite(parsed) ? parsed : undefined,
+    });
   }
 }

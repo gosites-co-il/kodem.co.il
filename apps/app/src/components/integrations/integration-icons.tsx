@@ -208,6 +208,8 @@ export const INTEGRATION_ICONS: Record<
   microsoft_365: MicrosoftIcon,
   google_analytics: GoogleAnalyticsIcon,
   google_business: GoogleBusinessIcon,
+  facebook: FacebookIcon,
+  instagram: InstagramChannelIcon,
   meta: MetaIcon,
   google_ads: GoogleAdsIcon,
   whatsapp: WhatsAppIcon,

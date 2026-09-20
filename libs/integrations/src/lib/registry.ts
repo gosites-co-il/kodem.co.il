@@ -2,25 +2,15 @@ import type { ConnectionProviderId } from '@kodem/contracts';
 import type { ConnectionProviderAdapter } from './types';
 import { stubAdapter } from './types';
 import { googleConnectionAdapter } from './google/adapter';
+import { metaConnectionAdapter } from './meta/adapter';
 
 const adapters: ConnectionProviderAdapter[] = [
   googleConnectionAdapter,
+  metaConnectionAdapter,
   stubAdapter(
     'microsoft',
     ['email.read', 'email.send', 'calendar.read', 'calendar.write'],
     'Microsoft',
-  ),
-  stubAdapter(
-    'meta',
-    [
-      'messaging.whatsapp.send',
-      'messaging.whatsapp.receive',
-      'messaging.instagram.send',
-      'messaging.instagram.receive',
-      'messaging.messenger.send',
-      'messaging.messenger.receive',
-    ],
-    'Meta',
   ),
   stubAdapter('smtp', ['email.send'], 'SMTP'),
   stubAdapter('slack', ['chat.post'], 'Slack'),

@@ -7,7 +7,9 @@ import type {
   ConnectionCapability,
   ConnectionCatalogItem,
   ConnectionPreviewResult,
+  ImportContactsFromSheetsResult,
   IntegrationId,
+  SheetsContactImportField,
   WorkspaceConnection,
 } from '@kodem/contracts';
 import { Badge } from '@kodem/design-system/components/ui/badge';
@@ -81,6 +83,77 @@ function isPreviewResult(value: unknown): value is ConnectionPreviewResult {
   );
 }
 
+const IMPORT_FIELD_OPTIONS: Array<{
+  value: SheetsContactImportField;
+  label: string;
+}> = [
+  { value: 'skip', label: 'דילוג' },
+  { value: 'name', label: 'שם' },
+  { value: 'email', label: 'אימייל' },
+  { value: 'phone', label: 'טלפון' },
+  { value: 'notes', label: 'הערות' },
+];
+
+function suggestContactField(header: string): SheetsContactImportField {
+  const h = header.trim().toLowerCase();
+  if (!h) return 'skip';
+  if (
+    /^(name|full.?name|contact)$/i.test(h) ||
+    h === 'שם' ||
+    h === 'שם מלא' ||
+    h === 'שם הלקוח' ||
+    h.includes('שם')
+  ) {
+    return 'name';
+  }
+  if (
+    /^(e-?mail|mail)$/i.test(h) ||
+    h === 'אימייל' ||
+    h === 'מייל' ||
+    h.includes('mail')
+  ) {
+    return 'email';
+  }
+  if (
+    /^(phone|mobile|tel|cellphone)$/i.test(h) ||
+    h === 'טלפון' ||
+    h === 'נייד' ||
+    h === 'פלאפון' ||
+    h.includes('טלפון') ||
+    h.includes('נייד')
+  ) {
+    return 'phone';
+  }
+  if (
+    /^(notes?|comment)$/i.test(h) ||
+    h === 'הערות' ||
+    h === 'הערה' ||
+    h.includes('הער')
+  ) {
+    return 'notes';
+  }
+  return 'skip';
+}
+
+function buildSuggestedMapping(
+  headers: string[],
+): Record<string, SheetsContactImportField> {
+  const mapping: Record<string, SheetsContactImportField> = {};
+  const used = new Set<SheetsContactImportField>();
+  for (const header of headers) {
+    const key = header.trim();
+    if (!key) continue;
+    const field = suggestContactField(key);
+    if (field !== 'skip' && used.has(field)) {
+      mapping[key] = 'skip';
+      continue;
+    }
+    mapping[key] = field;
+    if (field !== 'skip') used.add(field);
+  }
+  return mapping;
+}
+
 const SHEETS_FULL_CAPS: ConnectionCapability[] = [
   'sheets.read',
   'sheets.write',
@@ -92,6 +165,9 @@ const MULTI_CONNECT_IDS = new Set<string>([
   'google_analytics',
   'google_business',
   'google_workspace',
+  'facebook',
+  'instagram',
+  'whatsapp',
 ]);
 
 function statusLabel(status: WorkspaceConnection['status']): string {
@@ -148,9 +224,11 @@ const KNOWN_INTEGRATION_IDS = new Set<string>([
   'microsoft_365',
   'google_analytics',
   'google_business',
+  'facebook',
+  'instagram',
+  'whatsapp',
   'meta',
   'google_ads',
-  'whatsapp',
   'slack',
   'zoom',
 ]);
@@ -194,9 +272,30 @@ function SheetsResourcePanel({
   const [tabs, setTabs] = useState<string[]>([]);
   const [sheet, setSheet] = useState('');
   const [preview, setPreview] = useState<ConnectionPreviewResult | null>(null);
+  const [mapping, setMapping] = useState<
+    Record<string, SheetsContactImportField>
+  >({});
+  const [importResult, setImportResult] =
+    useState<ImportContactsFromSheetsResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [localInfo, setLocalInfo] = useState<string | null>(null);
+
+  const previewHeaders = useMemo(() => {
+    if (!preview?.values?.[0]) return [];
+    return preview.values[0]
+      .map((h) => h.trim())
+      .filter((h) => h.length > 0);
+  }, [preview]);
+
+  const applyPreview = useCallback((previewRes: ConnectionPreviewResult) => {
+    setPreview(previewRes);
+    setImportResult(null);
+    const headers = (previewRes.values[0] ?? [])
+      .map((h) => h.trim())
+      .filter((h) => h.length > 0);
+    setMapping(buildSuggestedMapping(headers));
+  }, []);
 
   const loadTabsAndPreview = useCallback(
     async (preferredSheet?: string) => {
@@ -235,12 +334,12 @@ function SheetsResourcePanel({
           setPreview(null);
           return;
         }
-        setPreview(previewRes);
+        applyPreview(previewRes);
       } catch (err) {
         setLocalError(isApiError(err) ? err.message : 'טעינת הנתונים נכשלה');
       }
     },
-    [active, boundId, canUse, connectionId],
+    [active, applyPreview, boundId, canUse, connectionId],
   );
 
   useEffect(() => {
@@ -290,9 +389,38 @@ function SheetsResourcePanel({
         setPreview(null);
         return;
       }
-      setPreview(previewRes);
+      applyPreview(previewRes);
     } catch (err) {
       setLocalError(isApiError(err) ? err.message : 'תצוגה מקדימה נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runImport() {
+    if (!canUse || !active || !sheet) return;
+    const hasName = Object.values(mapping).includes('name');
+    if (!hasName) {
+      setLocalError('יש למפות לפחות עמודה אחת לשדה שם');
+      return;
+    }
+    setBusy(true);
+    setLocalError(null);
+    setLocalInfo(null);
+    setImportResult(null);
+    try {
+      const result = await api.importContactsFromSheets(connectionId, {
+        sheet,
+        mapping,
+      });
+      setImportResult(result);
+      if (result.success) {
+        setLocalInfo(result.message ?? null);
+      } else {
+        setLocalError(result.message ?? 'ייבוא אנשי הקשר נכשל');
+      }
+    } catch (err) {
+      setLocalError(isApiError(err) ? err.message : 'ייבוא אנשי הקשר נכשל');
     } finally {
       setBusy(false);
     }
@@ -357,29 +485,120 @@ function SheetsResourcePanel({
         <p className="text-sm text-muted-foreground">{localInfo}</p>
       ) : null}
       {active && preview && preview.values.length > 0 ? (
-        <div>
-          <h3 className="mb-2 text-sm font-medium">תצוגה מקדימה</h3>
-          <div className="max-h-72 overflow-auto rounded-md border">
-            <table className="w-full min-w-max border-collapse text-start text-xs">
-              <tbody>
-                {preview.values.map((row, ri) => (
-                  <tr key={ri} className="border-b last:border-0">
-                    {row.map((cell, ci) => (
-                      <td
-                        key={ci}
-                        className={`max-w-[10rem] truncate border-e px-2 py-1.5 last:border-e-0 ${
-                          ri === 0 ? 'bg-muted/50 font-medium' : ''
-                        }`}
-                        title={cell}
-                      >
-                        {cell || '—'}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="flex flex-col gap-4">
+          <div>
+            <h3 className="mb-2 text-sm font-medium">תצוגה מקדימה</h3>
+            <div className="max-h-72 overflow-auto rounded-md border">
+              <table className="w-full min-w-max border-collapse text-start text-xs">
+                <tbody>
+                  {preview.values.map((row, ri) => (
+                    <tr key={ri} className="border-b last:border-0">
+                      {row.map((cell, ci) => (
+                        <td
+                          key={ci}
+                          className={`max-w-[10rem] truncate border-e px-2 py-1.5 last:border-e-0 ${
+                            ri === 0 ? 'bg-muted/50 font-medium' : ''
+                          }`}
+                          title={cell}
+                        >
+                          {cell || '—'}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
+
+          {canUse && previewHeaders.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              <div>
+                <h3 className="text-sm font-medium">ייבוא לאנשי קשר</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  התאימו עמודות לשדות CRM וייבאו עד 500 שורות (ללא כפילויות /
+                  עדכון).
+                </p>
+              </div>
+              <ul className="flex flex-col gap-2">
+                {previewHeaders.map((header) => (
+                  <li
+                    key={header}
+                    className="flex flex-wrap items-center gap-2 text-sm"
+                  >
+                    <span
+                      className="min-w-24 max-w-[10rem] truncate font-medium"
+                      title={header}
+                      dir="auto"
+                    >
+                      {header}
+                    </span>
+                    <select
+                      className="h-8 rounded-md border bg-background px-2 text-xs"
+                      value={mapping[header] ?? 'skip'}
+                      disabled={busy}
+                      onChange={(e) =>
+                        setMapping((prev) => ({
+                          ...prev,
+                          [header]: e.target
+                            .value as SheetsContactImportField,
+                        }))
+                      }
+                    >
+                      {IMPORT_FIELD_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={
+                    busy ||
+                    !active ||
+                    !Object.values(mapping).includes('name')
+                  }
+                  onClick={() => void runImport()}
+                >
+                  ייבא לאנשי קשר
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() =>
+                    setMapping(buildSuggestedMapping(previewHeaders))
+                  }
+                >
+                  הצעה אוטומטית
+                </Button>
+              </div>
+              {importResult?.success ? (
+                <div className="text-xs text-muted-foreground">
+                  <p>
+                    נוצרו {importResult.created} · דולגו {importResult.skipped}
+                    {importResult.errors.length
+                      ? ` · שגיאות ${importResult.errors.length}`
+                      : ''}
+                  </p>
+                  {importResult.errors.length > 0 ? (
+                    <ul className="mt-1 max-h-24 overflow-y-auto">
+                      {importResult.errors.map((e) => (
+                        <li key={`${e.row}-${e.message}`}>
+                          שורה {e.row}: {e.message}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -553,19 +772,23 @@ function BusinessResourcePanel({
     Array<{ locationName: string; title: string; accountName?: string }>
   >([]);
   const [selected, setSelected] = useState(boundName ?? '');
+  const [manualName, setManualName] = useState(boundName ?? '');
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [localInfo, setLocalInfo] = useState<string | null>(null);
+  const [listFailed, setListFailed] = useState(false);
 
   useEffect(() => {
     if (!canUse || !active) return;
     let cancelled = false;
     void (async () => {
       setLocalError(null);
+      setListFailed(false);
       try {
         const res = await api.listConnectionBusinessLocations(connectionId);
         if (isActionFailure(res) || !('locations' in res)) {
           if (!cancelled) {
+            setListFailed(true);
             setLocalError(
               isActionFailure(res)
                 ? (res.message ?? 'טעינת המיקומים נכשלה')
@@ -582,6 +805,7 @@ function BusinessResourcePanel({
         }
       } catch (err) {
         if (!cancelled) {
+          setListFailed(true);
           setLocalError(isApiError(err) ? err.message : 'טעינת המיקומים נכשלה');
         }
       }
@@ -591,14 +815,14 @@ function BusinessResourcePanel({
     };
   }, [active, canUse, connectionId]);
 
-  async function bind() {
-    if (!canManage || !active || !selected) return;
+  async function bind(locationName: string) {
+    if (!canManage || !active || !locationName.trim()) return;
     setBusy(true);
     setLocalError(null);
     setLocalInfo(null);
     try {
       const result = await api.bindConnectionResource(connectionId, {
-        locationName: selected,
+        locationName: locationName.trim(),
       });
       if (!result.success) {
         setLocalError(result.message ?? 'קשירת המיקום נכשלה');
@@ -625,7 +849,148 @@ function BusinessResourcePanel({
         <p className="mt-1 text-sm text-muted-foreground">
           {boundTitle
             ? boundTitle
-            : 'בחרו מיקום Google Business Profile לקשר לחיבור'}
+            : 'בחרו מיקום מהרשימה או הדביקו מזהה מיקום (locations/… )'}
+        </p>
+      </div>
+      {canManage && active ? (
+        <div className="flex flex-col gap-2">
+          {!listFailed && locations.length > 0 ? (
+            <>
+              <select
+                className="h-9 rounded-md border bg-background px-3 text-sm"
+                value={selected}
+                disabled={busy}
+                onChange={(e) => setSelected(e.target.value)}
+              >
+                {locations.map((loc) => (
+                  <option key={loc.locationName} value={loc.locationName}>
+                    {loc.accountName
+                      ? `${loc.title} (${loc.accountName})`
+                      : loc.title}
+                  </option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy || !selected}
+                onClick={() => void bind(selected)}
+              >
+                קשר מיקום
+              </Button>
+            </>
+          ) : null}
+          <Input
+            dir="ltr"
+            className="font-mono text-xs"
+            placeholder="locations/1234567890 או accounts/…/locations/…"
+            value={manualName}
+            onChange={(e) => setManualName(e.target.value)}
+            disabled={busy}
+          />
+          <Button
+            size="sm"
+            variant={listFailed || locations.length === 0 ? 'secondary' : 'outline'}
+            disabled={busy || !manualName.trim()}
+            onClick={() => void bind(manualName)}
+          >
+            קשר לפי מזהה
+          </Button>
+        </div>
+      ) : null}
+      {localError ? (
+        <p className="text-sm text-destructive">{localError}</p>
+      ) : null}
+      {localInfo ? (
+        <p className="text-sm text-muted-foreground">{localInfo}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function FacebookResourcePanel({
+  connectionId,
+  metadata,
+  canManage,
+  canUse,
+  active,
+  onBound,
+}: {
+  connectionId: string;
+  metadata: Record<string, unknown> | null | undefined;
+  canManage: boolean;
+  canUse: boolean;
+  active: boolean;
+  onBound: () => Promise<void>;
+}) {
+  const boundId =
+    typeof metadata?.['pageId'] === 'string' ? metadata['pageId'] : null;
+  const boundName =
+    typeof metadata?.['pageName'] === 'string' ? metadata['pageName'] : null;
+
+  const [pages, setPages] = useState<Array<{ pageId: string; name: string }>>(
+    [],
+  );
+  const [selected, setSelected] = useState(boundId ?? '');
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [localInfo, setLocalInfo] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!canUse || !active) return;
+    setLocalError(null);
+    try {
+      const res = await api.listConnectionFacebookPages(connectionId);
+      if (isActionFailure(res) || !('pages' in res)) {
+        setLocalError(
+          isActionFailure(res) ? (res.message ?? 'טעינת הדפים נכשלה') : 'טעינת הדפים נכשלה',
+        );
+        return;
+      }
+      setPages(res.pages);
+      if (!selected && res.pages[0]) setSelected(res.pages[0].pageId);
+    } catch (err) {
+      setLocalError(isApiError(err) ? err.message : 'טעינת הדפים נכשלה');
+    }
+  }, [active, canUse, connectionId, selected]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function bind() {
+    if (!canManage || !active || !selected) return;
+    setBusy(true);
+    setLocalError(null);
+    setLocalInfo(null);
+    try {
+      const result = await api.bindConnectionResource(connectionId, {
+        pageId: selected,
+      });
+      if (!result.success) {
+        setLocalError(result.message ?? 'קשירת הדף נכשלה');
+        return;
+      }
+      setLocalInfo(result.message ?? 'הדף נקשר');
+      await onBound();
+    } catch (err) {
+      setLocalError(isApiError(err) ? err.message : 'קשירת הדף נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {!active ? (
+        <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
+          החיבור מחובר אך לא פעיל — הפעילו אותו כדי לבחור דף.
+        </p>
+      ) : null}
+      <div>
+        <h3 className="text-sm font-medium">דף Facebook</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {boundName ?? boundId ?? 'בחרו דף לקשר לחיבור (Messenger)'}
         </p>
       </div>
       {canManage && active ? (
@@ -633,17 +998,15 @@ function BusinessResourcePanel({
           <select
             className="h-9 rounded-md border bg-background px-3 text-sm"
             value={selected}
-            disabled={busy || locations.length === 0}
+            disabled={busy || pages.length === 0}
             onChange={(e) => setSelected(e.target.value)}
           >
-            {locations.length === 0 ? (
-              <option value="">אין מיקומים זמינים</option>
+            {pages.length === 0 ? (
+              <option value="">אין דפים זמינים</option>
             ) : (
-              locations.map((loc) => (
-                <option key={loc.locationName} value={loc.locationName}>
-                  {loc.accountName
-                    ? `${loc.title} (${loc.accountName})`
-                    : loc.title}
+              pages.map((p) => (
+                <option key={p.pageId} value={p.pageId}>
+                  {p.name}
                 </option>
               ))
             )}
@@ -654,13 +1017,273 @@ function BusinessResourcePanel({
             disabled={busy || !selected}
             onClick={() => void bind()}
           >
-            קשר מיקום
+            קשר דף
           </Button>
         </div>
       ) : null}
-      {localError ? (
-        <p className="text-sm text-destructive">{localError}</p>
+      {localError ? <p className="text-sm text-destructive">{localError}</p> : null}
+      {localInfo ? (
+        <p className="text-sm text-muted-foreground">{localInfo}</p>
       ) : null}
+    </div>
+  );
+}
+
+function InstagramResourcePanel({
+  connectionId,
+  metadata,
+  canManage,
+  canUse,
+  active,
+  onBound,
+}: {
+  connectionId: string;
+  metadata: Record<string, unknown> | null | undefined;
+  canManage: boolean;
+  canUse: boolean;
+  active: boolean;
+  onBound: () => Promise<void>;
+}) {
+  const boundId =
+    typeof metadata?.['igUserId'] === 'string' ? metadata['igUserId'] : null;
+  const boundName =
+    typeof metadata?.['igUsername'] === 'string'
+      ? metadata['igUsername']
+      : null;
+
+  const [accounts, setAccounts] = useState<
+    Array<{ igUserId: string; username: string; pageName?: string }>
+  >([]);
+  const [selected, setSelected] = useState(boundId ?? '');
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [localInfo, setLocalInfo] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!canUse || !active) return;
+    setLocalError(null);
+    try {
+      const res = await api.listConnectionInstagramAccounts(connectionId);
+      if (isActionFailure(res) || !('accounts' in res)) {
+        setLocalError(
+          isActionFailure(res)
+            ? (res.message ?? 'טעינת חשבונות נכשלה')
+            : 'טעינת חשבונות נכשלה',
+        );
+        return;
+      }
+      setAccounts(res.accounts);
+      if (!selected && res.accounts[0]) setSelected(res.accounts[0].igUserId);
+    } catch (err) {
+      setLocalError(isApiError(err) ? err.message : 'טעינת חשבונות נכשלה');
+    }
+  }, [active, canUse, connectionId, selected]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function bind() {
+    if (!canManage || !active || !selected) return;
+    setBusy(true);
+    setLocalError(null);
+    setLocalInfo(null);
+    try {
+      const result = await api.bindConnectionResource(connectionId, {
+        igUserId: selected,
+      });
+      if (!result.success) {
+        setLocalError(result.message ?? 'קשירת החשבון נכשלה');
+        return;
+      }
+      setLocalInfo(result.message ?? 'החשבון נקשר');
+      await onBound();
+    } catch (err) {
+      setLocalError(isApiError(err) ? err.message : 'קשירת החשבון נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {!active ? (
+        <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
+          החיבור מחובר אך לא פעיל — הפעילו אותו כדי לבחור חשבון.
+        </p>
+      ) : null}
+      <div>
+        <h3 className="text-sm font-medium">חשבון Instagram</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {boundName ? `@${boundName}` : boundId ?? 'בחרו חשבון עסקי לקשר'}
+        </p>
+      </div>
+      {canManage && active ? (
+        <div className="flex flex-col gap-2">
+          <select
+            className="h-9 rounded-md border bg-background px-3 text-sm"
+            value={selected}
+            disabled={busy || accounts.length === 0}
+            onChange={(e) => setSelected(e.target.value)}
+          >
+            {accounts.length === 0 ? (
+              <option value="">אין חשבונות זמינים</option>
+            ) : (
+              accounts.map((a) => (
+                <option key={a.igUserId} value={a.igUserId}>
+                  @{a.username}
+                  {a.pageName ? ` (${a.pageName})` : ''}
+                </option>
+              ))
+            )}
+          </select>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={busy || !selected}
+            onClick={() => void bind()}
+          >
+            קשר חשבון
+          </Button>
+        </div>
+      ) : null}
+      {localError ? <p className="text-sm text-destructive">{localError}</p> : null}
+      {localInfo ? (
+        <p className="text-sm text-muted-foreground">{localInfo}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function WhatsAppResourcePanel({
+  connectionId,
+  metadata,
+  canManage,
+  canUse,
+  active,
+  onBound,
+}: {
+  connectionId: string;
+  metadata: Record<string, unknown> | null | undefined;
+  canManage: boolean;
+  canUse: boolean;
+  active: boolean;
+  onBound: () => Promise<void>;
+}) {
+  const boundId =
+    typeof metadata?.['phoneNumberId'] === 'string'
+      ? metadata['phoneNumberId']
+      : null;
+  const boundDisplay =
+    typeof metadata?.['displayPhoneNumber'] === 'string'
+      ? metadata['displayPhoneNumber']
+      : null;
+
+  const [phones, setPhones] = useState<
+    Array<{
+      phoneNumberId: string;
+      displayPhoneNumber: string;
+      wabaId?: string;
+    }>
+  >([]);
+  const [selected, setSelected] = useState(boundId ?? '');
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [localInfo, setLocalInfo] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!canUse || !active) return;
+    setLocalError(null);
+    try {
+      const res = await api.listConnectionWhatsAppPhoneNumbers(connectionId);
+      if (isActionFailure(res) || !('phoneNumbers' in res)) {
+        setLocalError(
+          isActionFailure(res)
+            ? (res.message ?? 'טעינת המספרים נכשלה')
+            : 'טעינת המספרים נכשלה',
+        );
+        return;
+      }
+      setPhones(res.phoneNumbers);
+      if (!selected && res.phoneNumbers[0]) {
+        setSelected(res.phoneNumbers[0].phoneNumberId);
+      }
+    } catch (err) {
+      setLocalError(isApiError(err) ? err.message : 'טעינת המספרים נכשלה');
+    }
+  }, [active, canUse, connectionId, selected]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function bind() {
+    if (!canManage || !active || !selected) return;
+    const phone = phones.find((p) => p.phoneNumberId === selected);
+    setBusy(true);
+    setLocalError(null);
+    setLocalInfo(null);
+    try {
+      const result = await api.bindConnectionResource(connectionId, {
+        phoneNumberId: selected,
+        wabaId: phone?.wabaId,
+      });
+      if (!result.success) {
+        setLocalError(result.message ?? 'קשירת המספר נכשלה');
+        return;
+      }
+      setLocalInfo(result.message ?? 'המספר נקשר');
+      await onBound();
+    } catch (err) {
+      setLocalError(isApiError(err) ? err.message : 'קשירת המספר נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {!active ? (
+        <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
+          החיבור מחובר אך לא פעיל — הפעילו אותו כדי לבחור מספר.
+        </p>
+      ) : null}
+      <div>
+        <h3 className="text-sm font-medium">מספר WhatsApp</h3>
+        <p className="mt-1 text-sm text-muted-foreground" dir="ltr">
+          {boundDisplay ?? boundId ?? 'בחרו מספר Cloud API לקשר'}
+        </p>
+      </div>
+      {canManage && active ? (
+        <div className="flex flex-col gap-2">
+          <select
+            className="h-9 rounded-md border bg-background px-3 text-sm"
+            value={selected}
+            disabled={busy || phones.length === 0}
+            onChange={(e) => setSelected(e.target.value)}
+            dir="ltr"
+          >
+            {phones.length === 0 ? (
+              <option value="">אין מספרים זמינים</option>
+            ) : (
+              phones.map((p) => (
+                <option key={p.phoneNumberId} value={p.phoneNumberId}>
+                  {p.displayPhoneNumber}
+                </option>
+              ))
+            )}
+          </select>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={busy || !selected}
+            onClick={() => void bind()}
+          >
+            קשר מספר
+          </Button>
+        </div>
+      ) : null}
+      {localError ? <p className="text-sm text-destructive">{localError}</p> : null}
       {localInfo ? (
         <p className="text-sm text-muted-foreground">{localInfo}</p>
       ) : null}
@@ -708,6 +1331,9 @@ function ConnectionDetailSheet({
   const isAnalytics = item?.integrationId === 'google_analytics' && connection;
   const isBusiness = item?.integrationId === 'google_business' && connection;
   const isWorkspace = item?.integrationId === 'google_workspace' && connection;
+  const isFacebook = item?.integrationId === 'facebook' && connection;
+  const isInstagram = item?.integrationId === 'instagram' && connection;
+  const isWhatsApp = item?.integrationId === 'whatsapp' && connection;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -904,10 +1530,40 @@ function ConnectionDetailSheet({
                   active={connection.active}
                   onBound={onBound}
                 />
+              ) : isFacebook ? (
+                <FacebookResourcePanel
+                  key={connection.id}
+                  connectionId={connection.id}
+                  metadata={connection.metadata}
+                  canManage={canManage}
+                  canUse={canUse}
+                  active={connection.active}
+                  onBound={onBound}
+                />
+              ) : isInstagram ? (
+                <InstagramResourcePanel
+                  key={connection.id}
+                  connectionId={connection.id}
+                  metadata={connection.metadata}
+                  canManage={canManage}
+                  canUse={canUse}
+                  active={connection.active}
+                  onBound={onBound}
+                />
+              ) : isWhatsApp ? (
+                <WhatsAppResourcePanel
+                  key={connection.id}
+                  connectionId={connection.id}
+                  metadata={connection.metadata}
+                  canManage={canManage}
+                  canUse={canUse}
+                  active={connection.active}
+                  onBound={onBound}
+                />
               ) : isWorkspace ? (
                 <p className="text-sm text-muted-foreground">
-                  חשבון Gmail מחובר. הגדירו את ערוץ האימייל תחת ערוצים. שליחה
-                  וקריאה אמיתיות יתווספו בהמשך.
+                  חשבון Gmail מחובר. הגדירו את ערוץ האימייל תחת ערוצים לשליחה
+                  וקריאה דרך Gmail.
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">

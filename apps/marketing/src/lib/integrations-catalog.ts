@@ -25,24 +25,37 @@ export type IntegrationCatalogItem = {
 
 export const INTEGRATIONS_CATALOG: IntegrationCatalogItem[] = [
   {
-    id: 'meta',
-    name: 'Meta — פייסבוק ואינסטגרם',
-    shortName: 'Meta',
+    id: 'facebook',
+    name: 'Facebook',
+    shortName: 'Facebook',
     category: 'פרסום ולידים',
     status: 'available',
-    summary: 'לידים מקמפיינים וטפסים נכנסים ישר ל־CRM עם מקור ותיוג.',
+    summary: 'דף עסקי ו-Messenger מחוברים ל־CRM ולערוצי הודעות.',
     usedFor: [
-      'קליטת לידים מפייסבוק ומאינסטגרם בזמן אמת',
-      'תיוג מקור הקמפיין למעקב עד לסגירה',
-      'חיבור בין הוצאת פרסום ל־ROAS אמיתי',
+      'שליחה וקבלה ב-Messenger',
+      'קישור דף Facebook לחיבור Workspace',
     ],
     needs: [
       'חשבון Meta Business עם גישת אדמין',
-      'דף עסקי ו/או חשבון אינסטגרם עסקי מחוברים',
-      'הרשאה לטפסי לידים / Lead Ads הרלוונטיים',
+      'דף עסקי',
       'אישור חיבור OAuth בזמן ההקמה',
     ],
-    setupHint: 'בהקמה מחברים את החשבון פעם אחת; לידים חדשים זורמים אוטומטית.',
+    setupHint: 'מחברים Facebook תחת חיבורים, קושרים דף, ומגדירים את ערוץ Messenger.',
+    icon: Share2,
+  },
+  {
+    id: 'instagram',
+    name: 'Instagram',
+    shortName: 'Instagram',
+    category: 'פרסום ולידים',
+    status: 'available',
+    summary: 'Instagram Direct מול לקוחות דרך חשבון עסקי מקושר לדף.',
+    usedFor: ['הודעות Instagram Direct', 'קישור חשבון עסקי ל־CRM'],
+    needs: [
+      'חשבון Instagram עסקי מקושר לדף Facebook',
+      'הרשאות Instagram Messaging ב-Meta App',
+    ],
+    setupHint: 'מחברים Instagram תחת חיבורים ומגדירים את הערוץ.',
     icon: Share2,
   },
   {

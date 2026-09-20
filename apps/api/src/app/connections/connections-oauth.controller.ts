@@ -9,7 +9,10 @@ import {
 import type { Response } from 'express';
 import type { IntegrationId, UserId, WorkspaceId } from '@kodem/contracts';
 import { ConnectionService } from '@kodem/platform/connections';
-import { verifyGoogleOAuthState } from '@kodem/integrations';
+import {
+  verifyGoogleOAuthState,
+  verifyMetaOAuthState,
+} from '@kodem/integrations';
 
 @Controller('connections/oauth')
 export class ConnectionsOAuthController {
@@ -41,6 +44,63 @@ export class ConnectionsOAuthController {
     @Res() res: Response,
   ) {
     return this.handleGoogleCallback({ code, state, error, res });
+  }
+
+  @Get('meta/:integrationId/callback')
+  async metaIntegrationCallback(
+    @Param('integrationId') integrationIdParam: string,
+    @Query('code') code: string | undefined,
+    @Query('state') state: string | undefined,
+    @Query('error') error: string | undefined,
+    @Res() res: Response,
+  ) {
+    const appUrl = process.env['APP_URL'] ?? 'http://localhost:3000';
+    const successRedirect = `${appUrl}/workspace/integrations/connections`;
+
+    if (error) {
+      return res.redirect(
+        `${successRedirect}?error=${encodeURIComponent(error)}`,
+      );
+    }
+    if (!code || !state) {
+      throw new BadRequestException('Missing code or state');
+    }
+
+    const parsed = verifyMetaOAuthState(state);
+    if (!parsed) {
+      return res.redirect(
+        `${successRedirect}?error=${encodeURIComponent('invalid_state')}`,
+      );
+    }
+
+    if (parsed.integrationId !== integrationIdParam) {
+      return res.redirect(
+        `${successRedirect}?error=${encodeURIComponent('integration_mismatch')}`,
+      );
+    }
+
+    try {
+      const result = await this.connections.completeOAuth(
+        parsed.workspaceId as WorkspaceId,
+        parsed.integrationId,
+        parsed.userId as UserId,
+        code,
+        { connectionId: parsed.connectionId },
+      );
+      if (!result.success) {
+        return res.redirect(
+          `${successRedirect}?error=${encodeURIComponent(result.message ?? 'connect_failed')}`,
+        );
+      }
+      return res.redirect(
+        `${successRedirect}?connected=${encodeURIComponent(parsed.integrationId)}`,
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'connect_failed';
+      return res.redirect(
+        `${successRedirect}?error=${encodeURIComponent(message)}`,
+      );
+    }
   }
 
   private async handleGoogleCallback(input: {
