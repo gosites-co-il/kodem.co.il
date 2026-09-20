@@ -2,8 +2,8 @@
 
 import { LegalDocumentLayout } from '@kodem/design-system/components/ui/legal-document-layout';
 import type { LegalDocument } from '@kodem/platform/legal';
-import { Logo } from './Logo';
-import { SiteFooter } from './SiteFooter';
+import { Logo } from '../site/Logo';
+import { SiteFooter } from '../site/SiteFooter';
 
 export function LegalDocumentPage({
   document,

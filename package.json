@@ -107,7 +107,7 @@
     "webpack-dev-server": "^5.2.1"
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.9",
+    "@astrojs/check": "^0.9.10",
     "@astrojs/react": "^6.0.6",
     "@hookform/resolvers": "^5.0.1",
     "@nestjs/common": "^11.0.0",
@@ -144,7 +144,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/postcss": "^4.2.2",
     "@tailwindcss/vite": "^4.3.3",
-    "astro": "^7.0.3",
+    "astro": "^7.3.3",
     "axios": "^1.12.2",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
