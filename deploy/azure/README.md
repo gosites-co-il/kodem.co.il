@@ -138,8 +138,11 @@ Variables:
 | `OAUTH_META_INSTAGRAM_CLIENT_ID` | Optional; Meta Instagram Connection |
 | `OAUTH_META_WHATSAPP_CLIENT_ID` | Optional; Meta WhatsApp Connection |
 | `META_WEBHOOK_VERIFY_TOKEN` | Optional; Meta webhook hub.verify_token |
-| `MAIL_PROVIDER` | Optional (`stub` default, set `smtp` for real mail) |
-| `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER` | Optional SMTP settings |
+| `SYSTEM_MAIL_PROVIDER` | Optional (`stub` default, set `resend` for system/transactional mail) |
+| `MAIL_FROM` | System From address (must be verified on Resend when using `resend`) |
+| `AUDIT_MAIL_PROVIDER` | Optional (`stub` default, set `gmail` for ops/audit mail via Google Workspace) |
+| `AUDIT_MAIL_FROM` | Ops From address (default `admin@kodem.co.il`) |
+| `AUDIT_SMTP_USER` | Google Workspace mailbox for audit SMTP |
 | `SIGNUP_ADMIN_EMAIL` | Optional; prod signup alerts (default `admin@kodem.co.il`) |
 
 Secrets:
@@ -158,7 +161,8 @@ Secrets:
 | `OAUTH_META_WHATSAPP_CLIENT_SECRET` | Optional; Meta WhatsApp Connection secret |
 | `META_APP_SECRET` | Optional; Meta webhook signature (`X-Hub-Signature-256`) |
 | `CONNECTION_CREDENTIALS_KEY` | Optional but required before using Connections in cloud; encrypts stored OAuth tokens |
-| `SMTP_PASS` | Optional SMTP password when `MAIL_PROVIDER=smtp` |
+| `RESEND_API_KEY` | Optional; required when `SYSTEM_MAIL_PROVIDER=resend` |
+| `AUDIT_SMTP_PASS` | Optional; Google app password when `AUDIT_MAIL_PROVIDER=gmail` |
 
 OAuth values left unset fall back to placeholders so the api still boots. Connection OAuth (`OAUTH_GOOGLE_SHEETS_*`, `OAUTH_GOOGLE_ANALYTICS_*`, `OAUTH_GOOGLE_BUSINESS_*`, `OAUTH_GOOGLE_WORKSPACE_*`) stays disabled until set. Secrets cannot
 be named with a `GITHUB_` prefix, which is why the OAuth ones use `OAUTH_`.

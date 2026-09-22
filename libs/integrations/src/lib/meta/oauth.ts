@@ -66,11 +66,12 @@ export function metaConnectionConfigMissingMessage(
 }
 
 export function metaScopesFor(integrationId: IntegrationId): string[] | null {
+  // Do not request `email` / `public_profile` here — many Meta Business apps
+  // reject them as Invalid Scopes. Messaging only needs Page / IG / WhatsApp perms.
+  // See: https://developers.facebook.com/docs/permissions/
   switch (integrationId) {
     case 'facebook':
       return [
-        'public_profile',
-        'email',
         'pages_show_list',
         'pages_messaging',
         'pages_manage_metadata',
@@ -78,8 +79,6 @@ export function metaScopesFor(integrationId: IntegrationId): string[] | null {
       ];
     case 'instagram':
       return [
-        'public_profile',
-        'email',
         'pages_show_list',
         'pages_messaging',
         'pages_manage_metadata',
@@ -88,8 +87,6 @@ export function metaScopesFor(integrationId: IntegrationId): string[] | null {
       ];
     case 'whatsapp':
       return [
-        'public_profile',
-        'email',
         'business_management',
         'whatsapp_business_management',
         'whatsapp_business_messaging',
@@ -225,7 +222,8 @@ export async function fetchMetaUserInfo(accessToken: string): Promise<{
   email?: string;
 }> {
   const url = new URL(`${META_GRAPH_BASE}/me`);
-  url.searchParams.set('fields', 'id,name,email');
+  // id+name only — avoid requesting email without the email permission
+  url.searchParams.set('fields', 'id,name');
   url.searchParams.set('access_token', accessToken);
   const res = await fetch(url.toString());
   if (!res.ok) {

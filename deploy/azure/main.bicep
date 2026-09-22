@@ -131,27 +131,30 @@ param facebookClientSecret string = ''
 @description('Admin inbox for new-user signup alerts (used when FEATURE_FLAG_ENV=production).')
 param signupAdminEmail string = 'admin@kodem.co.il'
 
-@description('Outbound mail From address.')
+@description('System mail From address (Resend).')
 param mailFrom string = 'noreply@kodem.co.il'
 
-@allowed(['stub', 'smtp'])
-@description('Mail provider. Use smtp with SMTP_* for real delivery.')
-param mailProvider string = 'stub'
-
-@description('SMTP host when mailProvider=smtp.')
-param smtpHost string = ''
-
-@description('SMTP port.')
-param smtpPort string = '587'
-
-@description('SMTP TLS (true for port 465).')
-param smtpSecure string = 'false'
-
-param smtpUser string = ''
+@allowed(['stub', 'resend'])
+@description('System/transactional mail provider (auth, invites, user notifications).')
+param systemMailProvider string = 'stub'
 
 @secure()
-@description('SMTP password.')
-param smtpPass string = ''
+@description('Resend API key when systemMailProvider=resend.')
+param resendApiKey string = ''
+
+@allowed(['stub', 'gmail'])
+@description('Ops/audit mail provider (e.g. new-user signup alerts via Google Workspace SMTP).')
+param auditMailProvider string = 'stub'
+
+@description('Audit mail From address.')
+param auditMailFrom string = 'admin@kodem.co.il'
+
+@description('Google Workspace mailbox for audit SMTP.')
+param auditSmtpUser string = ''
+
+@secure()
+@description('Google app password when auditMailProvider=gmail.')
+param auditSmtpPass string = ''
 
 @description('Region for the PostgreSQL flexible server. Defaults to the region of everything else; override it when the subscription is not allowed to provision flexible servers there. See "PostgreSQL is not available in this region" in deploy/azure/README.md.')
 param postgresLocation string = location
@@ -411,8 +414,12 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
           value: empty(facebookClientSecret) ? 'facebook-client-secret' : facebookClientSecret
         }
         {
-          name: 'smtp-pass'
-          value: empty(smtpPass) ? 'smtp-pass' : smtpPass
+          name: 'resend-api-key'
+          value: empty(resendApiKey) ? 'resend-api-key' : resendApiKey
+        }
+        {
+          name: 'audit-smtp-pass'
+          value: empty(auditSmtpPass) ? 'audit-smtp-pass' : auditSmtpPass
         }
       ]
     }
@@ -435,12 +442,12 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
             { name: 'FEATURE_FLAG_ENV', value: environmentName == 'prod' ? 'production' : 'development' }
             { name: 'SIGNUP_ADMIN_EMAIL', value: environmentName == 'prod' ? signupAdminEmail : '' }
             { name: 'MAIL_FROM', value: mailFrom }
-            { name: 'MAIL_PROVIDER', value: mailProvider }
-            { name: 'SMTP_HOST', value: smtpHost }
-            { name: 'SMTP_PORT', value: smtpPort }
-            { name: 'SMTP_SECURE', value: smtpSecure }
-            { name: 'SMTP_USER', value: smtpUser }
-            { name: 'SMTP_PASS', secretRef: 'smtp-pass' }
+            { name: 'SYSTEM_MAIL_PROVIDER', value: systemMailProvider }
+            { name: 'RESEND_API_KEY', secretRef: 'resend-api-key' }
+            { name: 'AUDIT_MAIL_PROVIDER', value: auditMailProvider }
+            { name: 'AUDIT_MAIL_FROM', value: auditMailFrom }
+            { name: 'AUDIT_SMTP_USER', value: auditSmtpUser }
+            { name: 'AUDIT_SMTP_PASS', secretRef: 'audit-smtp-pass' }
             { name: 'DATABASE_URL', secretRef: 'database-url' }
             { name: 'JWT_SECRET', secretRef: 'jwt-secret' }
             { name: 'GOOGLE_CLIENT_ID', value: empty(googleClientId) ? 'google-client-id' : googleClientId }

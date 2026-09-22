@@ -23,7 +23,7 @@ Do **not** reuse login `FACEBOOK_CLIENT_*`.
 
 1. Meta App → Facebook Login for Business / Graph API.
 2. Redirect URI: callback above.
-3. Permissions: `pages_show_list`, `pages_messaging`, `pages_manage_metadata`, …
+3. Permissions: `pages_show_list`, `pages_messaging`, `pages_manage_metadata`, `pages_read_engagement` (do **not** add `email` / `public_profile` for Connections — Meta often returns Invalid Scopes).
 4. Connect from חיבורים → Facebook → bind a **Page** → test.
 5. Configure [Messenger channel](../channels/facebook-messenger.md).
 
