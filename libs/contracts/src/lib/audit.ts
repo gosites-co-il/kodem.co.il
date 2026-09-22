@@ -9,6 +9,7 @@ export type AuditAction =
   | 'workspace.deactivated'
   | 'workspace.left'
   | 'subscription.plan_changed'
+  | 'auth.signup'
   | 'auth.password_reset_requested'
   | 'auth.password_reset_completed'
   | 'auth.email_verified'

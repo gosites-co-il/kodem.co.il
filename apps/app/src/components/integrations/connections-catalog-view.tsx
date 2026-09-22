@@ -1866,15 +1866,27 @@ export function ConnectionsCatalogView() {
           const showConnect =
             item.status === 'available' &&
             (MULTI_CONNECT_IDS.has(item.integrationId) || linked.length === 0);
+          const cardInteractive = canOpen || showConnect;
 
           return (
             <Card
               key={item.integrationId}
               className={`flex flex-col transition-shadow hover:shadow-md ${
-                canOpen ? 'cursor-pointer' : ''
+                cardInteractive ? 'cursor-pointer' : ''
               }`}
               onClick={() => {
-                if (canOpen) openConnected(item);
+                if (canOpen) {
+                  openConnected(item);
+                  return;
+                }
+                // Sheets needs access-mode dropdown — use חבר button.
+                if (
+                  showConnect &&
+                  canManage &&
+                  item.integrationId !== 'google_sheets'
+                ) {
+                  void connect(item.integrationId);
+                }
               }}
             >
               <CardHeader className="flex flex-row items-start gap-3 space-y-0">
@@ -2012,8 +2024,11 @@ export function ConnectionsCatalogView() {
                       }}
                     >
                       <PlusIcon data-icon="inline-start" />
-                      חבר
+                      {canOpen ? 'הוסף' : 'חבר'}
                     </Button>
+                  ) : null}
+                  {!showConnect && !canOpen && item.status !== 'available' ? (
+                    <Badge variant="secondary">בקרוב</Badge>
                   ) : null}
                 </div>
               </CardFooter>

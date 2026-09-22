@@ -80,11 +80,33 @@ export class AuthService {
     return this.issueSession(user, resolved);
   }
 
-  /** Prod-only alert to ops when a brand-new account is created. */
+  /** Audit + prod email alert when a brand-new account is created. */
   async notifyAdminOfSignup(
     user: User,
     method: 'password' | 'oauth',
   ): Promise<void> {
+    const createdAt =
+      user.createdAt instanceof Date
+        ? user.createdAt.toISOString()
+        : String(user.createdAt ?? '');
+
+    try {
+      await this.audit.record({
+        actorId: user.id,
+        targetId: user.id,
+        action: 'auth.signup',
+        metadata: {
+          email: user.email,
+          name: user.name,
+          method,
+          createdAt,
+        },
+      });
+    } catch (err) {
+      console.error('[AuthService] Failed to audit signup', err);
+    }
+
+    // Email ops only in production (avoids noise with local stub mail).
     if ((process.env['FEATURE_FLAG_ENV'] ?? '') !== 'production') {
       return;
     }
@@ -103,10 +125,7 @@ export class AuthService {
           name: user.name,
           userId: user.id,
           method,
-          createdAt:
-            user.createdAt instanceof Date
-              ? user.createdAt.toISOString()
-              : String(user.createdAt ?? ''),
+          createdAt,
         },
       });
     } catch (err) {
