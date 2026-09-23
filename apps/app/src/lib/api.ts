@@ -1,6 +1,7 @@
 import type {
   AdvanceSetupInput,
   AuthResult,
+  GuestSetupResult,
   BillingSnapshot,
   BusinessProfile,
   ChannelCatalogItem,
@@ -182,7 +183,7 @@ async function request<T>(
   return res.json() as Promise<T>;
 }
 
-function persistAuthTokens(result: AuthResult): AuthResult {
+function persistAuthTokens<T extends AuthResult>(result: T): T {
   const token = result.accessToken ?? result.token;
   if (token) setToken(token);
   return result;
@@ -361,12 +362,7 @@ export const api = {
   },
 
   createGuestSetup(websiteUrl: string) {
-    return request<
-      AuthResult & {
-        claimSecret: string;
-        setup: SetupStateResponse;
-      }
-    >('/workspace/setup/guest', {
+    return request<GuestSetupResult>('/workspace/setup/guest', {
       method: 'POST',
       body: JSON.stringify({ websiteUrl }),
     }).then(persistAuthTokens);
