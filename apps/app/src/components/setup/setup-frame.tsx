@@ -98,7 +98,7 @@ export function SetupFrame({
         className={cn(
           'relative z-10 flex w-full flex-1 flex-col bg-card',
           'min-h-[70vh] shadow-xl',
-          'lg:h-screen lg:w-[62.5%] lg:min-h-0 lg:rounded-s-[2rem]',
+          'lg:h-screen lg:w-[62.5%] lg:min-h-0',
           'lg:shadow-[24px_0_60px_rgba(11,17,30,0.18)]',
         )}
       >
