@@ -1,25 +1,12 @@
 import { Button } from '@kodem/design-system/components/ui/button';
-import { PageHero } from '../site/PageHero';
 import { HowItWorks } from '../landing/HowItWorks';
-import { NAV_SIGNUP_HREF } from '../../lib/site-config';
+import { HowItWorksHeroCarousel } from './HowItWorksHeroCarousel';
 
 export function HowItWorksPage() {
   return (
     <>
-      <PageHero
-        eyebrow="הקמה"
-        title={'מהרשמה ללידים שנענים לבד.\n30 דקות.'}
-        description="ליווי מלא שלנו בהקמה. אתה מאשר איך המערכת עונה — ורק אז היא פוגשת לקוח."
-      >
-        <Button
-          asChild
-          size="lg"
-          className="h-12 cursor-pointer rounded-full bg-cta px-6 text-cta-foreground hover:bg-cta/90"
-        >
-          <a href={NAV_SIGNUP_HREF}>מתחילים עכשיו</a>
-        </Button>
-      </PageHero>
-      <HowItWorks />
+      <HowItWorksHeroCarousel />
+      <HowItWorks showIntro={false} />
       <section className="section-pad">
         <div className="container-site">
           <div className="bento-card reveal mx-auto max-w-3xl text-center">

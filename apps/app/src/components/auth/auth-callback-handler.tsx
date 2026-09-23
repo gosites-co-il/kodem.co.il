@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from '@kodem/design-system/components/ui/card';
 import { setToken } from '../../lib/auth/storage';
+import { claimGuestWorkspaceIfPending } from '../../lib/auth/claim-guest';
 import { api } from '../../lib/api';
 import { ROUTES } from '../../lib/constants';
 import { useAuth } from '../../providers/auth-provider';
@@ -62,6 +63,20 @@ export function AuthCallbackHandler() {
           } finally {
             clearPendingSignupConsent();
           }
+        }
+
+        const claimed = await claimGuestWorkspaceIfPending();
+        if (cancelled) return;
+
+        if (claimed) {
+          setSession({
+            user: claimed.user,
+            workspace: claimed.workspace,
+            role: claimed.role,
+            token: claimed.accessToken ?? claimed.token,
+          });
+          router.replace(`${ROUTES.setup}/connections`);
+          return;
         }
 
         const me = await api.me();

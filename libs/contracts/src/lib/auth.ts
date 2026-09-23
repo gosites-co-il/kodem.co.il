@@ -14,6 +14,8 @@ export interface JwtPayload {
   email: string;
   workspaceId: WorkspaceId;
   role: RoleName;
+  /** Present when the session is an ephemeral marketing-hero guest. */
+  guest?: boolean;
   typ?: 'access';
   iat?: number;
   exp?: number;
@@ -50,6 +52,12 @@ export interface AuthResult {
   workspace: Workspace;
   role: RoleName;
   emailVerified: boolean;
+}
+
+/** Guest bootstrap response — auth session plus claim secret + setup state. */
+export interface GuestSetupResult extends AuthResult {
+  claimSecret: string;
+  setup: import('./workspace-setup').SetupStateResponse;
 }
 
 export interface PasswordResetRequestInput {

@@ -162,6 +162,12 @@ export interface WorkspaceSetupData {
    * - `manual`: blank form — start-over and future “new workspace” flows
    */
   identityMode?: 'email_assisted' | 'manual';
+  /**
+   * Marketing-hero guest session — skips identity/slug; requires claim before connections.
+   * `guestClaimSecret` is server-only (stripped from setup GET responses).
+   */
+  guest?: boolean;
+  guestClaimSecret?: string;
   business?: SetupBusinessData;
   discovered?: DiscoveredBusinessInfo;
   businessReport?: BusinessReportDraft;

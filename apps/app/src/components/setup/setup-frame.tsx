@@ -21,6 +21,7 @@ export function SetupFrame({
   brandSubtitle = 'שם הסביבה וכתובת ייחודית — ואפשר להמשיך.',
   onStartOver,
   startOverDisabled,
+  hideWorkspaceSelect,
   className,
 }: {
   children: ReactNode;
@@ -30,6 +31,8 @@ export function SetupFrame({
   brandSubtitle?: string;
   onStartOver?: () => void;
   startOverDisabled?: boolean;
+  /** Guest sessions cannot switch workspaces. */
+  hideWorkspaceSelect?: boolean;
   className?: string;
 }) {
   return (
@@ -86,17 +89,19 @@ export function SetupFrame({
             <p className="text-xs font-medium text-muted-foreground">
               הגדרת סביבה
             </p>
-            <Link
-              href={ROUTES.workspaceSelect}
-              className={cn(
-                'inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5',
-                'text-xs font-medium text-muted-foreground',
-                'transition-colors hover:bg-muted hover:text-foreground',
-              )}
-            >
-              <ArrowRightLeft className="size-3.5" aria-hidden />
-              בחירת סביבה
-            </Link>
+            {!hideWorkspaceSelect ? (
+              <Link
+                href={ROUTES.workspaceSelect}
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5',
+                  'text-xs font-medium text-muted-foreground',
+                  'transition-colors hover:bg-muted hover:text-foreground',
+                )}
+              >
+                <ArrowRightLeft className="size-3.5" aria-hidden />
+                בחירת סביבה
+              </Link>
+            ) : null}
           </div>
           <SetupStepper steps={steps} activeStepId={activeStepId} />
         </div>

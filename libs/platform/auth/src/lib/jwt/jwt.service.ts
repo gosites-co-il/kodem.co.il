@@ -20,6 +20,7 @@ export class JwtService {
       email: string;
       workspaceId: WorkspaceId;
       role: RoleName;
+      guest?: boolean;
     },
     expiresIn?: string | number,
   ): string {

@@ -7,8 +7,12 @@ import {
   type DiscoveredBusinessInfo,
   type EarlyDiscoverySource,
   type EarlyDiscoveryState,
+  type SetupSocialChannel,
   type SetupStateResponse,
   type SetupStepId,
+  type Member,
+  type User,
+  type UserId,
   type Workspace,
   type WorkspaceId,
   type WorkspaceSetupData,
@@ -17,14 +21,18 @@ import {
   BusinessProfileRepository,
   BusinessReportRepository,
   InsightRepository,
+  MemberRepository,
   PrismaEventStore,
   RecommendationRepository,
+  UserRepository,
   WorkspaceModuleRepository,
   WorkspaceRepository,
 } from '@kodem/database';
 import { EVENT_TYPES, KodemEventBus } from '@kodem/events';
 import { UsageService } from '@kodem/platform/usage';
+import { SubscriptionService } from '@kodem/platform/subscription';
 import { corporateEmailIdentityHints } from '@kodem/shared/utils';
+import { randomBytes } from 'crypto';
 import { BusinessDiscoveryService } from './business-discovery.service';
 import {
   buildProfileDraftFromSetup,
@@ -36,6 +44,7 @@ import {
   reportFromDraft,
 } from './report-draft.builder';
 import { SetupProgressService } from './setup-progress.service';
+import { WorkspaceModuleService } from './workspace-module.service';
 
 const STEP_INDEX: Record<SetupStepId, number> = Object.fromEntries(
   SETUP_STEPS.map((step, index) => [step, index]),
@@ -211,6 +220,49 @@ function serializeSetup(data: WorkspaceSetupData | undefined): string | null {
   return JSON.stringify(data);
 }
 
+/** Strip server-only guest claim secret before returning setup to clients. */
+function publicSetup(setup: WorkspaceSetupData): WorkspaceSetupData {
+  if (!setup.guestClaimSecret) return setup;
+  const rest = { ...setup };
+  delete rest.guestClaimSecret;
+  return rest;
+}
+
+function normalizeGuestWebsiteUrl(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new Error('websiteUrl is required');
+  }
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+function guestBusinessSeed(websiteUrl: string): WorkspaceSetupData['business'] {
+  const social = classifySocialUrlToEarlySource(websiteUrl);
+  const socials =
+    social && social !== 'website'
+      ? ({ [social as SetupSocialChannel]: websiteUrl } as Partial<
+          Record<SetupSocialChannel, string>
+        >)
+      : undefined;
+  return {
+    websiteUrl,
+    ...(socials ? { socials } : {}),
+  };
+}
+
+function guestDisplayNameFromUrl(websiteUrl: string): string {
+  try {
+    const host = new URL(websiteUrl).hostname.replace(/^www\./i, '');
+    const label = host.split('.')[0]?.trim();
+    if (label && label.length >= 2) {
+      return label.charAt(0).toUpperCase() + label.slice(1);
+    }
+    return host || 'Guest Workspace';
+  } catch {
+    return 'Guest Workspace';
+  }
+}
+
 function cleanPeekedBusinessName(html: string): string | null {
   const ogSite = html.match(
     /<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i,
@@ -244,10 +296,14 @@ export class WorkspaceSetupService {
   private readonly insightRepo = new InsightRepository();
   private readonly recommendationRepo = new RecommendationRepository();
   private readonly moduleRepo = new WorkspaceModuleRepository();
+  private readonly memberRepo = new MemberRepository();
+  private readonly userRepo = new UserRepository();
   private readonly progressService = new SetupProgressService();
   private readonly discoveryService = new BusinessDiscoveryService();
   private readonly eventBus = new KodemEventBus(new PrismaEventStore());
   private readonly usage = new UsageService();
+  private readonly subscriptions = new SubscriptionService();
+  private readonly modules = new WorkspaceModuleService();
 
   async getState(workspaceId: WorkspaceId): Promise<SetupStateResponse> {
     const workspace = await this.requireWorkspace(workspaceId);
@@ -303,9 +359,173 @@ export class WorkspaceSetupService {
       step: this.getStepId({ ...workspace, onboardingStep: stepIndex }),
       stepIndex,
       totalSteps: SETUP_STEPS.length,
-      workspace: { ...workspace, setupData: setup, onboardingStep: stepIndex },
+      workspace: {
+        ...workspace,
+        setupData: publicSetup(setup),
+        onboardingStep: stepIndex,
+      },
+      setup: publicSetup(setup),
+    };
+  }
+
+  /**
+   * Marketing-hero guest bootstrap — ephemeral user + workspace at discovery.
+   * Caller issues JWT/session from the returned user + workspace.
+   */
+  async createGuestSession(websiteUrlInput: string): Promise<{
+    user: User;
+    workspace: Workspace;
+    membership: Member;
+    claimSecret: string;
+    setup: SetupStateResponse;
+  }> {
+    const websiteUrl = normalizeGuestWebsiteUrl(websiteUrlInput);
+    const claimSecret = randomBytes(32).toString('hex');
+    const suffix = randomBytes(5).toString('hex');
+    const displayName = guestDisplayNameFromUrl(websiteUrl);
+    const slug = `ws-${suffix}`;
+
+    const user = await this.userRepo.create({
+      email: `guest_${suffix}@guest.kodem.local`,
+      name: 'Guest',
+    });
+
+    const business = guestBusinessSeed(websiteUrl);
+    const setupData: WorkspaceSetupData = {
+      setupJourneyVersion: SETUP_JOURNEY_VERSION,
+      identityMode: 'manual',
+      guest: true,
+      guestClaimSecret: claimSecret,
+      identityComplete: true,
+      business,
+    };
+
+    const { workspace, memberId } = await this.workspaceRepo.createForUser({
+      name: displayName,
+      slug,
+      ownerId: user.id,
+      websiteUrl,
+      setupData,
+    });
+
+    await this.workspaceRepo.updateOnboarding(workspace.id, {
+      onboardingStatus: 'IN_PROGRESS',
+      onboardingStep: STEP_INDEX.business_discovery,
+    });
+
+    await this.subscriptions.ensureForWorkspace(workspace.id);
+    await this.modules.enableDefaultFreeModules(workspace.id);
+
+    void this.startEarlyDiscovery(workspace.id, {
+      websiteUrl,
+      businessName: displayName,
+    });
+
+    const setup = await this.getState(workspace.id);
+    return {
+      user,
+      workspace: setup.workspace,
+      membership: {
+        id: memberId,
+        workspaceId: workspace.id,
+        userId: user.id,
+        role: 'owner',
+        createdAt: workspace.createdAt,
+        updatedAt: workspace.updatedAt,
+      },
+      claimSecret,
       setup,
     };
+  }
+
+  /** Return claim credentials for the active guest workspace (authenticated). */
+  async getGuestClaimSecret(workspaceId: WorkspaceId): Promise<{
+    workspaceId: WorkspaceId;
+    claimSecret: string;
+  }> {
+    const workspace = await this.requireWorkspace(workspaceId);
+    const setup = this.mergeSetupData(workspace);
+    if (!setup.guest || !setup.guestClaimSecret) {
+      throw new Error('Not a guest workspace');
+    }
+    return { workspaceId, claimSecret: setup.guestClaimSecret };
+  }
+
+  /**
+   * Attach a guest workspace to a real user after register/login.
+   * Clears guest flag and sets the claimed workspace active.
+   */
+  async claimGuestWorkspace(
+    claimantUserId: UserId,
+    input: { workspaceId: WorkspaceId; claimSecret: string },
+  ): Promise<{
+    workspace: Workspace;
+    membership: Member;
+  }> {
+    const claimSecret = input.claimSecret?.trim();
+    if (!claimSecret) {
+      throw new Error('Invalid or expired guest claim');
+    }
+
+    const workspace = await this.requireWorkspace(input.workspaceId);
+    const setup = this.mergeSetupData(workspace);
+    if (!setup.guest || setup.guestClaimSecret !== claimSecret) {
+      throw new Error('Invalid or expired guest claim');
+    }
+
+    const guestOwnerId = workspace.ownerId;
+    let membership = await this.memberRepo.findByUserAndWorkspace(
+      claimantUserId,
+      workspace.id,
+    );
+
+    if (!membership) {
+      membership = await this.memberRepo.create({
+        workspaceId: workspace.id,
+        userId: claimantUserId,
+        role: 'owner',
+      });
+    } else if (membership.role !== 'owner') {
+      membership = await this.memberRepo.updateRole(
+        workspace.id,
+        claimantUserId,
+        'owner',
+      );
+    }
+
+    if (guestOwnerId !== claimantUserId) {
+      await this.workspaceRepo.updateOwner(workspace.id, claimantUserId);
+      const guestMembership = await this.memberRepo.findByUserAndWorkspace(
+        guestOwnerId,
+        workspace.id,
+      );
+      if (guestMembership) {
+        await this.memberRepo.delete(workspace.id, guestOwnerId);
+      }
+    }
+
+    delete setup.guest;
+    delete setup.guestClaimSecret;
+    setup.setupJourneyVersion = SETUP_JOURNEY_VERSION;
+
+    // Resume at connections after understanding approval; otherwise stay put.
+    const resumeStep =
+      setup.businessApproved &&
+      workspace.onboardingStep < STEP_INDEX.connections
+        ? STEP_INDEX.connections
+        : Math.max(workspace.onboardingStep, STEP_INDEX.business_discovery);
+
+    await this.workspaceRepo.updateOnboarding(workspace.id, {
+      onboardingStep: resumeStep,
+      onboardingStatus: 'IN_PROGRESS',
+      setupData: serializeSetup(setup),
+    });
+
+    await this.userRepo.setActiveWorkspace(claimantUserId, workspace.id);
+    await this.subscriptions.ensureForWorkspace(workspace.id);
+
+    const claimed = await this.requireWorkspace(workspace.id);
+    return { workspace: claimed, membership };
   }
 
   async advanceStep(
@@ -331,6 +551,8 @@ export class WorkspaceSetupService {
     if (!currentSetup.identityComplete) {
       throw new Error('Complete business identity before continuing');
     }
+
+    this.assertGuestStepAllowed(currentSetup, input.step);
 
     const nextSetup = this.mergeStepData(currentSetup, input);
     const stepIndex = STEP_INDEX[input.step];
@@ -510,6 +732,11 @@ export class WorkspaceSetupService {
       websiteUrl?: string;
     },
   ): Promise<SetupStateResponse> {
+    const existing = await this.requireWorkspace(workspaceId);
+    if (this.mergeSetupData(existing).guest) {
+      throw new Error('Guest sessions skip identity setup');
+    }
+
     const businessName = input.businessName.trim();
     const workspaceName = input.workspaceName.trim();
     const slug = normalizeWorkspaceSlug(input.slug);
@@ -657,6 +884,9 @@ export class WorkspaceSetupService {
   /** Wipe workspace setup artifacts and return to a clean identity step. */
   async startOver(workspaceId: WorkspaceId): Promise<SetupStateResponse> {
     const workspace = await this.requireWorkspace(workspaceId);
+    if (this.mergeSetupData(workspace).guest) {
+      throw new Error('Guest sessions cannot restart setup');
+    }
     if (workspace.onboardingStatus === 'COMPLETED') {
       throw new Error('Setup already completed');
     }
@@ -789,6 +1019,9 @@ export class WorkspaceSetupService {
   async runPreparation(workspaceId: WorkspaceId): Promise<SetupStateResponse> {
     const workspace = await this.requireWorkspace(workspaceId);
     const setup = this.mergeSetupData(workspace);
+    if (setup.guest) {
+      throw new Error('Sign in required to continue setup');
+    }
 
     if (workspace.onboardingStep >= STEP_INDEX.ready) {
       return this.getState(workspaceId);
@@ -824,6 +1057,9 @@ export class WorkspaceSetupService {
 
   async complete(workspaceId: WorkspaceId): Promise<SetupStateResponse> {
     const workspace = await this.requireWorkspace(workspaceId);
+    if (this.mergeSetupData(workspace).guest) {
+      throw new Error('Sign in required to continue setup');
+    }
     if (workspace.onboardingStatus === 'COMPLETED') {
       return this.getState(workspaceId);
     }
@@ -1125,6 +1361,8 @@ export class WorkspaceSetupService {
     return {
       setupJourneyVersion: setup.setupJourneyVersion ?? SETUP_JOURNEY_VERSION,
       identityMode: setup.identityMode,
+      guest: setup.guest,
+      guestClaimSecret: setup.guestClaimSecret,
       business: setup.business,
       businessApproved: setup.businessApproved,
       identityComplete: setup.identityComplete,
@@ -1139,6 +1377,16 @@ export class WorkspaceSetupService {
       preparationTasks: setup.preparationTasks,
       discoveryFindings: setup.discoveryFindings,
     };
+  }
+
+  private assertGuestStepAllowed(
+    setup: WorkspaceSetupData,
+    step: SetupStepId,
+  ): void {
+    if (!setup.guest) return;
+    if (step === 'connections' || step === 'ready' || step === 'welcome') {
+      throw new Error('Sign in required to continue setup');
+    }
   }
 
   private async finalizeWorkspaceCreation(

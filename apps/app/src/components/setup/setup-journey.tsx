@@ -1,15 +1,22 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { SetupStateResponse, SetupStepId } from '@kodem/contracts';
 import { resolveSetupStepId } from '@kodem/contracts';
 import { api, isApiError } from '../../lib/api';
+import { clearToken, getToken } from '../../lib/auth/storage';
+import {
+  clearGuestClaim,
+  readGuestClaim,
+  storeGuestClaim,
+} from '../../lib/auth/guest-claim';
 import { ROUTES } from '../../lib/constants';
 import {
   isSetupStartOverPath,
   setupHrefForState,
   setupStartOverHref,
+  setupStepHref,
 } from '../../lib/setup/routes';
 import { useAuth } from '../../providers/auth-provider';
 import { SetupShell } from './setup-shell';
@@ -57,9 +64,16 @@ const SETUP_BRAND_COPY: Record<
   },
 };
 
+function normalizeWebsiteUrl(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
 export function SetupJourney() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { setSession } = useAuth();
   const [state, setState] = useState<SetupStateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +82,12 @@ export function SetupJourney() {
   /** Bumps on start-over so IdentityScreen remounts even if URL stays /setup/welcome. */
   const [identityEpoch, setIdentityEpoch] = useState(0);
   const loadGeneration = useRef(0);
+  const guestBootstrapDone = useRef(false);
+
+  const clearWebsiteUrlQuery = useCallback(() => {
+    if (!searchParams.get('websiteUrl')) return;
+    router.replace(pathname);
+  }, [pathname, router, searchParams]);
 
   const load = useCallback(async () => {
     const generation = ++loadGeneration.current;
@@ -88,14 +108,80 @@ export function SetupJourney() {
     }
   }, []);
 
+  // Guest / websiteUrl bootstrap from marketing hero.
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (guestBootstrapDone.current) return;
+    const rawUrl = searchParams.get('websiteUrl');
+    if (!rawUrl?.trim()) {
+      void load();
+      return;
+    }
+
+    guestBootstrapDone.current = true;
+    const websiteUrl = normalizeWebsiteUrl(rawUrl);
+
+    void (async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const token = getToken();
+        if (token) {
+          try {
+            const existing = await api.getSetup();
+            if (existing.setup.guest) {
+              storeGuestClaim({
+                workspaceId: existing.workspace.id,
+                claimSecret:
+                  readGuestClaim()?.claimSecret ??
+                  (await api.getGuestClaimSecret()).claimSecret,
+              });
+              const next = await api.discoverWebsite(websiteUrl);
+              setState(next);
+              clearWebsiteUrlQuery();
+              return;
+            }
+            // Logged-in non-guest: seed URL into current incomplete setup.
+            if (existing.workspace.onboardingStatus !== 'COMPLETED') {
+              const next = await api.discoverWebsite(websiteUrl);
+              setState(next);
+              clearWebsiteUrlQuery();
+              return;
+            }
+          } catch {
+            // Fall through to create a fresh guest session.
+          }
+        }
+
+        const guest = await api.createGuestSetup(websiteUrl);
+        storeGuestClaim({
+          workspaceId: guest.workspace.id,
+          claimSecret: guest.claimSecret,
+        });
+        setSession({
+          user: guest.user,
+          workspace: guest.workspace,
+          role: guest.role,
+          token: guest.accessToken ?? guest.token,
+        });
+        setState(guest.setup);
+        clearWebsiteUrlQuery();
+      } catch (err) {
+        setError(
+          isApiError(err)
+            ? err.message
+            : 'לא ניתן להתחיל הגדרה כאורח. נסו שוב.',
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, [searchParams, load, clearWebsiteUrlQuery, setSession]);
 
   // Visiting /setup/start-over ensures a manual identity reset.
   useEffect(() => {
     if (!state || isLoading || isSubmitting) return;
     if (!isSetupStartOverPath(pathname)) return;
+    if (state.setup.guest) return;
     // Already past identity — sync will leave start-over; do not wipe again.
     if (state.setup.identityComplete) return;
     if (
@@ -105,7 +191,6 @@ export function SetupJourney() {
       return;
     }
     void startOver();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- startOver closes over latest setters
   }, [pathname, state, isLoading, isSubmitting]);
 
   // Keep the URL in sync with the server-authoritative setup step.
@@ -113,6 +198,13 @@ export function SetupJourney() {
     if (!state) return;
 
     const step = resolveSetupStepId(state.step);
+
+    // Guests never see identity / start-over.
+    if (state.setup.guest && (step === 'welcome' || isSetupStartOverPath(pathname))) {
+      router.replace(setupStepHref('business_discovery'));
+      return;
+    }
+
     // While start-over is still resetting into manual welcome, don't yank the URL.
     const awaitingManualWelcome =
       isSetupStartOverPath(pathname) &&
@@ -124,10 +216,38 @@ export function SetupJourney() {
     }
 
     const href = setupHrefForState(step, state.setup);
-    if (pathname !== href) {
+    if (pathname !== href && !searchParams.get('websiteUrl')) {
       router.replace(href);
     }
-  }, [state, pathname, router]);
+  }, [state, pathname, router, searchParams]);
+
+  // Guests who somehow land on connections/ready must authenticate first.
+  useEffect(() => {
+    if (!state?.setup.guest) return;
+    const step = resolveSetupStepId(state.step);
+    if (step !== 'connections' && step !== 'ready') return;
+    void beginGuestAuthHandoff();
+  }, [state]);
+
+  async function beginGuestAuthHandoff() {
+    try {
+      let claim = readGuestClaim();
+      if (!claim?.claimSecret) {
+        const secret = await api.getGuestClaimSecret();
+        claim = secret;
+        storeGuestClaim(secret);
+      } else {
+        storeGuestClaim(claim);
+      }
+    } catch {
+      // Claim cookie may already be set from bootstrap.
+    }
+    clearToken();
+    const next = encodeURIComponent(setupStepHref('connections'));
+    window.location.assign(
+      `${ROUTES.register}?next=${next}&guestClaim=1`,
+    );
+  }
 
   function applyState(next: SetupStateResponse | null) {
     if (!next) return null;
@@ -146,6 +266,10 @@ export function SetupJourney() {
     setError(null);
     try {
       const next = await api.advanceSetupStep({ step, data });
+      if (step === 'business_understanding' && (state?.setup.guest || next.setup.guest)) {
+        await beginGuestAuthHandoff();
+        return null;
+      }
       return applyState(next);
     } catch (err) {
       setError(isApiError(err) ? err.message : 'לא ניתן לשמור.');
@@ -203,6 +327,7 @@ export function SetupJourney() {
   }
 
   async function startOver() {
+    if (state?.setup.guest) return null;
     setIsSubmitting(true);
     setError(null);
     // Drop any in-flight getSetup() so it cannot overwrite the reset.
@@ -254,6 +379,7 @@ export function SetupJourney() {
     setIsSubmitting(true);
     try {
       await api.completeSetup();
+      clearGuestClaim();
       const me = await api.me();
       setSession({
         user: me.user,
@@ -268,6 +394,8 @@ export function SetupJourney() {
     }
   }
 
+  const isGuest = Boolean(state?.setup.guest);
+
   function frame(activeStepId: string, children: ReactNode) {
     const brand = SETUP_BRAND_COPY[activeStepId] ?? SETUP_BRAND_COPY.welcome;
     return (
@@ -276,8 +404,9 @@ export function SetupJourney() {
         activeStepId={activeStepId}
         brandTitle={brand.title}
         brandSubtitle={brand.subtitle}
-        onStartOver={() => void startOver()}
-        startOverDisabled={isSubmitting || isLoading}
+        onStartOver={isGuest ? undefined : () => void startOver()}
+        startOverDisabled={isSubmitting || isLoading || isGuest}
+        hideWorkspaceSelect={isGuest}
       >
         {children}
       </SetupFrame>
@@ -286,7 +415,7 @@ export function SetupJourney() {
 
   if (isLoading) {
     return frame(
-      'welcome',
+      'business_discovery',
       <SetupShell centered>
         <p className="text-center text-sm text-muted-foreground">טוען…</p>
       </SetupShell>,
@@ -295,7 +424,7 @@ export function SetupJourney() {
 
   if (error && !state) {
     return frame(
-      'welcome',
+      'business_discovery',
       <SetupShell centered>
         <p className="text-center text-sm text-destructive">{error}</p>
       </SetupShell>,
@@ -304,7 +433,7 @@ export function SetupJourney() {
 
   if (!state) {
     return frame(
-      'welcome',
+      'business_discovery',
       <SetupShell centered>
         <p className="text-center text-sm text-muted-foreground">
           לא ניתן לטעון את ההגדרה.
@@ -314,6 +443,21 @@ export function SetupJourney() {
   }
 
   const step = resolveSetupStepId(state.step);
+
+  // Guests who somehow land on connections/ready must authenticate first.
+  if (
+    state.setup.guest &&
+    (step === 'connections' || step === 'ready')
+  ) {
+    return frame(
+      'business_understanding',
+      <SetupShell centered>
+        <p className="text-center text-sm text-muted-foreground">
+          מעבירים להרשמה…
+        </p>
+      </SetupShell>,
+    );
+  }
 
   const screenProps = {
     state,
@@ -328,6 +472,12 @@ export function SetupJourney() {
 
   switch (step) {
     case 'welcome':
+      if (state.setup.guest) {
+        return frame(
+          'business_discovery',
+          <BusinessDiscoveryScreen {...screenProps} />,
+        );
+      }
       return frame(
         'welcome',
         <IdentityScreen

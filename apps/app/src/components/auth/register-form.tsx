@@ -7,6 +7,7 @@ import { Button } from '@kodem/design-system/components/ui/button';
 import { Input } from '@kodem/design-system/components/ui/input';
 import { Label } from '@kodem/design-system/components/ui/label';
 import { api, isApiError } from '../../lib/api';
+import { claimGuestWorkspaceIfPending } from '../../lib/auth/claim-guest';
 import { completeAuthFlow } from '../../lib/auth/session';
 import { ROUTES } from '../../lib/constants';
 import { useAuth } from '../../providers/auth-provider';
@@ -23,6 +24,7 @@ export function RegisterForm() {
   const searchParams = useSearchParams();
   const { setSession } = useAuth();
   const nextParam = searchParams.get('next');
+  const guestClaim = searchParams.get('guestClaim') === '1';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -48,12 +50,14 @@ export function RegisterForm() {
         password,
         legalConsents: consents,
       });
-      const nextRoute = await completeAuthFlow(result, { next: nextParam });
+      const claimed = await claimGuestWorkspaceIfPending();
+      const session = claimed ?? result;
+      const nextRoute = await completeAuthFlow(session, { next: nextParam });
       setSession({
-        user: result.user,
-        workspace: result.workspace,
-        role: result.role,
-        token: result.token,
+        user: session.user,
+        workspace: session.workspace,
+        role: session.role,
+        token: session.accessToken ?? session.token,
       });
       router.replace(nextRoute);
     } catch (err) {
@@ -65,9 +69,13 @@ export function RegisterForm() {
     }
   }
 
-  const loginHref = nextParam
-    ? `${ROUTES.login}?next=${encodeURIComponent(nextParam)}`
-    : ROUTES.login;
+  const loginHref = (() => {
+    const params = new URLSearchParams();
+    if (nextParam) params.set('next', nextParam);
+    if (guestClaim) params.set('guestClaim', '1');
+    const qs = params.toString();
+    return qs ? `${ROUTES.login}?${qs}` : ROUTES.login;
+  })();
 
   return (
     <AuthShell

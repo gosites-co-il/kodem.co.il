@@ -27,6 +27,8 @@ const authRequiredPaths = [
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(TOKEN_COOKIE)?.value;
+  const guestClaim = request.nextUrl.searchParams.get('guestClaim');
+  const websiteUrl = request.nextUrl.searchParams.get('websiteUrl');
 
   const isPublic = publicPaths.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
@@ -40,6 +42,11 @@ export function middleware(request: NextRequest) {
         pathname.startsWith(`${ROUTES.login}/`) ||
         pathname === ROUTES.register)
     ) {
+      // Guest handoff clears the token client-side; if a guestClaim query is
+      // present, allow register/login so the real account can claim the workspace.
+      if (guestClaim === '1') {
+        return NextResponse.next();
+      }
       return NextResponse.redirect(new URL(ROUTES.entry, request.url));
     }
     return NextResponse.next();
@@ -50,6 +57,13 @@ export function middleware(request: NextRequest) {
   );
 
   if (isProtected && !token) {
+    // Marketing hero lands here without a session — guest bootstrap runs client-side.
+    if (
+      pathname.startsWith(ROUTES.setup) &&
+      websiteUrl?.trim()
+    ) {
+      return NextResponse.next();
+    }
     const loginUrl = new URL(ROUTES.login, request.url);
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);

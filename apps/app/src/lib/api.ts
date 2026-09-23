@@ -360,6 +360,31 @@ export const api = {
     return request<SetupStateResponse>('/workspace/setup');
   },
 
+  createGuestSetup(websiteUrl: string) {
+    return request<
+      AuthResult & {
+        claimSecret: string;
+        setup: SetupStateResponse;
+      }
+    >('/workspace/setup/guest', {
+      method: 'POST',
+      body: JSON.stringify({ websiteUrl }),
+    }).then(persistAuthTokens);
+  },
+
+  getGuestClaimSecret() {
+    return request<{ workspaceId: string; claimSecret: string }>(
+      '/workspace/setup/guest/claim-secret',
+    );
+  },
+
+  claimGuestSetup(body: { workspaceId: string; claimSecret: string }) {
+    return request<AuthResult>('/workspace/setup/guest/claim', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }).then(persistAuthTokens);
+  },
+
   checkSetupSlug(slug: string) {
     const query = new URLSearchParams({ slug });
     return request<{

@@ -155,12 +155,14 @@ export class AuthService {
   }
 
   issueAuthResult(user: User, resolved: ResolvedWorkspace): AuthResult {
+    const guest = Boolean(resolved.workspace.setupData?.guest);
     const accessToken = this.jwtService.sign(
       {
         sub: user.id,
         email: user.email,
         workspaceId: resolved.workspace.id,
         role: resolved.role,
+        ...(guest ? { guest: true } : {}),
       },
       accessTtl,
     );
