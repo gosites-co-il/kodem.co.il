@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { ArrowRightLeft } from 'lucide-react';
+import { ArrowRight, ArrowRightLeft } from 'lucide-react';
 import { cn } from '@kodem/design-system/lib/utils';
 import { AuthBrandLogo } from '../auth/auth-brand-logo';
 import { ROUTES } from '../../lib/constants';
@@ -22,6 +22,8 @@ export function SetupFrame({
   onStartOver,
   startOverDisabled,
   hideWorkspaceSelect,
+  marketingReturnHref,
+  onMarketingReturn,
   className,
 }: {
   children: ReactNode;
@@ -33,6 +35,9 @@ export function SetupFrame({
   startOverDisabled?: boolean;
   /** Guest sessions cannot switch workspaces. */
   hideWorkspaceSelect?: boolean;
+  /** Guest exit — return to the marketing page they came from. */
+  marketingReturnHref?: string | null;
+  onMarketingReturn?: () => void;
   className?: string;
 }) {
   return (
@@ -59,8 +64,21 @@ export function SetupFrame({
               'radial-gradient(ellipse at 30% 20%, color-mix(in oklab, #73D2DE 35%, transparent), transparent 55%), radial-gradient(ellipse at 80% 80%, color-mix(in oklab, #8F2D56 55%, transparent), transparent 50%)',
           }}
         />
-        <div className="relative z-10">
+        <div className="relative z-10 flex flex-col items-start gap-3">
           <AuthBrandLogo href={null} inverted />
+          {marketingReturnHref ? (
+            <a
+              href={marketingReturnHref}
+              onClick={onMarketingReturn}
+              className={cn(
+                'inline-flex items-center gap-1.5 text-sm font-medium',
+                'text-primary-foreground/80 transition-colors hover:text-primary-foreground',
+              )}
+            >
+              <ArrowRight className="size-3.5" aria-hidden />
+              חזרה לאתר
+            </a>
+          ) : null}
         </div>
         <div className="relative z-10 mt-8 space-y-3 lg:mt-0 lg:max-w-sm">
           <h2 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
@@ -89,7 +107,7 @@ export function SetupFrame({
             <p className="text-xs font-medium text-muted-foreground">
               הגדרת סביבה
             </p>
-            {!hideWorkspaceSelect ? (
+            {!hideWorkspaceSelect && !marketingReturnHref ? (
               <Link
                 href={ROUTES.workspaceSelect}
                 className={cn(

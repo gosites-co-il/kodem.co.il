@@ -13,13 +13,18 @@ import { useAuth } from '../../providers/auth-provider';
  * (requiresReconsent or post-enforcement signup without records).
  */
 export function LegalConsentGate({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user, workspace } = useAuth();
   const [pending, setPending] = useState<PendingLegalDocument[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isGuestSession =
+    Boolean(workspace?.setupData?.guest) ||
+    Boolean(user?.email?.toLowerCase().endsWith('@guest.kodem.local'));
+
   const refresh = useCallback(async () => {
-    if (!isAuthenticated) {
+    // Guest marketing setup must not prompt for terms — consent happens at register.
+    if (!isAuthenticated || isGuestSession) {
       setPending([]);
       return;
     }
@@ -35,14 +40,14 @@ export function LegalConsentGate({ children }: { children: React.ReactNode }) {
       // Don't block the app on transient legal status failures.
       setPending([]);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isGuestSession]);
 
   useEffect(() => {
     if (isLoading) return;
     void refresh();
   }, [isLoading, refresh]);
 
-  const current = pending[0] ?? null;
+  const current = isGuestSession ? null : (pending[0] ?? null);
 
   async function handleConfirm() {
     if (!current || pending.length === 0) return;

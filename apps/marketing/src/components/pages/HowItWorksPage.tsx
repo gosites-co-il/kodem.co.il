@@ -1,5 +1,7 @@
 import { Button } from '@kodem/design-system/components/ui/button';
+import { BusinessLinkConnect } from '../landing/BusinessLinkConnect';
 import { HowItWorks } from '../landing/HowItWorks';
+import { SITE_CONFIG } from '../../lib/site-config';
 import { HowItWorksHeroCarousel } from './HowItWorksHeroCarousel';
 
 export function HowItWorksPage() {
@@ -7,6 +9,21 @@ export function HowItWorksPage() {
     <>
       <HowItWorksHeroCarousel />
       <HowItWorks showIntro={false} />
+
+      <section className="section-pad landing-gradient-dark text-[hsl(var(--surface-dark-fg))]">
+        <div className="container-site">
+          <div className="reveal mx-auto flex max-w-xl flex-col items-center text-center">
+            <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+              נותנים לינק. {SITE_CONFIG.name} בונה את עצמה.
+            </h2>
+            <p className="mt-3 text-white/70">
+              הדביקו לינק לעסק — ונמשיך משם.
+            </p>
+            <BusinessLinkConnect className="mt-8" onDark />
+          </div>
+        </div>
+      </section>
+
       <section className="section-pad">
         <div className="container-site">
           <div className="bento-card reveal mx-auto max-w-3xl text-center">

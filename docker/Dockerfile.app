@@ -4,7 +4,9 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 ARG API_ORIGIN=http://api:3333
+ARG NEXT_PUBLIC_MARKETING_URL=https://kodem.co.il
 ENV API_ORIGIN=$API_ORIGIN
+ENV NEXT_PUBLIC_MARKETING_URL=$NEXT_PUBLIC_MARKETING_URL
 
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts

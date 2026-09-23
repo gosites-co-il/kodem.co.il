@@ -65,7 +65,11 @@ export function middleware(request: NextRequest) {
       return NextResponse.next();
     }
     const loginUrl = new URL(ROUTES.login, request.url);
-    loginUrl.searchParams.set('next', pathname);
+    const nextPath =
+      request.nextUrl.search && websiteUrl
+        ? `${pathname}${request.nextUrl.search}`
+        : pathname;
+    loginUrl.searchParams.set('next', nextPath);
     return NextResponse.redirect(loginUrl);
   }
 

@@ -8,8 +8,11 @@ import { Input } from '@kodem/design-system/components/ui/input';
 import { Label } from '@kodem/design-system/components/ui/label';
 import { api, isApiError } from '../../lib/api';
 import { claimGuestWorkspaceIfPending } from '../../lib/auth/claim-guest';
+import { clearGuestClaim } from '../../lib/auth/guest-claim';
+import { clearGuestReturnTo } from '../../lib/auth/guest-return';
 import { completeAuthFlow } from '../../lib/auth/session';
 import { ROUTES } from '../../lib/constants';
+import { marketingOrigin } from '../../lib/marketing-origin';
 import { useAuth } from '../../providers/auth-provider';
 import { AuthShell, authFieldClasses } from './auth-shell';
 import { OAuthButton } from './oauth-button';
@@ -82,6 +85,12 @@ export function RegisterForm() {
       title="יצירת חשבון"
       description="התחילו עם Kodem בתוך דקה"
       showLegal={false}
+      marketingReturnHref={marketingOrigin()}
+      onMarketingReturn={() => {
+        clearGuestClaim();
+        clearGuestReturnTo();
+        void api.logout().catch(() => undefined);
+      }}
       footer={
         <>
           כבר יש לכם חשבון?{' '}

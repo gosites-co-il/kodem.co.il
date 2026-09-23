@@ -171,6 +171,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             API_ORIGIN=${{ inputs.api_origin }}
+            NEXT_PUBLIC_MARKETING_URL=${{ steps.urls.outputs.site_url }}
             PUBLIC_SITE_URL=${{ steps.urls.outputs.site_url }}
             PUBLIC_API_URL=${{ steps.urls.outputs.api_url }}
             PUBLIC_APP_URL=${{ steps.urls.outputs.app_url }}

@@ -88,6 +88,7 @@ services:
       dockerfile: docker/Dockerfile.app
       args:
         API_ORIGIN: http://api:3333
+        NEXT_PUBLIC_MARKETING_URL: ${PUBLIC_SITE_URL:-http://localhost:4321}
     restart: unless-stopped
     depends_on:
       api:

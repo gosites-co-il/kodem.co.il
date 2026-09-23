@@ -21,16 +21,23 @@ export function AuthShell({
   children,
   footer,
   showLegal = true,
+  marketingReturnHref,
+  onMarketingReturn,
 }: {
   title: string;
   description?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
   showLegal?: boolean;
+  /** Shown under the logo — typically marketing homepage. */
+  marketingReturnHref?: string | null;
+  onMarketingReturn?: () => void;
 }) {
   return (
-    <AuthSplitFrame>
-      <div className="flex flex-col gap-6">
+    <AuthSplitFrame
+      marketingReturnHref={marketingReturnHref}
+      onMarketingReturn={onMarketingReturn}
+    >      <div className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
           {description ? (

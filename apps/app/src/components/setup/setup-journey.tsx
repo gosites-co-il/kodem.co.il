@@ -11,6 +11,12 @@ import {
   readGuestClaim,
   storeGuestClaim,
 } from '../../lib/auth/guest-claim';
+import {
+  clearGuestReturnTo,
+  readGuestReturnTo,
+  storeGuestReturnTo,
+} from '../../lib/auth/guest-return';
+import { resolveMarketingReturnUrl } from '../../lib/marketing-origin';
 import { ROUTES } from '../../lib/constants';
 import {
   isSetupStartOverPath,
@@ -37,6 +43,15 @@ const SETUP_STEPPER_STEPS: readonly SetupStepperStep[] = [
   { id: 'ready', label: 'מתחילים לעבוד' },
 ];
 
+/** Guest path: discovery → understanding → account (auth) → connections → ready. */
+const GUEST_STEPPER_STEPS: readonly SetupStepperStep[] = [
+  { id: 'business_discovery', label: 'פרטים' },
+  { id: 'business_understanding', label: 'פרופיל' },
+  { id: 'identity', label: 'זהות' },
+  { id: 'connections', label: 'חיבורים' },
+  { id: 'ready', label: 'מתחילים לעבוד' },
+];
+
 /** Brand panel copy per setup step (right/start panel). */
 const SETUP_BRAND_COPY: Record<
   string,
@@ -45,6 +60,10 @@ const SETUP_BRAND_COPY: Record<
   welcome: {
     title: 'בונים את סביבת העבודה',
     subtitle: 'שם הסביבה וכתובת ייחודית — ואפשר להמשיך.',
+  },
+  identity: {
+    title: 'שומרים את ההתקדמות',
+    subtitle: 'צרו חשבון או התחברו כדי להמשיך לחיבורים ולסביבת העבודה.',
   },
   business_discovery: {
     title: 'מזהים את העסק',
@@ -70,6 +89,18 @@ function normalizeWebsiteUrl(raw: string): string {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
+function guestStepperActiveId(stepId: string): string {
+  if (
+    stepId === 'identity' ||
+    stepId === 'welcome' ||
+    stepId === 'connections' ||
+    stepId === 'ready'
+  ) {
+    return 'identity';
+  }
+  return stepId;
+}
+
 export function SetupJourney() {
   const router = useRouter();
   const pathname = usePathname();
@@ -85,7 +116,9 @@ export function SetupJourney() {
   const guestBootstrapDone = useRef(false);
 
   const clearWebsiteUrlQuery = useCallback(() => {
-    if (!searchParams.get('websiteUrl')) return;
+    if (!searchParams.get('websiteUrl') && !searchParams.get('returnTo')) {
+      return;
+    }
     router.replace(pathname);
   }, [pathname, router, searchParams]);
 
@@ -110,6 +143,11 @@ export function SetupJourney() {
 
   // Guest / websiteUrl bootstrap from marketing hero.
   useEffect(() => {
+    const returnToParam = searchParams.get('returnTo');
+    if (returnToParam?.trim()) {
+      storeGuestReturnTo(resolveMarketingReturnUrl(returnToParam));
+    }
+
     if (guestBootstrapDone.current) return;
     const rawUrl = searchParams.get('websiteUrl');
     if (!rawUrl?.trim()) {
@@ -129,19 +167,12 @@ export function SetupJourney() {
           try {
             const existing = await api.getSetup();
             if (existing.setup.guest) {
-              storeGuestClaim({
-                workspaceId: existing.workspace.id,
-                claimSecret:
-                  readGuestClaim()?.claimSecret ??
-                  (await api.getGuestClaimSecret()).claimSecret,
-              });
-              const next = await api.discoverWebsite(websiteUrl);
-              setState(next);
-              clearWebsiteUrlQuery();
-              return;
-            }
-            // Logged-in non-guest: seed URL into current incomplete setup.
-            if (existing.workspace.onboardingStatus !== 'COMPLETED') {
+              // Marketing re-entry must start a new guest — reusing one that
+              // already reached auth handoff would bounce straight to signup.
+              await api.logout().catch(() => undefined);
+              clearToken();
+            } else if (existing.workspace.onboardingStatus !== 'COMPLETED') {
+              // Logged-in non-guest: seed URL into current incomplete setup.
               const next = await api.discoverWebsite(websiteUrl);
               setState(next);
               clearWebsiteUrlQuery();
@@ -223,11 +254,13 @@ export function SetupJourney() {
 
   // Guests who somehow land on connections/ready must authenticate first.
   useEffect(() => {
+    // Don't bounce while a marketing re-entry is still bootstrapping a new guest.
+    if (searchParams.get('websiteUrl')?.trim()) return;
     if (!state?.setup.guest) return;
     const step = resolveSetupStepId(state.step);
     if (step !== 'connections' && step !== 'ready') return;
     void beginGuestAuthHandoff();
-  }, [state]);
+  }, [state, searchParams]);
 
   async function beginGuestAuthHandoff() {
     try {
@@ -242,6 +275,9 @@ export function SetupJourney() {
     } catch {
       // Claim cookie may already be set from bootstrap.
     }
+    // Drop guest access + refresh so returning from marketing cannot revive
+    // this session and bounce the next search into signup.
+    await api.logout().catch(() => undefined);
     clearToken();
     const next = encodeURIComponent(setupStepHref('connections'));
     window.location.assign(
@@ -394,19 +430,54 @@ export function SetupJourney() {
     }
   }
 
-  const isGuest = Boolean(state?.setup.guest);
+  const [marketingReturnHref, setMarketingReturnHref] = useState<string | null>(
+    null,
+  );
+  const isGuestBootstrap = Boolean(searchParams.get('websiteUrl')?.trim());
+  const isGuestSession = Boolean(state?.setup.guest);
+  const useGuestStepper = isGuestSession || isGuestBootstrap;
+
+  useEffect(() => {
+    if (!useGuestStepper) {
+      setMarketingReturnHref(null);
+      return;
+    }
+    const fromQuery = searchParams.get('returnTo');
+    if (fromQuery?.trim()) {
+      const resolved = resolveMarketingReturnUrl(fromQuery);
+      storeGuestReturnTo(resolved);
+      setMarketingReturnHref(resolved);
+      return;
+    }
+    setMarketingReturnHref(readGuestReturnTo());
+  }, [useGuestStepper, searchParams]);
+
+  function leaveGuestToMarketing() {
+    clearGuestClaim();
+    clearGuestReturnTo();
+    void api.logout().catch(() => undefined);
+    clearToken();
+  }
 
   function frame(activeStepId: string, children: ReactNode) {
-    const brand = SETUP_BRAND_COPY[activeStepId] ?? SETUP_BRAND_COPY.welcome;
+    const stepperActiveId = useGuestStepper
+      ? guestStepperActiveId(activeStepId)
+      : activeStepId;
+    const brand =
+      SETUP_BRAND_COPY[stepperActiveId] ?? SETUP_BRAND_COPY.welcome;
     return (
       <SetupFrame
-        steps={SETUP_STEPPER_STEPS}
-        activeStepId={activeStepId}
+        steps={useGuestStepper ? GUEST_STEPPER_STEPS : SETUP_STEPPER_STEPS}
+        activeStepId={stepperActiveId}
         brandTitle={brand.title}
         brandSubtitle={brand.subtitle}
-        onStartOver={isGuest ? undefined : () => void startOver()}
-        startOverDisabled={isSubmitting || isLoading || isGuest}
-        hideWorkspaceSelect={isGuest}
+        onStartOver={isGuestSession ? undefined : () => void startOver()}
+        startOverDisabled={isSubmitting || isLoading || isGuestSession}
+        hideWorkspaceSelect={isGuestSession || isGuestBootstrap}
+        marketingReturnHref={marketingReturnHref}
+        onMarketingReturn={
+          marketingReturnHref ? leaveGuestToMarketing : undefined
+        }
       >
         {children}
       </SetupFrame>
@@ -450,7 +521,7 @@ export function SetupJourney() {
     (step === 'connections' || step === 'ready')
   ) {
     return frame(
-      'business_understanding',
+      'identity',
       <SetupShell centered>
         <p className="text-center text-sm text-muted-foreground">
           מעבירים להרשמה…
