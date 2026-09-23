@@ -1,10 +1,18 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect, type ReactNode } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../providers/auth-provider';
 import { ROUTES } from '../../lib/constants';
 import { guardRouteForWorkspace } from '../../lib/entry/routes';
+
+function EntryGateFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <p className="text-sm text-muted-foreground">טוען…</p>
+    </div>
+  );
+}
 
 /**
  * Enforces login + setup ↔ dashboard for the active workspace.
@@ -12,7 +20,15 @@ import { guardRouteForWorkspace } from '../../lib/entry/routes';
  * Guest marketing bootstrap (`/setup/*?websiteUrl=`) is allowed through so
  * SetupJourney can create the ephemeral session.
  */
-export function EntryGate({ children }: { children: React.ReactNode }) {
+export function EntryGate({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={<EntryGateFallback />}>
+      <EntryGateInner>{children}</EntryGateInner>
+    </Suspense>
+  );
+}
+
+function EntryGateInner({ children }: { children: ReactNode }) {
   const { isLoading, isAuthenticated, workspace } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -51,22 +67,14 @@ export function EntryGate({ children }: { children: React.ReactNode }) {
   ]);
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground">טוען…</p>
-      </div>
-    );
+    return <EntryGateFallback />;
   }
 
   if (!isAuthenticated) {
     if (isGuestBootstrap) {
       return <>{children}</>;
     }
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground">טוען…</p>
-      </div>
-    );
+    return <EntryGateFallback />;
   }
 
   const redirect = guardRouteForWorkspace(pathname, workspace);
