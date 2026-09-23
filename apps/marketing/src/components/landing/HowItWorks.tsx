@@ -1,48 +1,135 @@
+import { useCallback, useEffect, useState } from 'react';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi,
+} from '@kodem/design-system/components/ui/carousel';
+import { cn } from '@kodem/design-system/lib/utils';
+import { SITE_CONFIG } from '../../lib/site-config';
+
 const STEPS = [
   {
-    title: 'מגדירים יחד',
-    body: 'מחברים וואטסאפ ופייסבוק, מספרים למערכת על העסק — עם ליווי הקמה צמוד.',
+    id: 'link',
+    title: 'נותנים פרט אחד',
+    body: 'כתובת האתר, האינסטגרם או עמוד הפייסבוק שלך.',
   },
   {
-    title: 'המערכת לומדת',
-    body: 'ה-AI מקבל שאלות, מחירים וטון. אתה מאשר איך הוא עונה לפני ליד ראשון.',
+    id: 'learn',
+    title: `${SITE_CONFIG.name} לומדת את העסק`,
+    body: 'שירותים, מחירים, שאלות שחוזרות והטון שלך. אתה עובר, מתקן ומאשר.',
   },
   {
-    title: 'אתה סוגר',
-    body: 'כל ליד נענה תוך שניות. אתה נכנס לפגישות ולסגירות שכבר מחכות ביומן.',
+    id: 'connect',
+    title: 'מתחברים ומתחילים',
+    body: 'וואטסאפ, פייסבוק וגוגל. מהרגע הזה כל ליד נענה, וכל שקל נמדד.',
   },
 ] as const;
 
+/** Link-in setup narrative — steps as carousel (home + /how-it-works). */
 export function HowItWorks() {
-  return (
-    <section className="section-pad">
-      <div className="container-site">
-        <h2 className="mx-auto max-w-3xl text-center text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
-          מהרשמה ללידים שנענים לבד — כ־30 דקות.
-        </h2>
+  const [api, setApi] = useState<CarouselApi>();
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
 
-        <ol className="mt-12 grid gap-5 md:grid-cols-3">
+  const onSelect = useCallback((embla: CarouselApi) => {
+    if (!embla) return;
+    setIndex(embla.selectedScrollSnap());
+  }, []);
+
+  useEffect(() => {
+    if (!api) return;
+    onSelect(api);
+    api.on('select', onSelect);
+    api.on('reInit', onSelect);
+    return () => {
+      api.off('select', onSelect);
+      api.off('reInit', onSelect);
+    };
+  }, [api, onSelect]);
+
+  useEffect(() => {
+    if (!api || paused) return;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (mq.matches) return;
+
+    const id = window.setInterval(() => {
+      if (api.canScrollNext()) api.scrollNext();
+      else api.scrollTo(0);
+    }, 5000);
+    return () => clearInterval(id);
+  }, [api, paused]);
+
+  return (
+    <section
+      id="how-it-works-home"
+      className="section-pad bg-background"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          setPaused(false);
+        }
+      }}
+    >
+      <div className="container-site">
+        <div className="reveal mx-auto max-w-3xl text-center">
+          <h2 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+            נותנים לינק. {SITE_CONFIG.name} בונה את עצמה.
+          </h2>
+          <p className="mt-4 text-base text-muted-foreground sm:text-lg">
+            בלי ידע טכני. בלי פרויקט ארוך. הקמה מלווה.
+          </p>
+        </div>
+
+        <Carousel
+          setApi={setApi}
+          opts={{ loop: true, align: 'center', direction: 'rtl' }}
+          className="mx-auto mt-12 w-full max-w-2xl"
+          aria-roledescription="carousel"
+          aria-label="שלבי ההקמה"
+        >
+          <CarouselContent>
+            {STEPS.map((step, i) => (
+              <CarouselItem
+                key={step.id}
+                aria-hidden={i !== index}
+                className={i !== index ? 'pointer-events-none' : undefined}
+              >
+                <div className="flex min-h-[14rem] flex-col items-center justify-center px-4 text-center sm:min-h-[16rem]">
+                  <span className="font-data text-5xl font-extrabold tracking-tight text-cta sm:text-6xl">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <h3 className="mt-5 text-2xl font-bold tracking-tight sm:text-3xl">
+                    {step.title}
+                  </h3>
+                  <p className="mt-4 max-w-md text-base leading-relaxed text-muted-foreground">
+                    {step.body}
+                  </p>
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+        </Carousel>
+
+        <div className="mt-8 flex items-center justify-center gap-2">
           {STEPS.map((step, i) => (
-            <li
-              key={step.title}
-              className="relative flex flex-col rounded-2xl border border-border bg-card p-6 shadow-card transition hover:border-[hsl(var(--glow))]/40 sm:p-8"
-            >
-              {i < STEPS.length - 1 ? (
-                <span
-                  className="pointer-events-none absolute -end-3 top-1/2 z-10 hidden h-px w-6 -translate-y-1/2 bg-[hsl(var(--glow))]/50 md:block"
-                  aria-hidden
-                />
-              ) : null}
-              <span className="font-data flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-                {String(i + 1).padStart(2, '0')}
-              </span>
-              <h3 className="mt-5 text-xl font-bold tracking-tight">{step.title}</h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                {step.body}
-              </p>
-            </li>
+            <button
+              key={step.id}
+              type="button"
+              className={cn(
+                'h-2.5 cursor-pointer rounded-full transition-all',
+                i === index
+                  ? 'w-8 bg-primary'
+                  : 'w-2.5 bg-border hover:bg-muted-foreground/40',
+              )}
+              aria-label={`שלב ${i + 1}: ${step.title}`}
+              aria-current={i === index ? 'true' : undefined}
+              onClick={() => api?.scrollTo(i)}
+            />
           ))}
-        </ol>
+        </div>
       </div>
     </section>
   );

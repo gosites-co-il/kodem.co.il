@@ -1,0 +1,12 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { AgenciesPage } from '../components/pages/AgenciesPage';
+---
+
+<SiteLayout
+  title="לסוכנויות דיגיטל — KODEM"
+  description="מערכת לסוכנויות: מענה ללידים, משפך מכירות ודיווח מהפרסום עד הקופה — עם תוכנית Pro שמתאימה לנפח גבוה."
+  path="/agencies"
+>
+  <AgenciesPage client:load />
+</SiteLayout>

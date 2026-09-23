@@ -1,7 +1,6 @@
 import {
   MessageSquare,
   CalendarClock,
-  LineChart,
   Inbox,
   Bot,
   Zap,
@@ -9,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@kodem/design-system/components/ui/button';
 import { PageHero } from '../site/PageHero';
+import { DashboardDemo } from '../landing/DashboardDemo';
 import { PRIMARY_CTA_LABEL } from '../../lib/site-config';
 import { PRODUCT_MODULES, modulePath } from '../../lib/modules';
 
@@ -38,16 +38,10 @@ const FEATURES = [
     span: '',
   },
   {
-    icon: LineChart,
-    title: 'ROAS מקצה לקצה',
-    body: 'מהקליק ועד העסקה — כמה החזיר כל שקל פרסום, ואיפה המשפך נשבר.',
-    span: 'md:col-span-2',
-  },
-  {
     icon: Zap,
     title: 'המלצה שבועית',
     body: 'לא עוד “נראה לי”. פעם בשבוע — תיקון אחד ברור לשיפור.',
-    span: '',
+    span: 'md:col-span-2',
   },
 ] as const;
 
@@ -55,7 +49,6 @@ export function ProductPage() {
   return (
     <>
       <PageHero
-        eyebrow="המוצר"
         title={'מערכת אחת.\nמהליד הראשון ועד הסגירה.'}
         description="KODEM מחברת CRM, אוטומציות ואינטגרציות עם שיחת מכירה בוואטסאפ — בלי לגלוש בין חמישה כלים."
       >
@@ -77,6 +70,26 @@ export function ProductPage() {
           </Button>
         </div>
       </PageHero>
+
+      <section id="dashboard" className="section-pad pt-0">
+        <div className="container-site grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
+          <div className="reveal">
+            <p className="font-data text-xs font-bold tracking-wide text-[hsl(var(--trust))]">
+              01 · לוח בקרה
+            </p>
+            <h2 className="mt-2 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+              לוח בקרה 24/7 — מהפרסום עד הקופה
+            </h2>
+            <p className="prose-site mt-4 max-w-xl">
+              ROAS מקצה לקצה: מהקליק ועד העסקה. כמה החזיר כל שקל פרסום, איפה המשפך
+              נשבר, ומה לתקן השבוע — בלי לנחש.
+            </p>
+          </div>
+          <div className="reveal mx-auto w-full max-w-md lg:max-w-none">
+            <DashboardDemo />
+          </div>
+        </div>
+      </section>
 
       <section className="section-pad pt-0">
         <div className="container-site">

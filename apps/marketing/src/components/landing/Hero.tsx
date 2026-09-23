@@ -8,28 +8,47 @@ import {
 } from '@kodem/design-system/components/ui/carousel';
 import { cn } from '@kodem/design-system/lib/utils';
 import { PRIMARY_CTA_LABEL } from '../../lib/site-config';
+import { DashboardDemo } from './DashboardDemo';
+import { HeroConnectSlide } from './HeroConnectSlide';
 import { WhatsAppConversationDemo } from './WhatsAppConversationDemo';
 
-const SLIDES = [
+type SplitSlide = {
+  id: string;
+  layout: 'split';
+  headline: string;
+  body: string;
+  visual: 'dashboard' | 'whatsapp' | 'pipeline';
+};
+
+type ConnectSlide = {
+  id: string;
+  layout: 'connect';
+};
+
+const SLIDES: readonly (ConnectSlide | SplitSlide)[] = [
+  { id: 'connect', layout: 'connect' },
+  {
+    id: 'ads-to-cash',
+    layout: 'split',
+    headline: 'מהפרסום ועד הקופה.\nבמסך אחד.',
+    body: 'דשבורד שמחבר הוצאות, לידים, פגישות וסגירות — כדי שתראה כמה כל שקל פרסום החזיר, לא רק כמה קליקים נכנסו.',
+    visual: 'dashboard',
+  },
   {
     id: 'answer',
+    layout: 'split',
     headline: 'כל ליד מקבל מענה תוך 3 שניות.\nגם כשאתה עסוק.',
     body: 'KODEM לוכד לידים מפייסבוק, אינסטגרם ווואטסאפ — ומנהל שיחת מכירה בעברית עד שנקבעת פגישה.',
-    visual: 'whatsapp' as const,
+    visual: 'whatsapp',
   },
   {
     id: 'capture',
+    layout: 'split',
     headline: 'אף ליד לא נופל בין הכיסאות.\nהכל נכנס למשפך אחד.',
     body: 'מכל מקור — טופס, מודעה או אקסל ישן — הליד מתויג, נכנס לתהליך ומקבל פולו־אפ אוטומטי.',
-    visual: 'pipeline' as const,
+    visual: 'pipeline',
   },
-  {
-    id: 'measure',
-    headline: 'רואים כמה כל שקל פרסום מחזיר.\nואז מתקנים.',
-    body: 'מקצה לקצה: מהקליק עד הסגירה. פעם בשבוע — תיקון אחד ברור, לא עוד “נראה לי”.',
-    visual: 'roas' as const,
-  },
-] as const;
+];
 
 const PIPELINE = [
   { label: 'מודעה', tone: 'muted' },
@@ -86,37 +105,7 @@ function PipelineStage() {
   );
 }
 
-function RoasStage() {
-  return (
-    <div
-      className="landing-gradient-dark relative flex h-full min-h-[22rem] flex-col justify-between overflow-hidden rounded-2xl border border-[hsl(var(--glow))]/25 p-6 text-[hsl(var(--surface-dark-fg))] shadow-soft sm:p-8"
-      role="img"
-      aria-label="הדגמה ויזואלית של מדידת החזר פרסום"
-    >
-      <p className="relative font-data text-xs font-semibold tracking-wide text-[hsl(var(--glow))]">
-        ROAS · LIVE
-      </p>
-      <div className="relative">
-        <p className="font-data text-6xl font-extrabold tracking-tight text-[hsl(var(--spark))] sm:text-7xl">
-          4.2×
-        </p>
-        <p className="mt-2 text-lg text-white/80">החזר על כל שקל פרסום</p>
-      </div>
-      <div className="relative grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-[hsl(var(--glow))]/20 bg-white/5 p-3">
-          <p className="text-xs text-white/60">לידים שנענו</p>
-          <p className="font-data mt-1 text-2xl font-bold">100%</p>
-        </div>
-        <div className="rounded-xl border border-[hsl(var(--glow))]/20 bg-white/5 p-3">
-          <p className="text-xs text-white/60">זמן מענה</p>
-          <p className="font-data mt-1 text-2xl font-bold">3 שנ׳</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SlideVisual({ kind }: { kind: (typeof SLIDES)[number]['visual'] }) {
+function SlideVisual({ kind }: { kind: SplitSlide['visual'] }) {
   if (kind === 'whatsapp') {
     return (
       <div className="relative flex min-h-[22rem] items-center justify-center">
@@ -129,7 +118,7 @@ function SlideVisual({ kind }: { kind: (typeof SLIDES)[number]['visual'] }) {
     );
   }
   if (kind === 'pipeline') return <PipelineStage />;
-  return <RoasStage />;
+  return <DashboardDemo />;
 }
 
 export function Hero() {
@@ -161,7 +150,7 @@ export function Hero() {
     const id = window.setInterval(() => {
       if (api.canScrollNext()) api.scrollNext();
       else api.scrollTo(0);
-    }, 5500);
+    }, 6500);
     return () => clearInterval(id);
   }, [api, paused]);
 
@@ -192,44 +181,57 @@ export function Hero() {
           aria-label="הצגת יכולות KODEM"
         >
           <CarouselContent>
-            {SLIDES.map((slide, slideIndex) => (
-              <CarouselItem
-                key={slide.id}
-                aria-hidden={slideIndex !== index}
-                className={slideIndex !== index ? 'pointer-events-none' : undefined}
-              >
-                <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
-                  <div className="flex min-h-[18rem] flex-col justify-center text-center lg:min-h-[28rem] lg:text-start">
-                    {slideIndex === index ? (
-                      <h1 className="display-title whitespace-pre-line">{slide.headline}</h1>
-                    ) : (
-                      <p className="display-title whitespace-pre-line">{slide.headline}</p>
-                    )}
-                    <p className="prose-site mx-auto mt-5 max-w-xl lg:mx-0">{slide.body}</p>
-                    <div className="mt-8 flex flex-col items-stretch gap-3 sm:items-center lg:items-start">
-                      <Button
-                        asChild
-                        size="lg"
-                        className="h-12 w-full cursor-pointer rounded-full bg-cta px-8 text-base font-semibold text-cta-foreground shadow-soft hover:bg-cta/90 sm:w-auto sm:min-w-[280px]"
-                        tabIndex={slideIndex === index ? 0 : -1}
-                      >
-                        <a href="#loss-calculator">{PRIMARY_CTA_LABEL}</a>
-                      </Button>
-                      <p className="text-sm text-muted-foreground">
-                        60 שניות. בלי כרטיס אשראי. רק המספרים שלך.
-                      </p>
+            {SLIDES.map((slide, slideIndex) => {
+              const active = slideIndex === index;
+              return (
+                <CarouselItem
+                  key={slide.id}
+                  aria-hidden={!active}
+                  className={!active ? 'pointer-events-none' : undefined}
+                >
+                  {slide.layout === 'connect' ? (
+                    <HeroConnectSlide active={active} />
+                  ) : (
+                    <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
+                      <div className="flex min-h-[18rem] flex-col justify-center text-center lg:min-h-[28rem] lg:text-start">
+                        {active ? (
+                          <h1 className="display-title whitespace-pre-line">
+                            {slide.headline}
+                          </h1>
+                        ) : (
+                          <p className="display-title whitespace-pre-line">
+                            {slide.headline}
+                          </p>
+                        )}
+                        <p className="prose-site mx-auto mt-5 max-w-xl lg:mx-0">
+                          {slide.body}
+                        </p>
+                        <div className="mt-8 flex flex-col items-stretch gap-3 sm:items-center lg:items-start">
+                          <Button
+                            asChild
+                            size="lg"
+                            className="h-12 w-full cursor-pointer rounded-full bg-cta px-8 text-base font-semibold text-cta-foreground shadow-soft hover:bg-cta/90 sm:w-auto sm:min-w-[280px]"
+                            tabIndex={active ? 0 : -1}
+                          >
+                            <a href="#loss-calculator">{PRIMARY_CTA_LABEL}</a>
+                          </Button>
+                          <p className="text-sm text-muted-foreground">
+                            60 שניות. בלי כרטיס אשראי. רק המספרים שלך.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mx-auto w-full max-w-md lg:max-w-none">
+                        <SlideVisual kind={slide.visual} />
+                      </div>
                     </div>
-                  </div>
-                  <div className="mx-auto w-full max-w-md lg:max-w-none">
-                    <SlideVisual kind={slide.visual} />
-                  </div>
-                </div>
-              </CarouselItem>
-            ))}
+                  )}
+                </CarouselItem>
+              );
+            })}
           </CarouselContent>
         </Carousel>
 
-        <div className="mt-8 flex items-center justify-center gap-2 lg:justify-start">
+        <div className="mt-8 flex items-center justify-center gap-2">
           {SLIDES.map((slide, i) => (
             <button
               key={slide.id}

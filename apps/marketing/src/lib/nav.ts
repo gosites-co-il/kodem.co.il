@@ -17,6 +17,7 @@ export const PRODUCT_NAV: NavItem[] = [
 
 export const PRIMARY_NAV: NavItem[] = [
   { href: '/product', label: 'המוצר', children: PRODUCT_NAV },
+  { href: '/agencies', label: 'לסוכנויות' },
   { href: '/how-it-works', label: 'איך זה עובד' },
   { href: '/pricing', label: 'מחירים' },
   { href: '/resources', label: 'ידע' },
@@ -29,6 +30,7 @@ export const FOOTER_NAV = {
     { href: '/product/crm', label: 'CRM' },
     { href: '/product/automations', label: 'אוטומציות' },
     { href: '/integrations', label: 'אינטגרציות' },
+    { href: '/agencies', label: 'לסוכנויות' },
     { href: '/how-it-works', label: 'הקמה ב־30 דקות' },
     { href: '/pricing', label: 'מחירון' },
   ],

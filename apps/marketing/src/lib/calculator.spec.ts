@@ -7,14 +7,15 @@ import {
 describe('calculateMonthlyLoss', () => {
   it('computes missed leads × deal × close rate', () => {
     const result = calculateMonthlyLoss({
-      monthlyLeads: 100,
-      answeredInTime: 40,
-      averageDealValueIls: 1000,
+      monthlyLeads: 40,
+      answeredInTime: 20,
+      averageDealValueIls: 800,
+      closeRate: 0.1,
     });
-    // 60 missed * 1000 * 0.15 = 9000
-    expect(result.missedLeads).toBe(60);
-    expect(result.monthlyLossIls).toBe(9000);
-    expect(result.yearlyLossIls).toBe(108000);
+    // 20 missed * 800 * 0.1 = 1600
+    expect(result.missedLeads).toBe(20);
+    expect(result.monthlyLossIls).toBe(1600);
+    expect(result.yearlyLossIls).toBe(19200);
   });
 
   it('rejects answered > total', () => {
@@ -34,5 +35,15 @@ describe('calculateMonthlyLoss', () => {
       averageDealValueIls: '1',
     });
     expect(v.ok).toBe(false);
+  });
+
+  it('defaults close rate to 10%', () => {
+    const v = validateCalculatorInput({
+      monthlyLeads: '40',
+      answeredInTime: '20',
+      averageDealValueIls: '800',
+    });
+    expect(v.ok).toBe(true);
+    if (v.ok) expect(v.input.closeRate).toBe(0.1);
   });
 });
