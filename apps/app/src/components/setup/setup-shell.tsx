@@ -76,20 +76,42 @@ export function SetupShell({
 export function SetupHeadline({
   title,
   subtitle,
+  compact,
 }: {
   title: string;
   subtitle?: string;
+  /** Tighter title block for dense Operate steps (e.g. discovery). */
+  compact?: boolean;
 }) {
   return (
-    <div className="mb-8 space-y-2 text-start">
+    <div
+      className={cn(
+        'text-start',
+        compact ? 'mb-5 space-y-1.5' : 'mb-8 space-y-2',
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
-        <h1 className="min-w-0 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+        <h1
+          className={cn(
+            'min-w-0 font-extrabold leading-tight tracking-tight',
+            compact
+              ? 'text-2xl sm:text-3xl'
+              : 'text-3xl sm:text-4xl',
+          )}
+        >
           {title}
         </h1>
         <SetupStartOverButton className="mt-1.5" />
       </div>
       {subtitle ? (
-        <p className="text-base text-muted-foreground sm:text-lg">{subtitle}</p>
+        <p
+          className={cn(
+            'text-muted-foreground',
+            compact ? 'text-sm sm:text-base' : 'text-base sm:text-lg',
+          )}
+        >
+          {subtitle}
+        </p>
       ) : null}
     </div>
   );

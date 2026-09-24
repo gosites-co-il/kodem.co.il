@@ -115,8 +115,10 @@ function classifySocialUrl(url: string): SetupSocialChannel | null {
 
 function FieldHint({
   source,
+  compact,
 }: {
   source?: EarlyDiscoverySource;
+  compact?: boolean;
 }) {
   if (!source) return null;
 
@@ -140,7 +142,9 @@ function FieldHint({
 
   if (source.status === 'not_found' || source.status === 'failed') {
     return (
-      <span className="text-xs text-muted-foreground">לא נמצא — אפשר להוסיף ידנית</span>
+      <span className="text-xs text-muted-foreground">
+        {compact ? 'לא נמצא' : 'לא נמצא — אפשר להוסיף ידנית'}
+      </span>
     );
   }
 
@@ -338,6 +342,7 @@ export function BusinessDiscoveryScreen({
     return (
       <SetupShell centered={false}>
         <SetupHeadline
+          compact
           title={rediscovering ? 'מעדכנים לפי האתר החדש' : 'מזהים את האתר שלכם'}
           subtitle={
             rediscovering
@@ -346,8 +351,9 @@ export function BusinessDiscoveryScreen({
           }
         />
         <DiscoveryFormSkeleton websiteUrl={websiteUrl.trim() || early?.websiteUrl} />
-        {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
+        {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
         <SetupNavButtons
+          className="pt-5"
           continueDisabled
           continueLabel={rediscovering ? 'מעדכנים…' : 'מזהים…'}
           continueIcon={Loader2}
@@ -363,6 +369,7 @@ export function BusinessDiscoveryScreen({
   return (
     <SetupShell centered={false}>
       <SetupHeadline
+        compact
         title="פרטי העסק"
         subtitle={
           backgroundStillRunning
@@ -371,40 +378,42 @@ export function BusinessDiscoveryScreen({
         }
       />
 
-      <div className="space-y-5 text-start">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <Label htmlFor="business-name">שם העסק</Label>
-            <FieldHint source={websiteSource} />
+      <div className="space-y-4 text-start">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="business-name">שם העסק</Label>
+              <FieldHint source={websiteSource} compact />
+            </div>
+            <Input
+              id="business-name"
+              value={name}
+              onChange={(e) => {
+                markEdited('name');
+                setName(e.target.value);
+              }}
+              placeholder="לדוגמה: קודם בע״מ"
+            />
           </div>
-          <Input
-            id="business-name"
-            value={name}
-            onChange={(e) => {
-              markEdited('name');
-              setName(e.target.value);
-            }}
-            placeholder="לדוגמה: קודם בע״מ"
-          />
+
+          <div className="space-y-1.5">
+            <Label htmlFor="website">אתר</Label>
+            <Input
+              id="website"
+              dir="ltr"
+              className="text-start"
+              value={websiteUrl}
+              onChange={(e) => {
+                markEdited('website');
+                lastKickedDomainRef.current = null;
+                setWebsiteUrl(e.target.value);
+              }}
+              placeholder="https://example.com"
+            />
+          </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="website">אתר</Label>
-          <Input
-            id="website"
-            dir="ltr"
-            className="text-start"
-            value={websiteUrl}
-            onChange={(e) => {
-              markEdited('website');
-              lastKickedDomainRef.current = null;
-              setWebsiteUrl(e.target.value);
-            }}
-            placeholder="https://example.com"
-          />
-        </div>
-
-        <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-medium text-foreground">נוכחות דיגיטלית</p>
             {backgroundStillRunning ? (
@@ -415,15 +424,20 @@ export function BusinessDiscoveryScreen({
             ) : null}
           </div>
 
-          <div className="space-y-3">
+          <div className="grid gap-2.5 sm:grid-cols-2">
             {SOCIAL_FIELDS.map((field) => {
               const source = sourceById[field.id];
               const Icon = SOCIAL_ICONS[field.id];
               return (
-                <div key={field.id} className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <Label htmlFor={`social-${field.id}`}>{field.label}</Label>
-                    <FieldHint source={source} />
+                <div key={field.id} className="space-y-1">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <Label
+                      htmlFor={`social-${field.id}`}
+                      className="text-xs text-muted-foreground"
+                    >
+                      {field.label}
+                    </Label>
+                    <FieldHint source={source} compact />
                   </div>
                   <div
                     dir="ltr"
@@ -432,16 +446,17 @@ export function BusinessDiscoveryScreen({
                       'focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
                     )}
                   >
-                    <span className="flex shrink-0 items-center border-e border-input bg-muted/40 px-3 text-muted-foreground">
-                      <Icon className="size-4" />
+                    <span className="flex shrink-0 items-center border-e border-input bg-muted/40 px-2.5 text-muted-foreground">
+                      <Icon className="size-3.5" aria-hidden />
                     </span>
                     <Input
                       id={`social-${field.id}`}
                       dir="ltr"
-                      className="rounded-none border-0 text-start shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                      className="h-9 rounded-none border-0 text-start text-sm shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                       value={socials[field.id] ?? ''}
                       onChange={(e) => setSocial(field.id, e.target.value)}
                       placeholder={field.placeholder}
+                      aria-label={field.label}
                     />
                   </div>
                 </div>
@@ -453,6 +468,7 @@ export function BusinessDiscoveryScreen({
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
         <SetupNavButtons
+          className="pt-5"
           continueDisabled={isSubmitting || !name.trim()}
           continueLabel={isSubmitting ? 'שומר…' : 'המשך'}
           onContinue={() => {
@@ -481,7 +497,7 @@ export function BusinessDiscoveryScreen({
 
 function DiscoveryFormSkeleton({ websiteUrl }: { websiteUrl?: string }) {
   return (
-    <div className="space-y-5 text-start" aria-busy aria-live="polite">
+    <div className="space-y-4 text-start" aria-busy aria-live="polite">
       {websiteUrl ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />
@@ -491,29 +507,32 @@ function DiscoveryFormSkeleton({ websiteUrl }: { websiteUrl?: string }) {
         </p>
       ) : null}
 
-      <div className="space-y-2">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-10 w-full rounded-lg" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+        </div>
+        <div className="space-y-1.5">
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+        </div>
       </div>
 
       <div className="space-y-2">
-        <Skeleton className="h-4 w-16" />
-        <Skeleton className="h-10 w-full rounded-lg" />
-      </div>
-
-      <div className="space-y-3">
-        <Skeleton className="h-4 w-32" />
-        {SOCIAL_FIELDS.map((field) => (
-          <div key={field.id} className="space-y-1.5">
-            <Skeleton className="h-4 w-28" />
-            <div className="flex items-stretch overflow-hidden rounded-lg border border-input">
-              <span className="flex shrink-0 items-center border-e border-input bg-muted/40 px-3">
-                <Skeleton className="size-4 rounded-sm" />
-              </span>
-              <Skeleton className="h-10 flex-1 rounded-none" />
+        <Skeleton className="h-4 w-28" />
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          {SOCIAL_FIELDS.map((field) => (
+            <div key={field.id} className="space-y-1">
+              <Skeleton className="h-3 w-20" />
+              <div className="flex h-9 items-stretch overflow-hidden rounded-lg border border-input">
+                <span className="flex shrink-0 items-center border-e border-input bg-muted/40 px-2.5">
+                  <Skeleton className="size-3.5 rounded-sm" />
+                </span>
+                <Skeleton className="h-full flex-1 rounded-none" />
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

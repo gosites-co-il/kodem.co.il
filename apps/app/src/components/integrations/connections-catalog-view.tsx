@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { CheckIcon, ChevronDownIcon, CircleCheckIcon, CircleXIcon, PlugZapIcon, PlusIcon, SearchIcon, Trash2Icon } from 'lucide-react';
 import type {
   ConnectionCapability,
@@ -241,6 +241,25 @@ function connectionsBasePath(pathname: string): string {
   return pathname.startsWith('/workspace/settings/connections')
     ? '/workspace/settings/connections'
     : '/workspace/integrations/connections';
+}
+
+function routeIntegrationFromPath(pathname: string): IntegrationId | null {
+  const base = connectionsBasePath(pathname);
+  if (pathname === base) return null;
+  if (!pathname.startsWith(`${base}/`)) return null;
+  const segment = pathname.slice(base.length + 1).split('/')[0];
+  return isIntegrationId(segment) ? segment : null;
+}
+
+/** Update the URL without a Next.js soft navigation (avoids remount/flicker). */
+function shallowSetPath(path: string, mode: 'push' | 'replace' = 'push') {
+  if (typeof window === 'undefined') return;
+  if (window.location.pathname === path) return;
+  if (mode === 'replace') {
+    window.history.replaceState(window.history.state, '', path);
+  } else {
+    window.history.pushState(window.history.state, '', path);
+  }
 }
 
 function SheetsResourcePanel({
@@ -1572,23 +1591,73 @@ function ConnectionDetailSheet({
               )}
             </div>
           </>
-        ) : null}
+        ) : item ? (
+          <SheetHeader className="gap-3 p-6 text-start">
+            <div className="flex items-start gap-3 pe-8">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-lg border bg-background p-2">
+                <IntegrationIcon id={item.integrationId} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <SheetTitle>{item.name}</SheetTitle>
+                <SheetDescription>
+                  אין חיבורים פעילים לניהול עדיין.
+                </SheetDescription>
+              </div>
+            </div>
+          </SheetHeader>
+        ) : (
+          <SheetHeader className="gap-3 p-6 text-start">
+            <SheetTitle>טוען חיבור…</SheetTitle>
+            <SheetDescription>פרטי החיבור נטענים.</SheetDescription>
+          </SheetHeader>
+        )}
       </SheetContent>
     </Sheet>
   );
 }
 
+/** Isolated so useSearchParams Suspense does not remount the catalog. */
+function ConnectionOAuthQueryEffects({
+  basePath,
+  onConnected,
+  onError,
+}: {
+  basePath: string;
+  onConnected: (integrationId: string) => void;
+  onError: (message: string) => void;
+}) {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const connected = searchParams.get('connected');
+    const oauthError = searchParams.get('error');
+    if (connected) {
+      onConnected(connected);
+      if (isIntegrationId(connected)) {
+        shallowSetPath(`${basePath}/${connected}`, 'replace');
+      } else {
+        shallowSetPath(basePath, 'replace');
+      }
+    } else if (oauthError) {
+      const redirectUri =
+        typeof window !== 'undefined'
+          ? sessionStorage.getItem('kodem.oauth.redirectUri')
+          : null;
+      onError(
+        redirectUri
+          ? `חיבור נכשל (${oauthError}). ודאו שב-Google Cloud Console מופיעה בדיוק הכתובת: ${redirectUri}`
+          : `חיבור נכשל: ${oauthError}`,
+      );
+    }
+  }, [searchParams, onConnected, onError, basePath]);
+
+  return null;
+}
+
 export function ConnectionsCatalogView() {
   const { role } = useAuth();
-  const router = useRouter();
   const pathname = usePathname();
-  const params = useParams<{ integrationId?: string | string[] }>();
-  const searchParams = useSearchParams();
   const basePath = connectionsBasePath(pathname);
-  const routeParam = Array.isArray(params.integrationId)
-    ? params.integrationId[0]
-    : params.integrationId;
-  const routeIntegrationId = isIntegrationId(routeParam) ? routeParam : null;
   const canManage = can(role, 'connections:manage');
   const canUse = can(role, 'connections:use');
   const [catalog, setCatalog] = useState<ConnectionCatalogItem[]>([]);
@@ -1596,8 +1665,8 @@ export function ConnectionsCatalogView() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<IntegrationId | null>(
-    routeIntegrationId,
+  const [selectedId, setSelectedId] = useState<IntegrationId | null>(() =>
+    routeIntegrationFromPath(pathname),
   );
   const [activeConnectionId, setActiveConnectionId] = useState<string | null>(
     null,
@@ -1622,41 +1691,41 @@ export function ConnectionsCatalogView() {
     void load();
   }, [load]);
 
-  useEffect(() => {
-    const connected = searchParams.get('connected');
-    const oauthError = searchParams.get('error');
-    if (connected) {
-      setInfo(`חובר בהצלחה: ${connected}`);
-      void load();
-      if (isIntegrationId(connected)) {
-        router.replace(`${basePath}/${connected}`);
+  const handleOAuthConnected = useCallback(
+    (integrationId: string) => {
+      setInfo(`חובר בהצלחה: ${integrationId}`);
+      if (isIntegrationId(integrationId)) {
+        setSelectedId(integrationId);
       }
-    } else if (oauthError) {
-      const redirectUri =
-        typeof window !== 'undefined'
-          ? sessionStorage.getItem('kodem.oauth.redirectUri')
-          : null;
-      setError(
-        redirectUri
-          ? `חיבור נכשל (${oauthError}). ודאו שב-Google Cloud Console מופיעה בדיוק הכתובת: ${redirectUri}`
-          : `חיבור נכשל: ${oauthError}`,
-      );
-    }
-  }, [searchParams, load, router, basePath]);
+      void load();
+    },
+    [load],
+  );
+
+  const handleOAuthError = useCallback((message: string) => {
+    setError(message);
+  }, []);
 
   useEffect(() => {
-    setSelectedId(routeIntegrationId);
-    if (!routeIntegrationId) {
-      setActiveConnectionId(null);
-      setTestResult(null);
+    function onPopState() {
+      const id = routeIntegrationFromPath(window.location.pathname);
+      setSelectedId(id);
+      if (!id) {
+        setActiveConnectionId(null);
+        setTestResult(null);
+      }
     }
-  }, [routeIntegrationId]);
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   useEffect(() => {
-    if (!routeIntegrationId || catalog.length === 0) return;
-    const item = catalog.find((c) => c.integrationId === routeIntegrationId);
+    if (!selectedId || catalog.length === 0) return;
+    const item = catalog.find((c) => c.integrationId === selectedId);
     if (!item) {
-      router.replace(basePath);
+      setSelectedId(null);
+      setActiveConnectionId(null);
+      shallowSetPath(basePath, 'replace');
       return;
     }
     const instances = item.connections?.length
@@ -1665,14 +1734,13 @@ export function ConnectionsCatalogView() {
         ? [item.connection]
         : [];
     if (instances.length === 0) {
-      // Catalog card may still be opened after first connect loads.
       return;
     }
     setActiveConnectionId((current) => {
       if (current && instances.some((c) => c.id === current)) return current;
       return instances[0]!.id;
     });
-  }, [routeIntegrationId, catalog, router, basePath]);
+  }, [selectedId, catalog, basePath]);
 
   const connectedCount = catalog.reduce((sum, c) => {
     const list = c.connections?.length
@@ -1699,7 +1767,9 @@ export function ConnectionsCatalogView() {
     [catalog, selectedId],
   );
 
-  const sheetOpen = Boolean(selectedItem && (selectedItem.connections?.length || selectedItem.connection));
+  // Keep sheet open from selection/route — do not wait for catalog instances
+  // (avoids close→reopen flicker while catalog loads or remounts).
+  const sheetOpen = selectedId !== null;
 
   function instancesOf(item: ConnectionCatalogItem): WorkspaceConnection[] {
     if (item.connections?.length) return item.connections;
@@ -1765,7 +1835,7 @@ export function ConnectionsCatalogView() {
       if (remaining.length === 0) {
         setSelectedId(null);
         setActiveConnectionId(null);
-        router.push(basePath);
+        shallowSetPath(basePath, 'replace');
       } else {
         setActiveConnectionId(remaining[0]!.id);
       }
@@ -1829,11 +1899,18 @@ export function ConnectionsCatalogView() {
     setTestResult(null);
     setSelectedId(item.integrationId);
     setActiveConnectionId(connectionId ?? instances[0]!.id);
-    router.push(`${basePath}/${item.integrationId}`);
+    shallowSetPath(`${basePath}/${item.integrationId}`, 'push');
   }
 
   return (
     <div className="flex flex-col gap-6">
+      <Suspense fallback={null}>
+        <ConnectionOAuthQueryEffects
+          basePath={basePath}
+          onConnected={handleOAuthConnected}
+          onError={handleOAuthError}
+        />
+      </Suspense>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold tracking-tight">חיבורים</h2>
@@ -2045,9 +2122,7 @@ export function ConnectionsCatalogView() {
             setSelectedId(null);
             setActiveConnectionId(null);
             setTestResult(null);
-            if (routeIntegrationId) {
-              router.push(basePath);
-            }
+            shallowSetPath(basePath, 'push');
           }
         }}
         activeConnectionId={activeConnectionId}

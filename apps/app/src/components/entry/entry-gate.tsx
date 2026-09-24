@@ -1,7 +1,7 @@
 'use client';
 
-import { Suspense, useEffect, type ReactNode } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, type ReactNode } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../../providers/auth-provider';
 import { ROUTES } from '../../lib/constants';
 import { guardRouteForWorkspace } from '../../lib/entry/routes';
@@ -14,40 +14,41 @@ function EntryGateFallback() {
   );
 }
 
+function currentPathWithSearch(pathname: string): string {
+  if (typeof window === 'undefined') return pathname;
+  const search = window.location.search.replace(/^\?/, '');
+  return search ? `${pathname}?${search}` : pathname;
+}
+
+function hasGuestWebsiteUrl(): boolean {
+  if (typeof window === 'undefined') return false;
+  return Boolean(
+    new URLSearchParams(window.location.search).get('websiteUrl')?.trim(),
+  );
+}
+
 /**
  * Enforces login + setup ↔ dashboard for the active workspace.
  * Middleware is the first line; this gate covers expired/missing client sessions.
  * Guest marketing bootstrap (`/setup/*?websiteUrl=`) is allowed through so
  * SetupJourney can create the ephemeral session.
+ *
+ * Avoids useSearchParams so navigations are not wrapped in a Suspense boundary
+ * that remounts the whole tree (page flicker).
  */
 export function EntryGate({ children }: { children: ReactNode }) {
-  return (
-    <Suspense fallback={<EntryGateFallback />}>
-      <EntryGateInner>{children}</EntryGateInner>
-    </Suspense>
-  );
-}
-
-function EntryGateInner({ children }: { children: ReactNode }) {
   const { isLoading, isAuthenticated, workspace } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const isGuestBootstrap =
-    pathname.startsWith(ROUTES.setup) &&
-    Boolean(searchParams.get('websiteUrl')?.trim());
+  const onSetup = pathname.startsWith(ROUTES.setup);
 
   useEffect(() => {
     if (isLoading) return;
 
     if (!isAuthenticated) {
-      if (isGuestBootstrap) return;
+      if (onSetup && hasGuestWebsiteUrl()) return;
       const loginUrl = new URL(ROUTES.login, window.location.origin);
-      const next =
-        searchParams.toString().length > 0
-          ? `${pathname}?${searchParams.toString()}`
-          : pathname;
-      loginUrl.searchParams.set('next', next);
+      loginUrl.searchParams.set('next', currentPathWithSearch(pathname));
       router.replace(`${loginUrl.pathname}${loginUrl.search}`);
       return;
     }
@@ -56,22 +57,15 @@ function EntryGateInner({ children }: { children: ReactNode }) {
     if (redirect) {
       router.replace(redirect);
     }
-  }, [
-    isLoading,
-    isAuthenticated,
-    isGuestBootstrap,
-    pathname,
-    router,
-    workspace,
-    searchParams,
-  ]);
+  }, [isLoading, isAuthenticated, onSetup, pathname, router, workspace]);
 
   if (isLoading) {
     return <EntryGateFallback />;
   }
 
   if (!isAuthenticated) {
-    if (isGuestBootstrap) {
+    // Setup routes may be guest bootstrap; effect redirects if not.
+    if (onSetup) {
       return <>{children}</>;
     }
     return <EntryGateFallback />;
