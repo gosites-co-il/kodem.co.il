@@ -137,7 +137,6 @@ Variables:
 | `OAUTH_META_FACEBOOK_CLIENT_ID` | Optional; Meta Facebook Connection (not login) |
 | `OAUTH_META_INSTAGRAM_CLIENT_ID` | Optional; Meta Instagram Connection |
 | `OAUTH_META_WHATSAPP_CLIENT_ID` | Optional; Meta WhatsApp Connection |
-| `META_WEBHOOK_VERIFY_TOKEN` | Optional; Meta webhook hub.verify_token |
 | `SYSTEM_MAIL_PROVIDER` | Optional (`stub` default, set `resend` for system/transactional mail) |
 | `MAIL_FROM` | System From address (must be verified on Resend when using `resend`) |
 | `AUDIT_MAIL_PROVIDER` | Optional (`stub` default, set `gmail` for ops/audit mail via Google Workspace) |
@@ -160,6 +159,7 @@ Secrets:
 | `OAUTH_META_INSTAGRAM_CLIENT_SECRET` | Optional; Meta Instagram Connection secret |
 | `OAUTH_META_WHATSAPP_CLIENT_SECRET` | Optional; Meta WhatsApp Connection secret |
 | `META_APP_SECRET` | Optional; Meta webhook signature (`X-Hub-Signature-256`) |
+| `META_WEBHOOK_VERIFY_TOKEN` | Optional; Meta webhook hub.verify_token |
 | `CONNECTION_CREDENTIALS_KEY` | Optional but required before using Connections in cloud; encrypts stored OAuth tokens |
 | `RESEND_API_KEY` | Optional; required when `SYSTEM_MAIL_PROVIDER=resend` |
 | `AUDIT_SMTP_PASS` | Optional; Google app password when `AUDIT_MAIL_PROVIDER=gmail` |

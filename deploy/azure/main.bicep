@@ -107,6 +107,7 @@ param metaWhatsappClientSecret string = ''
 @description('Meta app secret for webhook signature verification.')
 param metaAppSecret string = ''
 
+@secure()
 @description('Meta webhook verify token (hub.verify_token).')
 param metaWebhookVerifyToken string = ''
 
@@ -402,6 +403,10 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
           value: empty(metaAppSecret) ? 'meta-app-secret' : metaAppSecret
         }
         {
+          name: 'meta-webhook-verify-token'
+          value: empty(metaWebhookVerifyToken) ? 'meta-webhook-verify-token' : metaWebhookVerifyToken
+        }
+        {
           name: 'connection-credentials-key'
           value: empty(connectionCredentialsKey) ? 'connection-credentials-key-change-me' : connectionCredentialsKey
         }
@@ -475,7 +480,7 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
             { name: 'META_WHATSAPP_CLIENT_SECRET', secretRef: 'meta-whatsapp-client-secret' }
             { name: 'META_WHATSAPP_CALLBACK_URL', value: '${resolvedAppUrl}/api/connections/oauth/meta/whatsapp/callback' }
             { name: 'META_APP_SECRET', secretRef: 'meta-app-secret' }
-            { name: 'META_WEBHOOK_VERIFY_TOKEN', value: metaWebhookVerifyToken }
+            { name: 'META_WEBHOOK_VERIFY_TOKEN', secretRef: 'meta-webhook-verify-token' }
             { name: 'CONNECTION_CREDENTIALS_KEY', secretRef: 'connection-credentials-key' }
             { name: 'GITHUB_CLIENT_ID', value: empty(githubClientId) ? 'github-client-id' : githubClientId }
             { name: 'GITHUB_CLIENT_SECRET', secretRef: 'github-client-secret' }
