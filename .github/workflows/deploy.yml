@@ -247,6 +247,7 @@ jobs:
           OAUTH_META_INSTAGRAM_CLIENT_SECRET: ${{ secrets.OAUTH_META_INSTAGRAM_CLIENT_SECRET }}
           OAUTH_META_WHATSAPP_CLIENT_ID: ${{ vars.OAUTH_META_WHATSAPP_CLIENT_ID }}
           OAUTH_META_WHATSAPP_CLIENT_SECRET: ${{ secrets.OAUTH_META_WHATSAPP_CLIENT_SECRET }}
+          META_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID: ${{ vars.META_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID }}
           META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
           META_WEBHOOK_VERIFY_TOKEN: ${{ secrets.META_WEBHOOK_VERIFY_TOKEN }}
           CONNECTION_CREDENTIALS_KEY: ${{ secrets.CONNECTION_CREDENTIALS_KEY }}
@@ -443,6 +444,7 @@ jobs:
                 metaInstagramClientSecret="${OAUTH_META_INSTAGRAM_CLIENT_SECRET:-}" \
                 metaWhatsappClientId="${OAUTH_META_WHATSAPP_CLIENT_ID:-}" \
                 metaWhatsappClientSecret="${OAUTH_META_WHATSAPP_CLIENT_SECRET:-}" \
+                metaWhatsappEmbeddedSignupConfigId="${META_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID:-}" \
                 metaAppSecret="${META_APP_SECRET:-}" \
                 metaWebhookVerifyToken="${META_WEBHOOK_VERIFY_TOKEN:-}" \
                 connectionCredentialsKey="${CONNECTION_CREDENTIALS_KEY:-}" \

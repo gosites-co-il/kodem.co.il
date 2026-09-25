@@ -75,6 +75,48 @@ export async function listWhatsAppPhoneNumbers(
   return out;
 }
 
+/** List phone numbers for a known WABA (preferred for BISU / Embedded Signup tokens). */
+export async function listWhatsAppPhoneNumbersForWaba(
+  accessToken: string,
+  wabaId: string,
+): Promise<MetaWhatsAppPhoneNumber[]> {
+  const phoneUrl = new URL(
+    `${META_GRAPH_BASE}/${encodeURIComponent(wabaId)}/phone_numbers`,
+  );
+  phoneUrl.searchParams.set(
+    'fields',
+    'id,display_phone_number,verified_name',
+  );
+  phoneUrl.searchParams.set('access_token', accessToken);
+  const phoneRes = await fetch(phoneUrl.toString());
+  if (!phoneRes.ok) {
+    throw new Error(
+      parseMetaError(
+        phoneRes.status,
+        await phoneRes.text(),
+        'טעינת מספרי WhatsApp ל-WABA נכשלה',
+      ),
+    );
+  }
+  const phoneJson = (await phoneRes.json()) as {
+    data?: Array<{
+      id?: string;
+      display_phone_number?: string;
+      verified_name?: string;
+    }>;
+  };
+  return (phoneJson.data ?? [])
+    .filter((p): p is { id: string; display_phone_number?: string; verified_name?: string } =>
+      Boolean(p.id),
+    )
+    .map((phone) => ({
+      phoneNumberId: phone.id,
+      displayPhoneNumber: phone.display_phone_number ?? phone.id,
+      verifiedName: phone.verified_name,
+      wabaId,
+    }));
+}
+
 export async function whatsappSendText(
   accessToken: string,
   phoneNumberId: string,

@@ -137,6 +137,7 @@ Variables:
 | `OAUTH_META_FACEBOOK_CLIENT_ID` | Optional; Meta Facebook Connection (not login) |
 | `OAUTH_META_INSTAGRAM_CLIENT_ID` | Optional; Meta Instagram Connection |
 | `OAUTH_META_WHATSAPP_CLIENT_ID` | Optional; Meta WhatsApp Connection |
+| `META_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID` | Optional; Facebook Login for Business Embedded Signup config id |
 | `SYSTEM_MAIL_PROVIDER` | Optional (`stub` default, set `resend` for system/transactional mail) |
 | `MAIL_FROM` | System From address (must be verified on Resend when using `resend`) |
 | `AUDIT_MAIL_PROVIDER` | Optional (`stub` default, set `gmail` for ops/audit mail via Google Workspace) |

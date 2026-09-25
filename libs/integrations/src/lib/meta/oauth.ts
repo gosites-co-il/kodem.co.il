@@ -247,6 +247,86 @@ export function metaWebhookVerifyToken(): string | null {
   return process.env['META_WEBHOOK_VERIFY_TOKEN']?.trim() || null;
 }
 
+/** Facebook Login for Business Embedded Signup configuration id. */
+export function metaWhatsAppEmbeddedSignupConfigId(): string | null {
+  return process.env['META_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID']?.trim() || null;
+}
+
+export function metaWhatsAppEmbeddedSignupPublicConfig(): {
+  configured: boolean;
+  appId: string | null;
+  configId: string | null;
+  graphVersion: string;
+} {
+  const whatsapp = metaConnectionClientConfig('whatsapp');
+  const configId = metaWhatsAppEmbeddedSignupConfigId();
+  const appId = whatsapp?.clientId ?? null;
+  return {
+    configured: Boolean(appId && configId),
+    appId,
+    configId,
+    graphVersion: GRAPH_VERSION,
+  };
+}
+
+/**
+ * Exchange Embedded Signup authorization code for a Business Integration
+ * System User token. Unlike redirect OAuth, this call omits redirect_uri.
+ */
+export async function exchangeMetaEmbeddedSignupCode(input: {
+  code: string;
+  clientId: string;
+  clientSecret: string;
+}): Promise<{
+  accessToken: string;
+  expiresIn?: number;
+  tokenType?: string;
+}> {
+  const url = new URL(`${META_GRAPH_BASE}/oauth/access_token`);
+  url.searchParams.set('client_id', input.clientId);
+  url.searchParams.set('client_secret', input.clientSecret);
+  url.searchParams.set('code', input.code);
+
+  const res = await fetch(url.toString());
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(
+      `Meta Embedded Signup token exchange failed: ${text.slice(0, 300)}`,
+    );
+  }
+  const json = (await res.json()) as {
+    access_token?: string;
+    expires_in?: number;
+    token_type?: string;
+  };
+  if (!json.access_token) {
+    throw new Error('Meta Embedded Signup exchange returned no access_token');
+  }
+  return {
+    accessToken: json.access_token,
+    expiresIn: json.expires_in,
+    tokenType: json.token_type,
+  };
+}
+
+/** Subscribe the app to a customer WABA so webhooks are delivered. */
+export async function subscribeWhatsAppWaba(
+  accessToken: string,
+  wabaId: string,
+): Promise<void> {
+  const url = new URL(`${META_GRAPH_BASE}/${encodeURIComponent(wabaId)}/subscribed_apps`);
+  const res = await fetch(url.toString(), {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(
+      parseMetaError(res.status, text, 'הרשמה ל-WABA נכשלה'),
+    );
+  }
+}
+
 export function verifyMetaWebhookSignature(
   rawBody: string | Buffer,
   signatureHeader: string | undefined,

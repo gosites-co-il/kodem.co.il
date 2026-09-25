@@ -103,6 +103,9 @@ param metaWhatsappClientId string = ''
 @description('Meta WhatsApp Connection OAuth client secret.')
 param metaWhatsappClientSecret string = ''
 
+@description('Meta WhatsApp Embedded Signup (Facebook Login for Business) configuration id.')
+param metaWhatsappEmbeddedSignupConfigId string = ''
+
 @secure()
 @description('Meta app secret for webhook signature verification.')
 param metaAppSecret string = ''
@@ -479,6 +482,7 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
             { name: 'META_WHATSAPP_CLIENT_ID', value: metaWhatsappClientId }
             { name: 'META_WHATSAPP_CLIENT_SECRET', secretRef: 'meta-whatsapp-client-secret' }
             { name: 'META_WHATSAPP_CALLBACK_URL', value: '${resolvedAppUrl}/api/connections/oauth/meta/whatsapp/callback' }
+            { name: 'META_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID', value: metaWhatsappEmbeddedSignupConfigId }
             { name: 'META_APP_SECRET', secretRef: 'meta-app-secret' }
             { name: 'META_WEBHOOK_VERIFY_TOKEN', secretRef: 'meta-webhook-verify-token' }
             { name: 'CONNECTION_CREDENTIALS_KEY', secretRef: 'connection-credentials-key' }

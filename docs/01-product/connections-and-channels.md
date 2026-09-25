@@ -83,6 +83,6 @@ Per-connection install guides under [`connections/`](connections/). Azure deploy
 - **Next:**
   1. **Fix Business Profile quota** (ops) — see [`connections/google-business.md`](connections/google-business.md).
   2. Meta App Review / Advanced Access for production messaging.
-  3. WhatsApp Embedded Signup fallback when phone list is empty.
+  3. ~~WhatsApp Embedded Signup fallback when phone list is empty~~ — shipped (Connections wizard + empty-list CTA).
 - **Later:** Google Ads — [`connections/google-ads.md`](connections/google-ads.md).
 - **Sheets backlog:** unbind, reconnect UX, primary tab, sync, Picker — see [`connections/google-sheets.md`](connections/google-sheets.md).

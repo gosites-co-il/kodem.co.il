@@ -219,6 +219,26 @@ export interface WhatsAppConnectionMetadata {
   lastBoundAt?: string;
 }
 
+/** Public config for launching Meta WhatsApp Embedded Signup in the browser. */
+export interface WhatsAppEmbeddedSignupConfig {
+  configured: boolean;
+  appId: string | null;
+  configId: string | null;
+  graphVersion: string;
+}
+
+export interface WhatsAppEmbeddedSignupCompleteInput {
+  /** Authorization code from FB.login (response_type=code). */
+  code: string;
+  /** From WA_EMBEDDED_SIGNUP postMessage when present. */
+  phoneNumberId?: string;
+  wabaId?: string;
+  /** Optional display hint collected in the pre-wizard (E.164 or local). */
+  displayPhoneNumber?: string;
+  /** Re-run Embedded Signup against an existing connection. */
+  connectionId?: string;
+}
+
 export interface ConnectionFacebookPage {
   pageId: string;
   name: string;

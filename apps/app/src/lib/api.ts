@@ -746,6 +746,24 @@ export const api = {
     >(`/connections/${id}/whatsapp/phone-numbers`);
   },
 
+  getWhatsAppEmbeddedSignupConfig() {
+    return request<import('@kodem/contracts').WhatsAppEmbeddedSignupConfig>(
+      '/connections/whatsapp/embedded-signup/config',
+    );
+  },
+
+  completeWhatsAppEmbeddedSignup(
+    body: import('@kodem/contracts').WhatsAppEmbeddedSignupCompleteInput,
+  ) {
+    return request<ConnectionActionResult>(
+      '/connections/whatsapp/embedded-signup/complete',
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      },
+    );
+  },
+
   previewConnectionSheet(
     id: string,
     params?: { sheet?: string; range?: string },

@@ -47,6 +47,7 @@ import { api, isApiError } from '../../lib/api';
 import { can } from '../../lib/auth/permissions';
 import { useAuth } from '../../providers/auth-provider';
 import { IntegrationIcon } from './integration-icons';
+import { WhatsAppSignupWizard } from './whatsapp-signup-wizard';
 
 function isActionFailure(
   value: unknown,
@@ -1209,6 +1210,7 @@ function WhatsAppResourcePanel({
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [localInfo, setLocalInfo] = useState<string | null>(null);
+  const [showSignup, setShowSignup] = useState(false);
 
   const load = useCallback(async () => {
     if (!canUse || !active) return;
@@ -1221,16 +1223,19 @@ function WhatsAppResourcePanel({
             ? (res.message ?? 'טעינת המספרים נכשלה')
             : 'טעינת המספרים נכשלה',
         );
+        setShowSignup(true);
         return;
       }
       setPhones(res.phoneNumbers);
+      setShowSignup(res.phoneNumbers.length === 0 && !boundId);
       if (!selected && res.phoneNumbers[0]) {
         setSelected(res.phoneNumbers[0].phoneNumberId);
       }
     } catch (err) {
       setLocalError(isApiError(err) ? err.message : 'טעינת המספרים נכשלה');
+      setShowSignup(true);
     }
-  }, [active, canUse, connectionId, selected]);
+  }, [active, boundId, canUse, connectionId, selected]);
 
   useEffect(() => {
     void load();
@@ -1258,6 +1263,33 @@ function WhatsAppResourcePanel({
     } finally {
       setBusy(false);
     }
+  }
+
+  if (showSignup || (!boundId && phones.length === 0 && active)) {
+    return (
+      <div className="flex flex-col gap-4">
+        {!active ? (
+          <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
+            החיבור מחובר אך לא פעיל — הפעילו אותו כדי לבחור מספר.
+          </p>
+        ) : null}
+        <WhatsAppSignupWizard
+          connectionId={connectionId}
+          canManage={canManage && active}
+          onComplete={onBound}
+        />
+        {phones.length > 0 ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setShowSignup(false)}
+          >
+            בחרו מספר קיים מהרשימה
+          </Button>
+        ) : null}
+      </div>
+    );
   }
 
   return (
@@ -1299,6 +1331,15 @@ function WhatsAppResourcePanel({
             onClick={() => void bind()}
           >
             קשר מספר
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => setShowSignup(true)}
+          >
+            חבר מספר חדש דרך Meta
           </Button>
         </div>
       ) : null}
@@ -1353,6 +1394,8 @@ function ConnectionDetailSheet({
   const isFacebook = item?.integrationId === 'facebook' && connection;
   const isInstagram = item?.integrationId === 'instagram' && connection;
   const isWhatsApp = item?.integrationId === 'whatsapp' && connection;
+  const isWhatsAppSignup =
+    item?.integrationId === 'whatsapp' && !connection;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -1589,6 +1632,26 @@ function ConnectionDetailSheet({
                   ניהול משאבים לחיבור זה יתווסף בהמשך.
                 </p>
               )}
+            </div>
+          </>
+        ) : item && isWhatsAppSignup ? (
+          <>
+            <SheetHeader className="gap-3 border-b p-6 text-start">
+              <div className="flex items-start gap-3 pe-8">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-lg border bg-background p-2">
+                  <IntegrationIcon id={item.integrationId} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <SheetTitle>{item.name}</SheetTitle>
+                  <SheetDescription>{item.description}</SheetDescription>
+                </div>
+              </div>
+            </SheetHeader>
+            <div className="flex flex-col gap-6 p-6">
+              <WhatsAppSignupWizard
+                canManage={canManage}
+                onComplete={onBound}
+              />
             </div>
           </>
         ) : item ? (
@@ -1886,6 +1949,13 @@ export function ConnectionsCatalogView() {
     }
   }
 
+  function openWhatsAppSignup() {
+    setTestResult(null);
+    setSelectedId('whatsapp');
+    setActiveConnectionId(null);
+    shallowSetPath(`${basePath}/whatsapp`, 'push');
+  }
+
   function openConnected(item: ConnectionCatalogItem, connectionId?: string) {
     const instances = instancesOf(item).filter(
       (c) =>
@@ -1954,6 +2024,14 @@ export function ConnectionsCatalogView() {
               onClick={() => {
                 if (canOpen) {
                   openConnected(item);
+                  return;
+                }
+                if (
+                  showConnect &&
+                  canManage &&
+                  item.integrationId === 'whatsapp'
+                ) {
+                  openWhatsAppSignup();
                   return;
                 }
                 // Sheets needs access-mode dropdown — use חבר button.
@@ -2091,7 +2169,22 @@ export function ConnectionsCatalogView() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   ) : null}
-                  {showConnect && item.integrationId !== 'google_sheets' ? (
+                  {showConnect && item.integrationId === 'whatsapp' ? (
+                    <Button
+                      size="sm"
+                      disabled={!canManage || busyId === item.integrationId}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openWhatsAppSignup();
+                      }}
+                    >
+                      <PlusIcon data-icon="inline-start" />
+                      {canOpen ? 'הוסף' : 'חבר'}
+                    </Button>
+                  ) : null}
+                  {showConnect &&
+                  item.integrationId !== 'google_sheets' &&
+                  item.integrationId !== 'whatsapp' ? (
                     <Button
                       size="sm"
                       disabled={!canManage || busyId === item.integrationId}

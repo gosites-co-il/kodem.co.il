@@ -20,6 +20,8 @@ import type {
   SheetsContactImportField,
   UserId,
   WhatsAppConnectionMetadata,
+  WhatsAppEmbeddedSignupCompleteInput,
+  WhatsAppEmbeddedSignupConfig,
   WorkspaceConnection,
   WorkspaceId,
 } from '@kodem/contracts';
@@ -33,6 +35,7 @@ import { EVENT_TYPES, KodemEventBus } from '@kodem/events';
 import {
   defaultImportRange,
   defaultPreviewRange,
+  exchangeMetaEmbeddedSignupCode,
   getAnalyticsProperty,
   getBusinessLocation,
   getConnectionAdapter,
@@ -44,11 +47,16 @@ import {
   listFacebookPages,
   listInstagramAccounts,
   listWhatsAppPhoneNumbers,
+  listWhatsAppPhoneNumbersForWaba,
+  metaConnectionClientConfig,
+  metaConnectionConfigMissingMessage,
+  metaWhatsAppEmbeddedSignupPublicConfig,
   parseSpreadsheetId,
   refreshGoogleAccessToken,
   runAnalyticsSessionsSmoke,
   SHEETS_IMPORT_ROW_CAP,
   SHEETS_IMPORT_ROW_HARD_CAP,
+  subscribeWhatsAppWaba,
 } from '@kodem/integrations';
 import {
   PLATFORM_INTEGRATIONS,
@@ -398,6 +406,169 @@ export class ConnectionService {
         : 'connection.connected',
       eventType: EVENT_TYPES.CONNECTION_CONNECTED,
     });
+  }
+
+  whatsAppEmbeddedSignupConfig(): WhatsAppEmbeddedSignupConfig {
+    return metaWhatsAppEmbeddedSignupPublicConfig();
+  }
+
+  /**
+   * Completes Meta WhatsApp Embedded Signup (FB.login code + optional session ids).
+   * Exchanges code → BISU token, persists connection, subscribes WABA, auto-binds phone.
+   */
+  async completeWhatsAppEmbeddedSignup(
+    workspaceId: WorkspaceId,
+    actorId: UserId,
+    input: WhatsAppEmbeddedSignupCompleteInput,
+  ): Promise<ConnectionActionResult> {
+    const code = input.code?.trim();
+    if (!code) {
+      return {
+        success: false,
+        code: 'error',
+        message: 'חסר קוד הרשאה מ-Meta Embedded Signup',
+      };
+    }
+
+    const config = metaConnectionClientConfig('whatsapp');
+    if (!config) {
+      return {
+        success: false,
+        code: 'error',
+        message: metaConnectionConfigMissingMessage('whatsapp'),
+      };
+    }
+
+    try {
+      const exchanged = await exchangeMetaEmbeddedSignupCode({
+        code,
+        clientId: config.clientId,
+        clientSecret: config.clientSecret,
+      });
+
+      const credentials: Record<string, string> = {
+        accessToken: exchanged.accessToken,
+      };
+      if (exchanged.expiresIn) {
+        credentials['expiresAt'] = String(
+          Date.now() + exchanged.expiresIn * 1000,
+        );
+      }
+
+      let phoneNumberId = input.phoneNumberId?.trim() || undefined;
+      let wabaId = input.wabaId?.trim() || undefined;
+      let displayPhoneNumber = input.displayPhoneNumber?.trim() || undefined;
+
+      if (wabaId) {
+        try {
+          await subscribeWhatsAppWaba(exchanged.accessToken, wabaId);
+        } catch {
+          /* subscribe may fail if already subscribed — continue */
+        }
+      }
+
+      if (!phoneNumberId || !wabaId) {
+        try {
+          const phones = wabaId
+            ? await listWhatsAppPhoneNumbersForWaba(
+                exchanged.accessToken,
+                wabaId,
+              )
+            : await listWhatsAppPhoneNumbers(exchanged.accessToken);
+          if (!phoneNumberId && phones[0]) {
+            phoneNumberId = phones[0].phoneNumberId;
+            displayPhoneNumber =
+              displayPhoneNumber ?? phones[0].displayPhoneNumber;
+            wabaId = wabaId ?? phones[0].wabaId;
+          } else if (phoneNumberId) {
+            const match = phones.find((p) => p.phoneNumberId === phoneNumberId);
+            if (match) {
+              displayPhoneNumber =
+                displayPhoneNumber ?? match.displayPhoneNumber;
+              wabaId = wabaId ?? match.wabaId;
+            }
+          }
+        } catch {
+          /* discovery optional when session already provided ids */
+        }
+      }
+
+      const persist = await this.persistConnected({
+        workspaceId,
+        integrationId: 'whatsapp',
+        provider: 'meta',
+        actorId,
+        result: {
+          success: true,
+          code: 'ok',
+          credentials,
+          externalAccountId: wabaId ?? phoneNumberId ?? 'whatsapp',
+          externalAccountName:
+            displayPhoneNumber ?? wabaId ?? 'WhatsApp Business',
+          capabilities: [
+            'messaging.whatsapp.send',
+            'messaging.whatsapp.receive',
+          ],
+          message: 'WhatsApp Embedded Signup completed',
+        },
+        connectionId: input.connectionId,
+        auditAction: input.connectionId
+          ? 'connection.reconnected'
+          : 'connection.connected',
+        eventType: EVENT_TYPES.CONNECTION_CONNECTED,
+      });
+
+      if (!persist.success || !persist.connection) {
+        return persist;
+      }
+
+      if (phoneNumberId) {
+        const meta: WhatsAppConnectionMetadata = {
+          phoneNumberId,
+          displayPhoneNumber: displayPhoneNumber ?? phoneNumberId,
+          wabaId,
+          lastBoundAt: new Date().toISOString(),
+        };
+        const connection = await this.connections.updateMetadata(
+          workspaceId,
+          persist.connection.id,
+          meta as unknown as Record<string, unknown>,
+        );
+        return {
+          success: true,
+          code: 'ok',
+          message: `WhatsApp חובר: ${meta.displayPhoneNumber}`,
+          connection: connection ?? persist.connection,
+        };
+      }
+
+      return {
+        success: true,
+        code: 'ok',
+        message:
+          'WhatsApp חובר — בחרו מספר מהרשימה או השלימו Embedded Signup עם מספר',
+        connection: persist.connection,
+      };
+    } catch (err) {
+      await this.audit.record({
+        workspaceId,
+        actorId,
+        action: 'connection.failed',
+        metadata: {
+          integrationId: 'whatsapp',
+          provider: 'meta',
+          flow: 'embedded_signup',
+        },
+      });
+      return {
+        success: false,
+        code: 'error',
+        message:
+          err instanceof Error
+            ? err.message
+            : 'השלמת WhatsApp Embedded Signup נכשלה',
+      };
+    }
   }
 
   private async persistConnected(input: {

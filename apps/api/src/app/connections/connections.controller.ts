@@ -14,6 +14,7 @@ import type {
   ImportContactsFromSheetsInput,
   IntegrationId,
   PlatformContext,
+  WhatsAppEmbeddedSignupCompleteInput,
 } from '@kodem/contracts';
 import { ConnectionService } from '@kodem/platform/connections';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -44,6 +45,25 @@ export class ConnectionsController {
   async list(@CurrentContext() context: PlatformContext) {
     const catalog = await this.connections.listCatalog(context.workspace.id);
     return { catalog };
+  }
+
+  @Get('whatsapp/embedded-signup/config')
+  @RequirePermissions('workspace.settings.read')
+  embeddedSignupConfig() {
+    return this.connections.whatsAppEmbeddedSignupConfig();
+  }
+
+  @Post('whatsapp/embedded-signup/complete')
+  @RequirePermissions('connections:manage')
+  async completeEmbeddedSignup(
+    @CurrentContext() context: PlatformContext,
+    @Body() body: WhatsAppEmbeddedSignupCompleteInput,
+  ) {
+    return this.connections.completeWhatsAppEmbeddedSignup(
+      context.workspace.id,
+      context.user.id,
+      body ?? { code: '' },
+    );
   }
 
   @Get(':id/sheets')
