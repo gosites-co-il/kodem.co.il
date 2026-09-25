@@ -74,7 +74,7 @@ function buildAccountItems(onLogout: () => void): AccountMenuAction[] {
     {
       id: 'workspace-connections',
       label: 'חיבורים',
-      href: ROUTES.workspaceIntegrationsConnections,
+      href: ROUTES.workspaceIntegrations,
       icon: Plug,
     },
     {

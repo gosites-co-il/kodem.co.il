@@ -6,6 +6,7 @@ import { cn } from '@kodem/design-system/lib/utils';
 import { ROUTES } from '../../lib/constants';
 
 const LINKS = [
+  { href: ROUTES.workspaceIntegrations, label: 'סקירה', exact: true },
   { href: ROUTES.workspaceIntegrationsConnections, label: 'חיבורים' },
   { href: ROUTES.workspaceIntegrationsChannels, label: 'ערוצים' },
 ] as const;
@@ -19,8 +20,10 @@ export function IntegrationsNav() {
       aria-label="ניווט חיבורים"
     >
       {LINKS.map((link) => {
-        const active =
-          pathname === link.href || pathname.startsWith(`${link.href}/`);
+        const exact = 'exact' in link && link.exact;
+        const active = exact
+          ? pathname === link.href
+          : pathname === link.href || pathname.startsWith(`${link.href}/`);
         return (
           <Link
             key={link.href}

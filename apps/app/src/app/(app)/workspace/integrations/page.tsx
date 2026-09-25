@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
-import { ROUTES } from '../../../../lib/constants';
+import { IntegrationsHomeView } from '../../../../components/integrations/integrations-home-view';
 
 export default function IntegrationsIndexPage() {
-  redirect(ROUTES.workspaceIntegrationsConnections);
+  return <IntegrationsHomeView />;
 }

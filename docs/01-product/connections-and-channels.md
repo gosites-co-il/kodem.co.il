@@ -27,6 +27,7 @@ A Channel may be backed by one or more Connections (e.g. Email ← Gmail / Outlo
 
 ### Catalog UI
 
+- Integrations home: `/workspace/integrations` — overview, how-to, connections vs channels, featured tools, and connection status.
 - Shared list: **Settings → חיבורים** and `/workspace/integrations/connections` (same component).
 - Detail sheet (open connection): `/workspace/integrations/connections/{integrationId}` and `/workspace/settings/connections/{integrationId}`.
 - Closing the sheet returns to the list URL. OAuth success redirects into the detail route for that integration.
