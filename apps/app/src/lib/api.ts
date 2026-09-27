@@ -88,6 +88,11 @@ export function isApiError(error: unknown): error is ApiError {
   );
 }
 
+export interface AdminBulkResult {
+  succeeded: string[];
+  failed: Array<{ id: string; message: string }>;
+}
+
 export interface MeResponse {
   user: User;
   workspace: Workspace;
@@ -290,6 +295,17 @@ export const api = {
     });
   },
 
+  adminBulkWorkspaces(body: {
+    action: 'delete' | 'set_status';
+    ids: string[];
+    status?: AdminUpsertWorkspaceInput['status'];
+  }) {
+    return request<AdminBulkResult>('/admin/workspaces/bulk', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
   adminImpersonateWorkspace(id: string) {
     return request<AuthResult & { impersonating?: boolean }>(
       `/admin/workspaces/${id}/impersonate`,
@@ -325,6 +341,13 @@ export const api = {
   adminDeleteUser(id: string) {
     return request<{ ok: boolean }>(`/admin/users/${id}`, {
       method: 'DELETE',
+    });
+  },
+
+  adminBulkDeleteUsers(ids: string[]) {
+    return request<AdminBulkResult>('/admin/users/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
     });
   },
 

@@ -178,6 +178,23 @@ export class AdminService {
     await this.adminRepo.deleteWorkspace(id);
   }
 
+  async bulkWorkspaces(input: {
+    action: 'delete' | 'set_status';
+    ids: string[];
+    status?: WorkspaceStatus;
+  }): Promise<AdminBulkResult> {
+    return this.runBulk(input.ids, async (id) => {
+      if (input.action === 'delete') {
+        await this.deleteWorkspace(id as WorkspaceId);
+        return;
+      }
+      if (!isWorkspaceStatus(input.status)) {
+        throw new Error('סטטוס לא תקין');
+      }
+      await this.updateWorkspace(id as WorkspaceId, { status: input.status });
+    });
+  }
+
   async beginImpersonation(actor: User, workspaceId: WorkspaceId): Promise<Workspace> {
     if (actor.platformRole !== 'super_admin') {
       throw new Error('נדרשת הרשאת סופר־אדמין');
@@ -324,6 +341,36 @@ export class AdminService {
     await this.adminRepo.deleteUser(id, actorId);
   }
 
+  async bulkDeleteUsers(actorId: UserId, ids: string[]): Promise<AdminBulkResult> {
+    return this.runBulk(ids, (id) => this.deleteUser(actorId, id as UserId));
+  }
+
+  private async runBulk(
+    ids: string[],
+    work: (id: string) => Promise<void>,
+  ): Promise<AdminBulkResult> {
+    const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))].slice(
+      0,
+      100,
+    );
+    if (unique.length === 0) throw new Error('לא נבחרו פריטים');
+
+    const succeeded: string[] = [];
+    const failed: AdminBulkResult['failed'] = [];
+    for (const id of unique) {
+      try {
+        await work(id);
+        succeeded.push(id);
+      } catch (error) {
+        failed.push({
+          id,
+          message: error instanceof Error ? error.message : 'הפעולה נכשלה',
+        });
+      }
+    }
+    return { succeeded, failed };
+  }
+
   private async workspaceItem(id: WorkspaceId): Promise<AdminWorkspaceListItem> {
     const workspace = await this.workspaceRepo.findById(id);
     if (!workspace) throw new Error('הסביבה לא נמצאה');
@@ -398,6 +445,11 @@ function isOnboardingStatus(
 function blankToUndefined(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
+}
+
+export interface AdminBulkResult {
+  succeeded: string[];
+  failed: Array<{ id: string; message: string }>;
 }
 
 function isUniqueViolation(error: unknown): boolean {

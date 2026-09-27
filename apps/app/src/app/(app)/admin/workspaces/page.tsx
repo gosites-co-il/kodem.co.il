@@ -73,6 +73,9 @@ export default function AdminWorkspacesPage() {
   const [pendingDelete, setPendingDelete] = useState<AdminWorkspaceListItem | null>(
     null,
   );
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState('');
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -181,6 +184,77 @@ export default function AdminWorkspacesPage() {
     }
   }
 
+  const selectableIds = rows
+    .filter((row) => !row.protected)
+    .map((row) => row.workspace.id);
+  const selectedCount = selected.size;
+  const allSelectableChecked =
+    selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelected(checked ? new Set(selectableIds) : new Set());
+  }
+
+  function dropSucceeded(ids: string[]) {
+    setSelected((current) => {
+      const next = new Set(current);
+      for (const id of ids) next.delete(id);
+      return next;
+    });
+  }
+
+  async function confirmBulkDelete() {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await api.adminBulkWorkspaces({
+        action: 'delete',
+        ids: [...selected],
+      });
+      dropSucceeded(result.succeeded);
+      setBulkDeleteOpen(false);
+      if (result.failed.length > 0) {
+        setError(result.failed.map((item) => item.message).join(' '));
+      }
+      await load();
+    } catch (err) {
+      setError(isApiError(err) ? err.message : 'מחיקת הסביבות נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyBulkStatus() {
+    if (!bulkStatus) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await api.adminBulkWorkspaces({
+        action: 'set_status',
+        ids: [...selected],
+        status: bulkStatus as AdminWorkspaceListItem['workspace']['status'],
+      });
+      dropSucceeded(result.succeeded);
+      if (result.failed.length > 0) {
+        setError(result.failed.map((item) => item.message).join(' '));
+      }
+      await load();
+    } catch (err) {
+      setError(isApiError(err) ? err.message : 'עדכון הסטטוס נכשל');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -192,6 +266,41 @@ export default function AdminWorkspacesPage() {
         </Button>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {selectedCount > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
+          <span className="text-sm font-medium">נבחרו {selectedCount}</span>
+          <select
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            value={bulkStatus}
+            onChange={(event) => setBulkStatus(event.target.value)}
+          >
+            <option value="">שנה סטטוס</option>
+            {STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={busy || !bulkStatus}
+            onClick={() => void applyBulkStatus()}
+          >
+            החלת סטטוס
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="destructive"
+            disabled={busy}
+            onClick={() => setBulkDeleteOpen(true)}
+          >
+            מחיקה
+          </Button>
+        </div>
+      ) : null}
       {loading ? (
         <p className="text-sm text-muted-foreground">טוען…</p>
       ) : rows.length === 0 ? (
@@ -200,6 +309,14 @@ export default function AdminWorkspacesPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <input
+                  type="checkbox"
+                  aria-label="בחירת כל הסביבות"
+                  checked={allSelectableChecked}
+                  onChange={(event) => toggleAll(event.target.checked)}
+                />
+              </TableHead>
               <TableHead className="text-start">שם</TableHead>
               <TableHead className="text-start">מזהה</TableHead>
               <TableHead className="text-start">בעלים</TableHead>
@@ -210,7 +327,21 @@ export default function AdminWorkspacesPage() {
           </TableHeader>
           <TableBody>
             {rows.map((row) => (
-              <TableRow key={row.workspace.id}>
+              <TableRow
+                key={row.workspace.id}
+                data-state={selected.has(row.workspace.id) ? 'selected' : undefined}
+              >
+                <TableCell>
+                  <input
+                    type="checkbox"
+                    aria-label={`בחירת ${row.workspace.name}`}
+                    checked={selected.has(row.workspace.id)}
+                    disabled={row.protected}
+                    onChange={(event) =>
+                      toggleRow(row.workspace.id, event.target.checked)
+                    }
+                  />
+                </TableCell>
                 <TableCell className="font-medium">{row.workspace.name}</TableCell>
                 <TableCell dir="ltr" className="text-start">
                   {row.workspace.slug}
@@ -367,6 +498,34 @@ export default function AdminWorkspacesPage() {
               variant="destructive"
               disabled={busy}
               onClick={() => void confirmDelete()}
+            >
+              מחיקה
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={bulkDeleteOpen}
+        onOpenChange={(open) => !open && setBulkDeleteOpen(false)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>מחיקת סביבות</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            למחוק {selectedCount} סביבות? כל הנתונים שלהן יימחקו ולא ניתן לשחזר
+            אותם. סביבת המערכת לא תימחק.
+          </p>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setBulkDeleteOpen(false)}>
+              ביטול
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={busy}
+              onClick={() => void confirmBulkDelete()}
             >
               מחיקה
             </Button>

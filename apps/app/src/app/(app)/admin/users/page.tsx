@@ -47,6 +47,8 @@ export default function AdminUsersPage() {
   const [editing, setEditing] = useState<AdminUserListItem | null | 'create'>(null);
   const [form, setForm] = useState<UserForm>(emptyForm);
   const [pendingDelete, setPendingDelete] = useState<AdminUserListItem | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -126,6 +128,48 @@ export default function AdminUsersPage() {
     }
   }
 
+  const selectableIds = rows
+    .filter((row) => row.id !== currentUser?.id)
+    .map((row) => row.id);
+  const selectedCount = selected.size;
+  const allSelectableChecked =
+    selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelected(checked ? new Set(selectableIds) : new Set());
+  }
+
+  async function confirmBulkDelete() {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await api.adminBulkDeleteUsers([...selected]);
+      setSelected((current) => {
+        const next = new Set(current);
+        for (const id of result.succeeded) next.delete(id);
+        return next;
+      });
+      setBulkDeleteOpen(false);
+      if (result.failed.length > 0) {
+        setError(result.failed.map((item) => item.message).join(' '));
+      }
+      await load();
+    } catch (err) {
+      setError(isApiError(err) ? err.message : 'מחיקת המשתמשים נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -135,6 +179,20 @@ export default function AdminUsersPage() {
         </Button>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {selectedCount > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
+          <span className="text-sm font-medium">נבחרו {selectedCount}</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="destructive"
+            disabled={busy}
+            onClick={() => setBulkDeleteOpen(true)}
+          >
+            מחיקה
+          </Button>
+        </div>
+      ) : null}
       {loading ? (
         <p className="text-sm text-muted-foreground">טוען…</p>
       ) : rows.length === 0 ? (
@@ -143,6 +201,14 @@ export default function AdminUsersPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <input
+                  type="checkbox"
+                  aria-label="בחירת כל המשתמשים"
+                  checked={allSelectableChecked}
+                  onChange={(event) => toggleAll(event.target.checked)}
+                />
+              </TableHead>
               <TableHead className="text-start">שם</TableHead>
               <TableHead className="text-start">אימייל</TableHead>
               <TableHead className="text-start">תפקיד</TableHead>
@@ -154,7 +220,19 @@ export default function AdminUsersPage() {
             {rows.map((row) => {
               const isSelf = row.id === currentUser?.id;
               return (
-                <TableRow key={row.id}>
+                <TableRow
+                  key={row.id}
+                  data-state={selected.has(row.id) ? 'selected' : undefined}
+                >
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      aria-label={`בחירת ${row.name}`}
+                      checked={selected.has(row.id)}
+                      disabled={isSelf}
+                      onChange={(event) => toggleRow(row.id, event.target.checked)}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{row.name}</TableCell>
                   <TableCell dir="ltr" className="text-start">
                     {row.email}
@@ -294,6 +372,34 @@ export default function AdminUsersPage() {
               variant="destructive"
               disabled={busy}
               onClick={() => void confirmDelete()}
+            >
+              מחיקה
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={bulkDeleteOpen}
+        onOpenChange={(open) => !open && setBulkDeleteOpen(false)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>מחיקת משתמשים</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            למחוק {selectedCount} משתמשים? משתמש שהוא עדיין בעלים של סביבה יישאר,
+            וחשבון המערכת לא יימחק.
+          </p>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setBulkDeleteOpen(false)}>
+              ביטול
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={busy}
+              onClick={() => void confirmBulkDelete()}
             >
               מחיקה
             </Button>

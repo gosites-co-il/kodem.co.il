@@ -72,6 +72,27 @@ export class AdminController {
     );
   }
 
+  @Post('workspaces/bulk')
+  bulkWorkspaces(
+    @Body()
+    body: {
+      action?: 'delete' | 'set_status';
+      ids?: string[];
+      status?: AdminUpsertWorkspaceInput['status'];
+    },
+  ) {
+    if (body.action !== 'delete' && body.action !== 'set_status') {
+      throw new BadRequestException('פעולה לא תקינה');
+    }
+    return this.run(() =>
+      this.admin.bulkWorkspaces({
+        action: body.action as 'delete' | 'set_status',
+        ids: body.ids ?? [],
+        status: body.status,
+      }),
+    );
+  }
+
   @Patch('workspaces/:id')
   updateWorkspace(
     @Param('id') id: string,
@@ -145,6 +166,16 @@ export class AdminController {
   @Post('users')
   createUser(@Body() body: AdminCreateUserInput) {
     return this.run(() => this.admin.createUser(body));
+  }
+
+  @Post('users/bulk-delete')
+  bulkDeleteUsers(
+    @CurrentContext() context: PlatformContext,
+    @Body() body: { ids?: string[] },
+  ) {
+    return this.run(() =>
+      this.admin.bulkDeleteUsers(context.user.id, body.ids ?? []),
+    );
   }
 
   @Patch('users/:id')
