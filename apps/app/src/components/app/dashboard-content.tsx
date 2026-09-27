@@ -19,10 +19,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@kodem/design-system/components/ui/sheet';
+import type { ConnectionCatalogItem } from '@kodem/contracts';
 import { api, isApiError } from '../../lib/api';
 import { can } from '../../lib/auth/permissions';
 import { ROUTES } from '../../lib/constants';
 import { useAuth } from '../../providers/auth-provider';
+import { FeaturedIntegrations } from '../integrations/featured-integrations';
 import { IntegrationIcon } from '../integrations/integration-icons';
 import { WhatsAppSignupWizard } from '../integrations/whatsapp-signup-wizard';
 
@@ -56,6 +58,9 @@ export function DashboardContent() {
   const [overview, setOverview] = useState<Awaited<
     ReturnType<typeof api.getWorkspaceOverview>
   > | null>(null);
+  const [connectionCatalog, setConnectionCatalog] = useState<
+    ConnectionCatalogItem[]
+  >([]);
   const [whatsappConnected, setWhatsappConnected] = useState<boolean | null>(
     null,
   );
@@ -64,6 +69,7 @@ export function DashboardContent() {
   const refreshConnections = useCallback(async () => {
     try {
       const res = await api.listConnectionsCatalog();
+      setConnectionCatalog(res.catalog);
       setWhatsappConnected(hasLinkedWhatsApp(res.catalog));
     } catch (err) {
       if (isApiError(err) && err.status !== 404) {
@@ -107,6 +113,11 @@ export function DashboardContent() {
           {workspace?.name} — סביבת העבודה שלך פעילה
         </p>
       </div>
+
+      <FeaturedIntegrations
+        catalog={connectionCatalog}
+        titleId="dashboard-featured-integrations-title"
+      />
 
       {showWhatsAppCta ? (
         <section
