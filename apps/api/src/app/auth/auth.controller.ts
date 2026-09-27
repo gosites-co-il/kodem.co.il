@@ -188,6 +188,7 @@ export class AuthController {
       role: context.role,
       membership: context.membership,
       emailVerified: Boolean(context.user.emailVerifiedAt),
+      impersonating: Boolean(context.impersonating),
     };
   }
 

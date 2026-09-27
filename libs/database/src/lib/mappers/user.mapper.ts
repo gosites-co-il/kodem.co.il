@@ -8,6 +8,7 @@ type UserRow = {
   passwordHash: string | null;
   activeWorkspaceId: string | null;
   emailVerifiedAt?: Date | null;
+  platformRole?: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -18,6 +19,7 @@ export function mapUserRowToDomain(row: UserRow): User {
     email: row.email,
     name: row.name,
     emailVerifiedAt: row.emailVerifiedAt ?? null,
+    platformRole: row.platformRole === 'super_admin' ? 'super_admin' : null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

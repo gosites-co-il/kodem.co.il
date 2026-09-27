@@ -35,6 +35,10 @@ async function bootstrap() {
   });
 
   const port = process.env.PORT || 3333;
+  const { ensurePlatformSuperAdmin } = await import(
+    './app/admin/ensure-platform-super-admin'
+  );
+  await ensurePlatformSuperAdmin();
   await app.listen(port);
   Logger.log(`Kodem API running at http://localhost:${port}/${globalPrefix}`);
 }

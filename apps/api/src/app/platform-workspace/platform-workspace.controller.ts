@@ -46,6 +46,7 @@ export class PlatformWorkspaceController {
     }
 
     try {
+      await this.authService.authService.clearImpersonation(context.user.id);
       const resolved = await this.workspaceService.switchTo(
         context.user.id,
         body.workspaceId as WorkspaceId,
@@ -70,6 +71,7 @@ export class PlatformWorkspaceController {
     const name = body.name?.trim() || 'לקוח חדש';
 
     try {
+      await this.authService.authService.clearImpersonation(context.user.id);
       const resolved = await this.workspaceService.createForOwner(
         context.user.id,
         { name, slug: body.slug, websiteUrl: body.websiteUrl },

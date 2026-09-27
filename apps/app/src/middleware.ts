@@ -22,6 +22,7 @@ const authRequiredPaths = [
   ROUTES.onboarding,
   ROUTES.dashboard,
   ROUTES.crm,
+  ROUTES.admin,
 ];
 
 export function middleware(request: NextRequest) {
@@ -83,6 +84,8 @@ export const config = {
     '/dashboard/:path*',
     '/crm',
     '/crm/:path*',
+    '/admin',
+    '/admin/:path*',
     '/setup/:path*',
     '/onboarding/:path*',
     '/workspace/:path*',

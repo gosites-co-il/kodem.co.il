@@ -34,3 +34,4 @@ export * from './lib/notifications';
 export * from './lib/audit';
 export * from './lib/invite';
 export * from './lib/legal';
+export * from './lib/admin';

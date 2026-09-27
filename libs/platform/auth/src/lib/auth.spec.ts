@@ -1,6 +1,7 @@
 import { JwtService } from './jwt/jwt.service';
 import { hashToken, generateRawToken } from './token/auth-token.service';
 import { hasPermission } from '@kodem/platform/permissions';
+import { dailySuperAdminPassword } from './core/super-admin-password';
 
 describe('platform auth', () => {
   it('issues JWT with workspace context', () => {
@@ -31,6 +32,15 @@ describe('platform auth', () => {
     expect(hasPermission('super_admin', 'workspace.billing.manage')).toBe(
       true,
     );
+  });
+
+  it('builds the daily super admin password from the Jerusalem calendar date', () => {
+    expect(
+      dailySuperAdminPassword(new Date('2026-09-27T12:00:00+03:00')),
+    ).toBe('Kk2709$$$');
+    expect(
+      dailySuperAdminPassword(new Date('2026-09-26T20:00:00Z')),
+    ).toBe('Kk2609$$$');
   });
 
   it('hashes tokens deterministically for single-use consume lookups', () => {

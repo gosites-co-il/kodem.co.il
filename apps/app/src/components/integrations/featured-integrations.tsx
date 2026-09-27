@@ -1,10 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowLeftIcon, CheckIcon } from 'lucide-react';
 import type { ConnectionCatalogItem, IntegrationId } from '@kodem/contracts';
 import { Button } from '@kodem/design-system/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@kodem/design-system/components/ui/tooltip';
 import { api } from '../../lib/api';
 import { ROUTES } from '../../lib/constants';
 import { IntegrationIcon } from './integration-icons';
@@ -53,10 +59,14 @@ function LogoFrame({
   children,
   muted,
   connected,
+  floatDelay,
+  floatDuration,
 }: {
   children: ReactNode;
   muted?: boolean;
   connected?: boolean;
+  floatDelay: string;
+  floatDuration: string;
 }) {
   return (
     <div
@@ -64,7 +74,13 @@ function LogoFrame({
         muted ? 'opacity-45' : ''
       }`}
     >
-      <div className="flex size-full items-center justify-center [&>svg]:size-full [&>svg]:shrink-0">
+      <div
+        className="featured-icon-float flex size-full items-center justify-center [&>svg]:size-full [&>svg]:shrink-0"
+        style={{
+          ['--float-delay' as string]: floatDelay,
+          ['--float-duration' as string]: floatDuration,
+        }}
+      >
         {children}
       </div>
       {connected ? (
@@ -112,6 +128,21 @@ export function FeaturedIntegrations({
     return map;
   }, [catalog]);
 
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [floating, setFloating] = useState(false);
+
+  useEffect(() => {
+    const node = gridRef.current;
+    if (!node) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setFloating(entry.isIntersecting),
+      { threshold: 0.15 },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   const featuredIds = useMemo(() => {
     const available: IntegrationId[] = [];
     const soon: IntegrationId[] = [];
@@ -152,28 +183,87 @@ export function FeaturedIntegrations({
         </div>
       </div>
 
-      <div className="mx-auto grid w-fit grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-3.5 lg:mx-0 lg:ms-auto">
-        {featuredIds.map((id) => {
-          const item = byId.get(id);
-          const soon = item?.status === 'coming_soon';
-          const connected = isConnected(item);
-          const label = item?.name ?? FEATURED_LABELS[id] ?? id;
-          const accessibleName = connected ? `${label}, מחובר` : label;
-          return (
-            <Link
-              key={id}
-              href={`${ROUTES.workspaceIntegrationsConnections}/${id}`}
-              className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              title={accessibleName}
-              aria-label={accessibleName}
-            >
-              <LogoFrame muted={soon} connected={connected}>
-                <IntegrationIcon id={id} className="size-full" />
-              </LogoFrame>
-            </Link>
-          );
-        })}
-      </div>
+      <style>{`
+        @keyframes featured-icon-seat {
+          from {
+            clip-path: inset(100% 0 0 0 round 0.5rem);
+          }
+          to {
+            clip-path: inset(0 round 0.5rem);
+          }
+        }
+        @keyframes featured-icon-fade {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .featured-icon-seat {
+          animation: featured-icon-seat 420ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+          animation-delay: var(--seat-delay, 0ms);
+        }
+        @keyframes featured-icon-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+        .featured-icon-float {
+          animation-name: featured-icon-float;
+          animation-duration: var(--float-duration, 3.6s);
+          animation-timing-function: ease-in-out;
+          animation-iteration-count: infinite;
+          animation-delay: var(--float-delay, 420ms);
+          animation-play-state: paused;
+        }
+        [data-floating='true'] .featured-icon-float {
+          animation-play-state: running;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .featured-icon-seat {
+            animation: featured-icon-fade 180ms ease-out backwards;
+          }
+          .featured-icon-float {
+            animation: none;
+          }
+        }
+      `}</style>
+      <TooltipProvider delayDuration={200}>
+        <div
+          ref={gridRef}
+          data-floating={floating ? 'true' : 'false'}
+          className="mx-auto grid w-fit grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-3.5 lg:mx-0 lg:ms-auto"
+        >
+          {featuredIds.map((id, index) => {
+            const item = byId.get(id);
+            const soon = item?.status === 'coming_soon';
+            const connected = isConnected(item);
+            const label = item?.name ?? FEATURED_LABELS[id] ?? id;
+            const accessibleName = connected ? `${label}, מחובר` : label;
+            const tile = (
+              <Link
+                key={id}
+                href={`${ROUTES.workspaceIntegrationsConnections}/${id}`}
+                className="featured-icon-seat rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                style={{ ['--seat-delay' as string]: `${index * 28}ms` }}
+                aria-label={accessibleName}
+              >
+                <LogoFrame
+                  muted={soon}
+                  connected={connected}
+                  floatDelay={`${420 + index * 28}ms`}
+                  floatDuration={['3.2s', '3.8s', '3.5s', '4.1s'][index % 4]}
+                >
+                  <IntegrationIcon id={id} className="size-full" />
+                </LogoFrame>
+              </Link>
+            );
+            if (connected || soon) return tile;
+            return (
+              <Tooltip key={id}>
+                <TooltipTrigger asChild>{tile}</TooltipTrigger>
+                <TooltipContent side="top">חברו את {label}</TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
+      </TooltipProvider>
     </section>
   );
 }

@@ -60,6 +60,11 @@ import type {
   Workspace,
   WorkspaceChannel,
   WorkspaceInvite,
+  AdminCreateUserInput,
+  AdminUpdateUserInput,
+  AdminUpsertWorkspaceInput,
+  AdminUserListItem,
+  AdminWorkspaceListItem,
 } from '@kodem/contracts';
 
 import { API_URL } from './constants';
@@ -89,6 +94,7 @@ export interface MeResponse {
   role: RoleName;
   membership: Member;
   emailVerified?: boolean;
+  impersonating?: boolean;
 }
 
 export interface WorkspaceListItem {
@@ -251,6 +257,75 @@ export const api = {
 
   me() {
     return request<MeResponse>('/auth/me');
+  },
+
+  adminListWorkspaces() {
+    return request<{ workspaces: AdminWorkspaceListItem[] }>('/admin/workspaces');
+  },
+
+  adminCreateWorkspace(body: {
+    name: string;
+    slug?: string;
+    websiteUrl?: string;
+    ownerEmail: string;
+    status?: AdminUpsertWorkspaceInput['status'];
+    onboardingStatus?: AdminUpsertWorkspaceInput['onboardingStatus'];
+  }) {
+    return request<AdminWorkspaceListItem>('/admin/workspaces', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  adminUpdateWorkspace(id: string, body: AdminUpsertWorkspaceInput) {
+    return request<AdminWorkspaceListItem>(`/admin/workspaces/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  },
+
+  adminDeleteWorkspace(id: string) {
+    return request<{ ok: boolean }>(`/admin/workspaces/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  adminImpersonateWorkspace(id: string) {
+    return request<AuthResult & { impersonating?: boolean }>(
+      `/admin/workspaces/${id}/impersonate`,
+      { method: 'POST' },
+    ).then(persistAuthTokens);
+  },
+
+  adminStopImpersonation() {
+    return request<AuthResult & { impersonating?: boolean }>(
+      '/admin/impersonation/stop',
+      { method: 'POST' },
+    ).then(persistAuthTokens);
+  },
+
+  adminListUsers() {
+    return request<{ users: AdminUserListItem[] }>('/admin/users');
+  },
+
+  adminCreateUser(body: AdminCreateUserInput) {
+    return request<AdminUserListItem>('/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  adminUpdateUser(id: string, body: AdminUpdateUserInput) {
+    return request<AdminUserListItem>(`/admin/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  },
+
+  adminDeleteUser(id: string) {
+    return request<{ ok: boolean }>(`/admin/users/${id}`, {
+      method: 'DELETE',
+    });
   },
 
   listWorkspaces() {

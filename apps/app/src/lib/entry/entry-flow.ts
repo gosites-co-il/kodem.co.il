@@ -26,6 +26,9 @@ export async function completeAuthFlow(
   if (next && isSafeNextPath(next)) {
     return next;
   }
+  if (result.user.platformRole === 'super_admin') {
+    return ENTRY_ROUTES.adminWorkspaces;
+  }
   return ENTRY_ROUTES.entry;
 }
 

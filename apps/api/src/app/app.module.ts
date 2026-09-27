@@ -12,6 +12,7 @@ import { CrmModule } from './crm/crm.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { ChannelsModule } from './channels/channels.module';
 import { LegalController } from './legal/legal.controller';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { LegalController } from './legal/legal.controller';
     CrmModule,
     ConnectionsModule,
     ChannelsModule,
+    AdminModule,
   ],
   controllers: [
     HealthController,

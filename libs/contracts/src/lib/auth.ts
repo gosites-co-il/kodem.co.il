@@ -16,6 +16,8 @@ export interface JwtPayload {
   role: RoleName;
   /** Present when the session is an ephemeral marketing-hero guest. */
   guest?: boolean;
+  /** Present when a platform super admin is operating inside another workspace. */
+  impersonating?: boolean;
   typ?: 'access';
   iat?: number;
   exp?: number;
@@ -26,6 +28,8 @@ export interface PlatformContext {
   workspace: Workspace;
   role: RoleName;
   membership: Member;
+  /** True when this session is a super admin inside a workspace they do not belong to. */
+  impersonating?: boolean;
 }
 
 import { LegalConsentAcceptanceInput } from './legal';

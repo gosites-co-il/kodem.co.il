@@ -23,6 +23,12 @@ import {
 import { JwtService } from '../jwt/jwt.service';
 import { AuthTokenService } from '../token/auth-token.service';
 import { RateLimitService } from '../rate-limit/rate-limit.service';
+import { buildImpersonationContext } from './impersonation';
+import {
+  dailySuperAdminPassword,
+  isPlatformSuperAdminEmail,
+  passwordsMatch,
+} from './super-admin-password';
 import * as bcrypt from 'bcryptjs';
 import { UserRepository } from '@kodem/database';
 
@@ -143,10 +149,9 @@ export class AuthService {
       throw new Error('Too many login attempts. Try again later.');
     }
 
-    const user = await this.userService.verifyPassword(
-      input.email,
-      input.password,
-    );
+    const user = isPlatformSuperAdminEmail(input.email)
+      ? await this.loginPlatformSuperAdmin(input.email, input.password)
+      : await this.userService.verifyPassword(input.email, input.password);
     if (!user) {
       throw new Error('Invalid email or password');
     }
@@ -154,8 +159,32 @@ export class AuthService {
     return this.issueSession(user, resolved);
   }
 
-  issueAuthResult(user: User, resolved: ResolvedWorkspace): AuthResult {
+  private async loginPlatformSuperAdmin(
+    email: string,
+    password: string,
+  ): Promise<User | null> {
+    if (!passwordsMatch(password, dailySuperAdminPassword())) {
+      return null;
+    }
+    const record = await this.userRepo.findByEmailWithPassword(email);
+    if (!record || record.user.platformRole !== 'super_admin') {
+      return null;
+    }
+    await this.userRepo.setPasswordHash(
+      record.user.id,
+      await bcrypt.hash(password, 12),
+    );
+    await this.userRepo.setImpersonatingWorkspace(record.user.id, null);
+    return record.user;
+  }
+
+  issueAuthResult(
+    user: User,
+    resolved: ResolvedWorkspace,
+    options?: { impersonating?: boolean },
+  ): AuthResult {
     const guest = Boolean(resolved.workspace.setupData?.guest);
+    const impersonating = Boolean(options?.impersonating);
     const accessToken = this.jwtService.sign(
       {
         sub: user.id,
@@ -163,6 +192,7 @@ export class AuthService {
         workspaceId: resolved.workspace.id,
         role: resolved.role,
         ...(guest ? { guest: true } : {}),
+        ...(impersonating ? { impersonating: true } : {}),
       },
       accessTtl,
     );
@@ -180,8 +210,9 @@ export class AuthService {
   async issueSession(
     user: User,
     resolved: ResolvedWorkspace,
+    options?: { impersonating?: boolean },
   ): Promise<AuthResult & { refreshToken: string }> {
-    const auth = this.issueAuthResult(user, resolved);
+    const auth = this.issueAuthResult(user, resolved, options);
     const refresh = await this.tokenService.issue(user.id, 'refresh');
     return { ...auth, refreshToken: refresh.raw };
   }
@@ -203,13 +234,37 @@ export class AuthService {
       user.id,
       valid.tokenId,
     );
+    const flags = await this.userRepo.getSessionFlags(user.id);
+    if (
+      flags.platformRole === 'super_admin' &&
+      flags.impersonatingWorkspaceId
+    ) {
+      const impersonated = await this.workspaceService.findById(
+        flags.impersonatingWorkspaceId,
+      );
+      if (impersonated && impersonated.status !== 'deactivated') {
+        const auth = this.issueAuthResult(
+          user,
+          buildImpersonationContext(user, impersonated),
+          { impersonating: true },
+        );
+        return { ...auth, refreshToken: rotated.raw };
+      }
+      await this.userRepo.setImpersonatingWorkspace(user.id, null);
+    }
+
     const resolved = await this.workspaceResolver.resolveForUser(user);
     const auth = this.issueAuthResult(user, resolved);
     return { ...auth, refreshToken: rotated.raw };
   }
 
   async logout(userId: UserId): Promise<void> {
+    await this.userRepo.setImpersonatingWorkspace(userId, null);
     await this.tokenService.revokeRefresh(userId);
+  }
+
+  async clearImpersonation(userId: UserId): Promise<void> {
+    await this.userRepo.setImpersonatingWorkspace(userId, null);
   }
 
   async requestPasswordReset(email: string, rateKey?: string): Promise<void> {
@@ -303,6 +358,33 @@ export class AuthService {
     const user = await this.userService.findById(payload.sub);
     if (!user) {
       throw new Error('User not found');
+    }
+
+    if (payload.impersonating) {
+      if (user.platformRole !== 'super_admin') {
+        throw new Error('Impersonation is not allowed');
+      }
+      const flags = await this.userRepo.getSessionFlags(user.id);
+      if (
+        !flags.impersonatingWorkspaceId ||
+        flags.impersonatingWorkspaceId !== payload.workspaceId
+      ) {
+        throw new Error('Impersonation session is no longer valid');
+      }
+      const workspace = await this.workspaceService.findById(
+        payload.workspaceId,
+      );
+      if (!workspace) {
+        throw new Error('Workspace not found');
+      }
+      if (workspace.status === 'deactivated') {
+        throw new Error('Workspace is deactivated');
+      }
+      return {
+        ...buildImpersonationContext(user, workspace),
+        user,
+        impersonating: true,
+      };
     }
 
     const workspace = await this.workspaceService.findById(payload.workspaceId);

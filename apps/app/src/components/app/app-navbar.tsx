@@ -11,6 +11,7 @@ import {
   Menu,
   Moon,
   Plug,
+  Shield,
   Sun,
   UserRound,
 } from 'lucide-react';
@@ -57,8 +58,21 @@ function NextAccountLink({ href, className, onClick, children }: AccountMenuLink
   );
 }
 
-function buildAccountItems(onLogout: () => void): AccountMenuAction[] {
+function buildAccountItems(
+  onLogout: () => void,
+  isSuperAdmin: boolean,
+): AccountMenuAction[] {
   return [
+    ...(isSuperAdmin
+      ? [
+          {
+            id: 'admin',
+            label: 'ניהול',
+            href: ROUTES.adminWorkspaces,
+            icon: Shield,
+          } satisfies AccountMenuAction,
+        ]
+      : []),
     {
       id: 'workspace-select',
       label: 'החלפת סביבה',
@@ -144,6 +158,7 @@ function MobileNav({
 }) {
   const [activeSection, setActiveSection] = useState<NavSection | null>(null);
   const { user, workspace, role, logout } = useAuth();
+  const isSuperAdmin = user?.platformRole === 'super_admin';
 
   function closeMenu() {
     onOpenChange(false);
@@ -153,7 +168,7 @@ function MobileNav({
   const accountItems = buildAccountItems(() => {
     closeMenu();
     logout();
-  }).map((item) =>
+  }, isSuperAdmin).map((item) =>
     item.href
       ? {
           ...item,
@@ -219,6 +234,16 @@ function MobileNav({
                 <PRIMARY_NAV_LINK.icon className="size-4 shrink-0" />
                 <span className="text-sm font-medium">{PRIMARY_NAV_LINK.label}</span>
               </Link>
+              {isSuperAdmin ? (
+                <Link
+                  href={ROUTES.adminWorkspaces}
+                  onClick={closeMenu}
+                  className="flex items-center gap-3 rounded-md px-3 py-3 text-start hover:bg-accent"
+                >
+                  <Shield className="size-4 shrink-0" />
+                  <span className="text-sm font-medium">ניהול</span>
+                </Link>
+              ) : null}
               {APP_NAV_SECTIONS.map((section) => (
                 <button
                   key={section.id}
@@ -259,9 +284,10 @@ export function AppNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, workspace, role, logout } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
+  const isSuperAdmin = user?.platformRole === 'super_admin';
 
   const isDashboardActive = pathname === ROUTES.dashboard;
-  const accountItems = buildAccountItems(logout);
+  const accountItems = buildAccountItems(logout, isSuperAdmin);
   const accountSubtitle = workspace
     ? `${workspace.name}${role ? ` · ${role}` : ''}`
     : null;
@@ -314,6 +340,23 @@ export function AppNavbar() {
                     </Link>
                   </NavigationMenuLink>
                 </NavigationMenuItem>
+
+                {isSuperAdmin ? (
+                  <NavigationMenuItem>
+                    <NavigationMenuLink asChild>
+                      <Link
+                        href={ROUTES.adminWorkspaces}
+                        className={cn(
+                          navigationMenuTriggerStyle(),
+                          pathname.startsWith(ROUTES.admin) &&
+                            'bg-accent text-accent-foreground',
+                        )}
+                      >
+                        ניהול
+                      </Link>
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                ) : null}
 
                 {APP_NAV_SECTIONS.map((section) => (
                   <NavigationMenuItem key={section.id}>

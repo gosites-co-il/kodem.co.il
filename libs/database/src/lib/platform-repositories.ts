@@ -22,6 +22,7 @@ export class UserRepository {
     name: string;
     passwordHash?: string;
     emailVerifiedAt?: Date | null;
+    platformRole?: string | null;
   }): Promise<User> {
     const id = createId<'UserId'>('usr');
     const row = await this.db.user.create({
@@ -31,6 +32,7 @@ export class UserRepository {
         name: input.name,
         passwordHash: input.passwordHash,
         emailVerifiedAt: input.emailVerifiedAt ?? null,
+        platformRole: input.platformRole ?? null,
       },
     });
     return mapUserRowToDomain(row);
@@ -103,6 +105,87 @@ export class UserRepository {
     emailVerifiedAt: Date | null,
   ): Promise<User> {
     return this.setEmailVerifiedAt(userId, emailVerifiedAt);
+  }
+
+  async update(
+    userId: UserId,
+    data: {
+      email?: string;
+      name?: string;
+      passwordHash?: string;
+      platformRole?: string | null;
+      emailVerifiedAt?: Date | null;
+      impersonatingWorkspaceId?: string | null;
+    },
+  ): Promise<User> {
+    const row = await this.db.user.update({
+      where: { id: userId },
+      data: {
+        ...(data.email !== undefined
+          ? { email: data.email.toLowerCase() }
+          : {}),
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.passwordHash !== undefined
+          ? { passwordHash: data.passwordHash }
+          : {}),
+        ...(data.platformRole !== undefined
+          ? { platformRole: data.platformRole }
+          : {}),
+        ...(data.emailVerifiedAt !== undefined
+          ? { emailVerifiedAt: data.emailVerifiedAt }
+          : {}),
+        ...(data.impersonatingWorkspaceId !== undefined
+          ? { impersonatingWorkspaceId: data.impersonatingWorkspaceId }
+          : {}),
+      },
+    });
+    return mapUserRowToDomain(row);
+  }
+
+  async getSessionFlags(userId: UserId): Promise<{
+    platformRole: 'super_admin' | null;
+    impersonatingWorkspaceId: WorkspaceId | null;
+  }> {
+    const row = await this.db.user.findUnique({
+      where: { id: userId },
+      select: { platformRole: true, impersonatingWorkspaceId: true },
+    });
+    return {
+      platformRole: row?.platformRole === 'super_admin' ? 'super_admin' : null,
+      impersonatingWorkspaceId:
+        (row?.impersonatingWorkspaceId as WorkspaceId) ?? null,
+    };
+  }
+
+  async setImpersonatingWorkspace(
+    userId: UserId,
+    workspaceId: WorkspaceId | null,
+  ): Promise<void> {
+    await this.db.user.update({
+      where: { id: userId },
+      data: { impersonatingWorkspaceId: workspaceId },
+    });
+  }
+
+  async listForAdmin(): Promise<
+    Array<{
+      user: User;
+      membershipCount: number;
+      ownedWorkspaceCount: number;
+    }>
+  > {
+    const rows = await this.db.user.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+      include: {
+        _count: { select: { members: true, ownedWorkspaces: true } },
+      },
+    });
+    return rows.map((row) => ({
+      user: mapUserRowToDomain(row),
+      membershipCount: row._count.members,
+      ownedWorkspaceCount: row._count.ownedWorkspaces,
+    }));
   }
 }
 

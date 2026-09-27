@@ -19,6 +19,7 @@ interface AuthState {
   role: RoleName | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  impersonating: boolean;
 }
 
 interface AuthContextValue extends AuthState {
@@ -27,6 +28,7 @@ interface AuthContextValue extends AuthState {
     workspace: Workspace;
     role: RoleName;
     token?: string;
+    impersonating?: boolean;
   }) => void;
   refreshSession: () => Promise<void>;
   logout: () => void;
@@ -41,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     role: null,
     isLoading: true,
     isAuthenticated: false,
+    impersonating: false,
   });
 
   const refreshSession = useCallback(async () => {
@@ -56,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: null,
         isLoading: false,
         isAuthenticated: false,
+        impersonating: false,
       });
       return;
     }
@@ -68,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: me.role,
         isLoading: false,
         isAuthenticated: true,
+        impersonating: Boolean(me.impersonating),
       });
     } catch {
       // Drop client token so middleware/gates cannot loop on a stale session.
@@ -79,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: null,
         isLoading: false,
         isAuthenticated: false,
+        impersonating: false,
       });
     }
   }, []);
@@ -93,6 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       workspace: Workspace;
       role: RoleName;
       token?: string;
+      impersonating?: boolean;
     }) => {
       if (session.token) {
         setToken(session.token);
@@ -103,6 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: session.role,
         isLoading: false,
         isAuthenticated: true,
+        impersonating: Boolean(session.impersonating),
       });
     },
     [],
@@ -117,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: null,
         isLoading: false,
         isAuthenticated: false,
+        impersonating: false,
       });
       window.location.href = ROUTES.login;
     });

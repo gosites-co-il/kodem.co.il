@@ -21,6 +21,7 @@ export class JwtService {
       workspaceId: WorkspaceId;
       role: RoleName;
       guest?: boolean;
+      impersonating?: boolean;
     },
     expiresIn?: string | number,
   ): string {
