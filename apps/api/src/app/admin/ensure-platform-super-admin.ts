@@ -7,7 +7,7 @@ import {
 } from '@kodem/database';
 import {
   dailySuperAdminPassword,
-  PLATFORM_SUPER_ADMIN_EMAIL,
+  platformSuperAdminEmail,
 } from '@kodem/platform/auth';
 import { getRequiredSignupConsents } from '@kodem/platform/legal';
 import { LegalConsentService } from '@kodem/platform/legal/consent';
@@ -21,10 +21,11 @@ export async function ensurePlatformSuperAdmin(): Promise<void> {
   const workspaceRepo = new WorkspaceRepository();
   const passwordHash = await bcrypt.hash(dailySuperAdminPassword(), 12);
 
-  let user = await userRepo.findByEmail(PLATFORM_SUPER_ADMIN_EMAIL);
+  const email = platformSuperAdminEmail();
+  let user = await userRepo.findByEmail(email);
   if (!user) {
     user = await userRepo.create({
-      email: PLATFORM_SUPER_ADMIN_EMAIL,
+      email,
       name: 'Kodem',
       passwordHash,
       emailVerifiedAt: new Date(),

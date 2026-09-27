@@ -135,6 +135,9 @@ param facebookClientSecret string = ''
 @description('Admin inbox for new-user signup alerts (used when FEATURE_FLAG_ENV=production).')
 param signupAdminEmail string = 'admin@kodem.co.il'
 
+@description('Platform super-admin login email. Daily password still applies.')
+param superAdminEmail string = 'dev@kodem.co.il'
+
 @description('System mail From address (Resend).')
 param mailFrom string = 'noreply@kodem.co.il'
 
@@ -449,6 +452,7 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
             { name: 'COOKIE_SECURE', value: 'true' }
             { name: 'FEATURE_FLAG_ENV', value: environmentName == 'prod' ? 'production' : 'development' }
             { name: 'SIGNUP_ADMIN_EMAIL', value: environmentName == 'prod' ? signupAdminEmail : '' }
+            { name: 'SUPER_ADMIN_EMAIL', value: superAdminEmail }
             { name: 'MAIL_FROM', value: mailFrom }
             { name: 'SYSTEM_MAIL_PROVIDER', value: systemMailProvider }
             { name: 'RESEND_API_KEY', secretRef: 'resend-api-key' }

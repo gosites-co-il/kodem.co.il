@@ -344,6 +344,7 @@ Variables:
   OAUTH_GOOGLE_CLIENT_ID     (optional)
   OAUTH_GITHUB_CLIENT_ID     (optional)
   OAUTH_FACEBOOK_CLIENT_ID   (optional)
+  SUPER_ADMIN_EMAIL          (optional, platform super-admin login, default dev@kodem.co.il)
 
 Secrets:
   POSTGRES_ADMIN_PASSWORD    $suggestedPgPassword

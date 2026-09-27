@@ -1,14 +1,15 @@
 import { timingSafeEqual } from 'node:crypto';
 
-/** Operator account. Override with SUPER_ADMIN_EMAIL when needed. */
-export const PLATFORM_SUPER_ADMIN_EMAIL = (
-  process.env['SUPER_ADMIN_EMAIL'] ?? 'dev@kodem.co.il'
-)
-  .trim()
-  .toLowerCase();
+const DEFAULT_SUPER_ADMIN_EMAIL = 'dev@kodem.co.il';
+
+/** Operator login. Set SUPER_ADMIN_EMAIL; local default is dev@kodem.co.il. */
+export function platformSuperAdminEmail(): string {
+  const configured = process.env['SUPER_ADMIN_EMAIL']?.trim().toLowerCase();
+  return configured || DEFAULT_SUPER_ADMIN_EMAIL;
+}
 
 export function isPlatformSuperAdminEmail(email: string): boolean {
-  return email.trim().toLowerCase() === PLATFORM_SUPER_ADMIN_EMAIL;
+  return email.trim().toLowerCase() === platformSuperAdminEmail();
 }
 
 /**

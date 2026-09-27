@@ -263,6 +263,7 @@ jobs:
           AUDIT_SMTP_USER: ${{ vars.AUDIT_SMTP_USER }}
           AUDIT_SMTP_PASS: ${{ secrets.AUDIT_SMTP_PASS }}
           SIGNUP_ADMIN_EMAIL: ${{ vars.SIGNUP_ADMIN_EMAIL }}
+          SUPER_ADMIN_EMAIL: ${{ vars.SUPER_ADMIN_EMAIL }}
         run: |
           set -euo pipefail
 
@@ -460,6 +461,7 @@ jobs:
                 auditSmtpUser="${AUDIT_SMTP_USER:-}" \
                 auditSmtpPass="${AUDIT_SMTP_PASS:-}" \
                 signupAdminEmail="${SIGNUP_ADMIN_EMAIL:-admin@kodem.co.il}" \
+                superAdminEmail="${SUPER_ADMIN_EMAIL:-dev@kodem.co.il}" \
                 appCustomDomain="$APP_DOMAIN" \
                 apiCustomDomain="$API_DOMAIN" \
                 marketingCustomDomain="$MARKETING_DOMAIN" \

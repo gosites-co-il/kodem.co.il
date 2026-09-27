@@ -15,6 +15,7 @@
     "appMaxReplicas": { "value": 6 },
     "marketingCustomDomain": { "value": "kodem.co.il" },
     "marketingMinReplicas": { "value": 1 },
-    "marketingMaxReplicas": { "value": 4 }
+    "marketingMaxReplicas": { "value": 4 },
+    "superAdminEmail": { "value": "dev@kodem.co.il" }
   }
 }

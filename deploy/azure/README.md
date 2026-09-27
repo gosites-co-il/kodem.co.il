@@ -144,6 +144,7 @@ Variables:
 | `AUDIT_MAIL_FROM` | Ops From address (default `admin@kodem.co.il`) |
 | `AUDIT_SMTP_USER` | Google Workspace mailbox for audit SMTP |
 | `SIGNUP_ADMIN_EMAIL` | Optional; prod signup alerts (default `admin@kodem.co.il`) |
+| `SUPER_ADMIN_EMAIL` | Optional; platform super-admin login (default `dev@kodem.co.il`) |
 
 Secrets:
 

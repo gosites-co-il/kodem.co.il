@@ -8,7 +8,7 @@ export { JwtService } from './lib/jwt/jwt.service';
 export { AuthService, type RegisterContext } from './lib/core/auth.service';
 export { buildImpersonationContext } from './lib/core/impersonation';
 export {
-  PLATFORM_SUPER_ADMIN_EMAIL,
+  platformSuperAdminEmail,
   dailySuperAdminPassword,
   isPlatformSuperAdminEmail,
   passwordsMatch,
