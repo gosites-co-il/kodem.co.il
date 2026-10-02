@@ -87,6 +87,7 @@ export class WorkspaceResolver {
         await this.modules.enableDefaultFreeModules(workspace.id);
       }
     }
+    await this.modules.enableMissingEntitledModules(workspace.id);
   }
 
   private async createDefaultWorkspace(

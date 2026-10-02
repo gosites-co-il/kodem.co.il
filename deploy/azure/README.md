@@ -138,6 +138,7 @@ Variables:
 | `OAUTH_META_INSTAGRAM_CLIENT_ID` | Optional; Meta Instagram Connection |
 | `OAUTH_META_WHATSAPP_CLIENT_ID` | Optional; Meta WhatsApp Connection |
 | `META_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID` | Optional; Facebook Login for Business Embedded Signup config id |
+| `AI_PROVIDER` | Optional (`openai`, `gemini`, `grok`, or `nvidia`). Empty keeps fact-based understanding |
 | `SYSTEM_MAIL_PROVIDER` | Optional (`stub` default, set `resend` for system/transactional mail) |
 | `MAIL_FROM` | System From address (must be verified on Resend when using `resend`) |
 | `AUDIT_MAIL_PROVIDER` | Optional (`stub` default, set `gmail` for ops/audit mail via Google Workspace) |
@@ -164,6 +165,7 @@ Secrets:
 | `META_WEBHOOK_VERIFY_TOKEN` | Optional; Meta webhook hub.verify_token |
 | `CONNECTION_CREDENTIALS_KEY` | Optional but required before using Connections in cloud; encrypts stored OAuth tokens |
 | `RESEND_API_KEY` | Optional; required when `SYSTEM_MAIL_PROVIDER=resend` |
+| `AI_API_KEY` | Optional; key for `AI_PROVIDER`. Empty still boots the API |
 | `AUDIT_SMTP_PASS` | Optional; Google app password when `AUDIT_MAIL_PROVIDER=gmail` |
 
 OAuth values left unset fall back to placeholders so the api still boots. Connection OAuth (`OAUTH_GOOGLE_SHEETS_*`, `OAUTH_GOOGLE_ANALYTICS_*`, `OAUTH_GOOGLE_BUSINESS_*`, `OAUTH_GOOGLE_WORKSPACE_*`) stays disabled until set. Secrets cannot

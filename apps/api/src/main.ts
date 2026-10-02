@@ -9,7 +9,12 @@ configureDatabaseEnv(__dirname);
 async function bootstrap() {
   const { Logger } = await import('@nestjs/common');
   const { NestFactory } = await import('@nestjs/core');
+  const { describeAiChat } = await import('@kodem/platform/ai');
   const { AppModule } = await import('./app/app.module');
+  const ai = describeAiChat();
+  Logger.log(
+    `AI provider ${ai.provider}${ai.model ? ` (${ai.model})` : ''} key=${ai.configured ? 'set' : 'missing'}`,
+  );
 
   const app = await NestFactory.create(AppModule);
   const globalPrefix = 'api';

@@ -24,7 +24,8 @@ export function guardRouteForWorkspace(
   const onSetup = isSetupPath(pathname);
   const onDashboard =
     pathname.startsWith(ENTRY_ROUTES.dashboard) ||
-    pathname.startsWith(ENTRY_ROUTES.crm);
+    pathname.startsWith(ENTRY_ROUTES.crm) ||
+    pathname.startsWith(ENTRY_ROUTES.conversations);
 
   if (destination === ENTRY_ROUTES.setup && onDashboard) {
     return ENTRY_ROUTES.setup;

@@ -2,10 +2,12 @@ import type {
   BusinessProfile,
   BusinessProfileDraft,
   DiscoveredBusinessInfo,
+  ProfileProvenanceField,
   SourcedValue,
   WorkspaceSetupData,
 } from '@kodem/contracts';
 import type { ProfileFieldStatus } from '@kodem/contracts';
+import { readProvenance, seedWebsiteProvenance, writeProvenance } from './profile-merge';
 
 function sourced<T>(value: T | undefined, source: string, confidence: number): SourcedValue<T> | undefined {
   if (value === undefined || value === null) return undefined;
@@ -153,7 +155,7 @@ export function draftToBusinessProfile(
     discovered?.logo,
   ]);
 
-  return {
+  const profile: BusinessProfile = {
     workspaceId,
     name: draft.businessName,
     legalName: draft.legalName,
@@ -190,6 +192,33 @@ export function draftToBusinessProfile(
     createdAt: now,
     updatedAt: now,
   };
+
+  const seeded = discovered ? seedWebsiteProvenance(profile) : profile;
+  const state = readProvenance(seeded);
+  const verifiedMap: Record<string, ProfileProvenanceField> = {
+    businessName: 'name',
+    name: 'name',
+    description: 'description',
+    industry: 'industry',
+    website: 'website',
+    phone: 'phone',
+    phones: 'phone',
+    email: 'email',
+    emails: 'email',
+    address: 'address',
+    addresses: 'address',
+    services: 'services',
+  };
+  for (const field of verifiedFields) {
+    const mapped = verifiedMap[field];
+    if (!mapped) continue;
+    state.fields[mapped] = {
+      source: 'USER',
+      verified: true,
+      lastSyncedAt: now.toISOString(),
+    };
+  }
+  return writeProvenance(seeded, state);
 }
 
 export function markDraftFieldVerified(

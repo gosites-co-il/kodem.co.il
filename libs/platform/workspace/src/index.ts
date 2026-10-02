@@ -8,3 +8,6 @@ export * from './lib/business-discovery.service';
 export * from './lib/website-discovery.service';
 export * from './lib/profile-draft.builder';
 export * from './lib/setup-progress.service';
+export * from './lib/profile-merge';
+export * from './lib/profile-record';
+export * from './lib/business-profile-sync.service';

@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcryptjs';
-import { PLATFORM_WORKSPACE_SLUG } from '@kodem/contracts';
+import { PLATFORM_WORKSPACE_SLUG, SystemRole } from '@kodem/contracts';
 import {
   MemberRepository,
   UserRepository,
@@ -29,11 +29,11 @@ export async function ensurePlatformSuperAdmin(): Promise<void> {
       name: 'Kodem',
       passwordHash,
       emailVerifiedAt: new Date(),
-      platformRole: 'super_admin',
+      platformRole: SystemRole.SuperAdmin,
     });
   } else {
     user = await userRepo.update(user.id, {
-      platformRole: 'super_admin',
+      platformRole: SystemRole.SuperAdmin,
       passwordHash,
       emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
     });
@@ -54,7 +54,7 @@ export async function ensurePlatformSuperAdmin(): Promise<void> {
       onboardingStatus: 'COMPLETED',
       status: 'active',
     });
-    await memberRepo.updateRole(created.workspace.id, user.id, 'super_admin');
+    await memberRepo.updateRole(created.workspace.id, user.id, SystemRole.SuperAdmin);
     await new SubscriptionService().ensureForWorkspace(created.workspace.id);
     await new WorkspaceModuleService().enableDefaultFreeModules(
       created.workspace.id,

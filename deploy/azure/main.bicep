@@ -149,6 +149,13 @@ param systemMailProvider string = 'stub'
 @description('Resend API key when systemMailProvider=resend.')
 param resendApiKey string = ''
 
+@description('OpenAI-compatible provider id: openai, gemini, grok, or nvidia. Empty keeps the fact-based stub.')
+param aiProvider string = ''
+
+@secure()
+@description('API key for AI_PROVIDER. Empty still boots the API.')
+param aiApiKey string = ''
+
 @allowed(['stub', 'gmail'])
 @description('Ops/audit mail provider (e.g. new-user signup alerts via Google Workspace SMTP).')
 param auditMailProvider string = 'stub'
@@ -429,6 +436,10 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
           value: empty(resendApiKey) ? 'resend-api-key' : resendApiKey
         }
         {
+          name: 'ai-api-key'
+          value: empty(aiApiKey) ? 'ai-api-key' : aiApiKey
+        }
+        {
           name: 'audit-smtp-pass'
           value: empty(auditSmtpPass) ? 'audit-smtp-pass' : auditSmtpPass
         }
@@ -456,6 +467,8 @@ resource api 'Microsoft.App/containerApps@2025-07-01' = {
             { name: 'MAIL_FROM', value: mailFrom }
             { name: 'SYSTEM_MAIL_PROVIDER', value: systemMailProvider }
             { name: 'RESEND_API_KEY', secretRef: 'resend-api-key' }
+            { name: 'AI_PROVIDER', value: aiProvider }
+            { name: 'AI_API_KEY', secretRef: 'ai-api-key' }
             { name: 'AUDIT_MAIL_PROVIDER', value: auditMailProvider }
             { name: 'AUDIT_MAIL_FROM', value: auditMailFrom }
             { name: 'AUDIT_SMTP_USER', value: auditSmtpUser }

@@ -25,7 +25,11 @@ export type EventType =
   | 'message.sent'
   | 'message.failed'
   | 'conversation.created'
-  | 'conversation.updated';
+  | 'conversation.updated'
+  | 'business_profile.sync.started'
+  | 'business_profile.sync.completed'
+  | 'business_profile.sync.failed'
+  | 'business_profile.field.updated';
 
 export type EventStatus = 'pending' | 'processing' | 'completed' | 'failed';
 

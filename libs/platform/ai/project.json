@@ -4,5 +4,13 @@
   "sourceRoot": "libs/platform/ai/src",
   "projectType": "library",
   "tags": ["scope:platform", "type:feature"],
-  "targets": {}
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/platform/ai"],
+      "options": {
+        "jestConfig": "libs/platform/ai/jest.config.cts"
+      }
+    }
+  }
 }

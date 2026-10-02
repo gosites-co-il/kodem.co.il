@@ -39,12 +39,13 @@ export class BusinessIntelligenceRunner {
   async run(
     input: BusinessIntelligenceInput,
     publisher?: DiscoveryEventPublisher,
+    model?: string,
   ): Promise<BusinessIntelligenceResult> {
     const discovery = await discoveryRunner.run(input, publisher);
     const context = buildDiscoveryContext(discovery, input.businessName);
 
     const { understanding, recommendations, questions } =
-      await this.understandingService.generate(context);
+      await this.understandingService.generate(context, model);
 
     const report = this.reportBuilder.build(
       discovery,

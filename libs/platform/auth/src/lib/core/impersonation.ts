@@ -1,4 +1,4 @@
-import { Member, MemberId, User, Workspace } from '@kodem/contracts';
+import { Member, MemberId, SystemRole, User, Workspace } from '@kodem/contracts';
 import type { ResolvedWorkspace } from '@kodem/platform/workspace';
 
 const IMPERSONATION_MEMBER_ID = 'mem_platform_impersonation' as MemberId;
@@ -13,9 +13,9 @@ export function buildImpersonationContext(
     id: IMPERSONATION_MEMBER_ID,
     workspaceId: workspace.id,
     userId: user.id,
-    role: 'super_admin',
+    role: SystemRole.SuperAdmin,
     createdAt: now,
     updatedAt: now,
   };
-  return { workspace, membership, role: 'super_admin' };
+  return { workspace, membership, role: SystemRole.SuperAdmin };
 }

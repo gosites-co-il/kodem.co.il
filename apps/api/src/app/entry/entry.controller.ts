@@ -19,6 +19,16 @@ export class EntryController {
     const memberships = await this.workspaceService.listForUser(
       context.user.id,
     );
+    if (
+      context.impersonating &&
+      !memberships.some((item) => item.workspace.id === context.workspace.id)
+    ) {
+      memberships.unshift({
+        workspace: context.workspace,
+        role: context.role,
+        membership: context.membership,
+      });
+    }
 
     const resolution = this.entryFlow.resolve({
       isAuthenticated: true,

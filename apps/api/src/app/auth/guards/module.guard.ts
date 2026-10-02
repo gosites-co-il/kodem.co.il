@@ -31,10 +31,17 @@ export class ModuleGuard implements CanActivate {
       throw new ForbiddenException('Missing platform context');
     }
 
-    const allowed = await this.modules.canUseModule(
+    let allowed = await this.modules.canUseModule(
       platform.workspace.id,
       moduleId,
     );
+    if (!allowed) {
+      await this.modules.enableMissingEntitledModules(platform.workspace.id);
+      allowed = await this.modules.canUseModule(
+        platform.workspace.id,
+        moduleId,
+      );
+    }
     if (!allowed) {
       throw new ForbiddenException(`Module "${moduleId}" is not available`);
     }

@@ -79,6 +79,26 @@ export class WorkspaceMembersController {
     }
   }
 
+  @Delete('invites/:inviteId')
+  @RequirePermissions('workspace.members.invite')
+  async revokeInvite(
+    @CurrentContext() context: PlatformContext,
+    @Param('inviteId') inviteId: string,
+  ) {
+    try {
+      await this.members.revokeInvite(
+        inviteId,
+        context.workspace.id,
+        context.user.id,
+      );
+      return { ok: true };
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Revoke failed',
+      );
+    }
+  }
+
   @Patch(':userId/role')
   @RequirePermissions('workspace.members.update')
   async changeRole(

@@ -15,6 +15,7 @@ import {
   Sun,
   UserRound,
 } from 'lucide-react';
+import { SystemRole } from '@kodem/contracts';
 import { cn } from '@kodem/design-system/lib/utils';
 import { Button } from '@kodem/design-system/components/ui/button';
 import { Badge } from '@kodem/design-system/components/ui/badge';
@@ -158,7 +159,7 @@ function MobileNav({
 }) {
   const [activeSection, setActiveSection] = useState<NavSection | null>(null);
   const { user, workspace, role, logout } = useAuth();
-  const isSuperAdmin = user?.platformRole === 'super_admin';
+  const isSuperAdmin = user?.platformRole === SystemRole.SuperAdmin;
 
   function closeMenu() {
     onOpenChange(false);
@@ -284,7 +285,7 @@ export function AppNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, workspace, role, logout } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
-  const isSuperAdmin = user?.platformRole === 'super_admin';
+  const isSuperAdmin = user?.platformRole === SystemRole.SuperAdmin;
 
   const isDashboardActive = pathname === ROUTES.dashboard;
   const accountItems = buildAccountItems(logout, isSuperAdmin);

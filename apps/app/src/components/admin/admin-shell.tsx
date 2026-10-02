@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { SystemRole } from '@kodem/contracts';
 import { cn } from '@kodem/design-system/lib/utils';
 import { ROUTES } from '../../lib/constants';
 import { useAuth } from '../../providers/auth-provider';
@@ -15,7 +16,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  if (user?.platformRole !== 'super_admin') {
+  if (user?.platformRole !== SystemRole.SuperAdmin) {
     return (
       <div className="mx-auto max-w-lg space-y-2 py-12 text-center">
         <h1 className="text-xl font-semibold">אין הרשאה</h1>

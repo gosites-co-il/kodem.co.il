@@ -14,6 +14,7 @@ import type { ProviderRegistry } from '../domain/provider-registry';
 import { createFetchContext } from '../infrastructure/http-client';
 import { getProviderPriority } from '../infrastructure/social-detector';
 import { assetKey, normalizeUrl } from '../infrastructure/url-utils';
+import { collectPublicReferences } from '../infrastructure/public-references';
 import { toDiscoveredBusinessInfo } from './discovered-info.mapper';
 
 export type DiscoveryStopReason = DiscoveryRunResult['stopReason'];
@@ -182,6 +183,15 @@ export class DiscoveryOrchestrator {
         break;
       }
     }
+
+    const mergedName = mergeEngine.getMerged().get('businessName')?.value;
+    const referenceName = typeof mergedName === 'string' ? mergedName : input.businessName;
+    const references = await collectPublicReferences({
+      businessName: referenceName,
+      websiteUrl: input.websiteUrl,
+    });
+    mergeEngine.addMany(references.facts);
+    processed.push(...references.assets);
 
     const profile = assembleBusinessProfile(mergeEngine, input);
     const discovered = toDiscoveredBusinessInfo(mergeEngine, profile);

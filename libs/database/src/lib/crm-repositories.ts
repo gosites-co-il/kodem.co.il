@@ -23,6 +23,9 @@ type LeadRow = {
   email: string | null;
   phone: string | null;
   source: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
   status: string;
   notes: string | null;
   contactId: string | null;
@@ -63,6 +66,9 @@ function mapLead(row: LeadRow): Lead {
     email: row.email ?? undefined,
     phone: row.phone ?? undefined,
     source: row.source ?? undefined,
+    utmSource: row.utmSource ?? undefined,
+    utmMedium: row.utmMedium ?? undefined,
+    utmCampaign: row.utmCampaign ?? undefined,
     status: row.status as LeadStatus,
     notes: row.notes ?? undefined,
     contactId: row.contactId ?? undefined,
@@ -126,6 +132,9 @@ export class CrmLeadRepository {
         email: optionalString(input.email),
         phone: optionalString(input.phone),
         source: optionalString(input.source),
+        utmSource: optionalString(input.utmSource),
+        utmMedium: optionalString(input.utmMedium),
+        utmCampaign: optionalString(input.utmCampaign),
         notes: optionalString(input.notes),
         status: input.status ?? 'new',
       },

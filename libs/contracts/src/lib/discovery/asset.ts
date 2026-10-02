@@ -6,7 +6,9 @@ export type DiscoveryAssetType =
   | 'INSTAGRAM'
   | 'LINKEDIN'
   | 'TIKTOK'
-  | 'TWITTER';
+  | 'TWITTER'
+  | 'WIKIPEDIA'
+  | 'GOOGLE_SEARCH';
 
 export type DiscoveryAssetStatus =
   | 'pending'

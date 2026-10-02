@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ComponentType, type SVGProps } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Check, Globe, Loader2 } from 'lucide-react';
 import { Progress } from '@kodem/design-system/components/ui/progress';
 import { Skeleton } from '@kodem/design-system/components/ui/skeleton';
@@ -21,6 +22,7 @@ import {
 } from '../setup-shell';
 import type { SetupScreenProps } from '../setup-journey';
 import { SOCIAL_ICONS } from '../social-icons';
+import { ROUTES } from '../../../lib/constants';
 
 const SOCIAL_LABELS: Record<SetupSocialChannel, string> = {
   facebook: 'Facebook',
@@ -471,6 +473,12 @@ export function BusinessUnderstandingScreen({
       )}
 
       {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+
+      <p className="mt-3 text-sm">
+        <Link href={ROUTES.workspaceBusiness} className="underline">
+          כל הנתונים
+        </Link>
+      </p>
 
       <SetupNavButtons
         continueDisabled={isSubmitting || running}

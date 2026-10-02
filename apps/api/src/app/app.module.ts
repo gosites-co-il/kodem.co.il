@@ -9,6 +9,7 @@ import { CatalogController } from './catalog/catalog.controller';
 import { PlatformConfigController } from './platform/platform-config.controller';
 import { FeatureFlagsController } from './feature-flags/feature-flags.controller';
 import { CrmModule } from './crm/crm.module';
+import { ConversationsModule } from './conversations/conversations.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { ChannelsModule } from './channels/channels.module';
 import { LegalController } from './legal/legal.controller';
@@ -22,6 +23,7 @@ import { AdminModule } from './admin/admin.module';
     EntryModule,
     BillingModule,
     CrmModule,
+    ConversationsModule,
     ConnectionsModule,
     ChannelsModule,
     AdminModule,

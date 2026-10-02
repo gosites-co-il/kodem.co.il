@@ -56,6 +56,7 @@ export type AiProviderId =
 
 export type ModuleId =
   | 'crm'
+  | 'conversations'
   | 'knowledge'
   | 'insights'
   | 'digital_card'

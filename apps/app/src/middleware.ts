@@ -22,6 +22,7 @@ const authRequiredPaths = [
   ROUTES.onboarding,
   ROUTES.dashboard,
   ROUTES.crm,
+  ROUTES.conversations,
   ROUTES.admin,
 ];
 
@@ -84,6 +85,8 @@ export const config = {
     '/dashboard/:path*',
     '/crm',
     '/crm/:path*',
+    '/conversations',
+    '/conversations/:path*',
     '/admin',
     '/admin/:path*',
     '/setup/:path*',

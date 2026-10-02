@@ -15,7 +15,9 @@ import type {
   AdminCreateUserInput,
   AdminUpdateUserInput,
   AdminUpsertWorkspaceInput,
+  PlanId,
   PlatformContext,
+  RoleName,
   UserId,
   WorkspaceId,
 } from '@kodem/contracts';
@@ -90,6 +92,46 @@ export class AdminController {
         ids: body.ids ?? [],
         status: body.status,
       }),
+    );
+  }
+
+  @Get('workspaces/:id')
+  workspaceDetail(@Param('id') id: string) {
+    return this.run(() => this.admin.workspaceDetail(id as WorkspaceId));
+  }
+
+  @Post('workspaces/:id/transfer-owner')
+  transferOwner(
+    @Param('id') id: string,
+    @Body() body: { userId?: string },
+  ) {
+    if (!body.userId?.trim()) {
+      throw new BadRequestException('חסר משתמש');
+    }
+    return this.run(() =>
+      this.admin.transferOwnership(id as WorkspaceId, body.userId as UserId),
+    );
+  }
+
+  @Patch('workspaces/:id/plan')
+  setPlan(@Param('id') id: string, @Body() body: { planId?: PlanId }) {
+    if (!body.planId) {
+      throw new BadRequestException('חסרה תוכנית');
+    }
+    return this.run(() => this.admin.setWorkspacePlan(id as WorkspaceId, body.planId!));
+  }
+
+  @Patch('workspaces/:id/members/:userId')
+  updateMemberRole(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @Body() body: { role?: RoleName },
+  ) {
+    if (!body.role) {
+      throw new BadRequestException('חסר תפקיד');
+    }
+    return this.run(() =>
+      this.admin.updateMemberRole(id as WorkspaceId, userId as UserId, body.role!),
     );
   }
 

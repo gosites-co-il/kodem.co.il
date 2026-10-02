@@ -14,6 +14,8 @@ const MERGE_SOURCE_PRIORITY: Record<BusinessFactSource, number> = {
   regex: 40,
   sitemap: 35,
   robots: 30,
+  wikipedia: 72,
+  google_search: 66,
   user_input: 95,
 };
 

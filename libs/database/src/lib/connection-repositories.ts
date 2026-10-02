@@ -229,6 +229,23 @@ export class WorkspaceConnectionRepository {
     return mapConnection(row);
   }
 
+  async findWorkspaceIdByMetadata(
+    key: string,
+    value: string,
+  ): Promise<WorkspaceId | null> {
+    const trimmed = value.trim();
+    if (!key.trim() || !trimmed) return null;
+    const needle = `"${key}":${JSON.stringify(trimmed)}`;
+    const row = await this.db.workspaceConnection.findFirst({
+      where: {
+        status: 'connected',
+        metadata: { contains: needle },
+      },
+      select: { workspaceId: true },
+    });
+    return row ? (row.workspaceId as WorkspaceId) : null;
+  }
+
   async delete(workspaceId: WorkspaceId, id: string): Promise<boolean> {
     const existing = await this.findById(workspaceId, id);
     if (!existing) return false;

@@ -39,7 +39,10 @@ model Workspace {
   notificationOutbox NotificationOutbox[]
   crmLeads          CrmLead[]
   crmContacts       CrmContact[]
+  crmContactIdentities CrmContactIdentity[]
   crmTasks          CrmTask[]
+  conversations     Conversation[]
+  conversationMessages ConversationMessage[]
   crmBoards         CrmBoard[]
   crmBoardColumns   CrmBoardColumn[]
   crmBoardItems     CrmBoardItem[]
@@ -352,6 +355,9 @@ model CrmLead {
   email       String?
   phone       String?
   source      String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
   status      String   @default("new")
   notes       String?
   contactId   String?
@@ -362,6 +368,7 @@ model CrmLead {
   contact   CrmContact? @relation(fields: [contactId], references: [id])
   tasks     CrmTask[]
   boardItems CrmBoardItem[]
+  conversations Conversation[]
 
   @@index([workspaceId])
   @@index([workspaceId, status])
@@ -382,6 +389,8 @@ model CrmContact {
   leads     CrmLead[]
   tasks     CrmTask[]
   boardItems CrmBoardItem[]
+  identities CrmContactIdentity[]
+  conversations Conversation[]
 
   @@index([workspaceId])
 }
@@ -534,4 +543,69 @@ model ChannelConnectionBinding {
 
   @@unique([channelId, connectionId])
   @@index([connectionId])
+}
+
+model CrmContactIdentity {
+  id             String   @id
+  workspaceId    String
+  contactId      String
+  channel        String
+  externalUserId String
+  createdAt      DateTime @default(now())
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id])
+  contact   CrmContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, channel, externalUserId])
+  @@index([contactId])
+  @@index([workspaceId])
+}
+
+model Conversation {
+  id                   String   @id
+  workspaceId          String
+  contactId            String
+  leadId               String?
+  channel              String
+  externalThreadKey    String
+  subject              String?
+  preview              String?
+  status               String   @default("open")
+  unread               Boolean  @default(false)
+  lastMessageDirection String
+  lastMessageAt        DateTime
+  utmSource            String?
+  utmMedium            String?
+  utmCampaign          String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  workspace Workspace             @relation(fields: [workspaceId], references: [id])
+  contact   CrmContact            @relation(fields: [contactId], references: [id], onDelete: Restrict)
+  lead      CrmLead?              @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  messages  ConversationMessage[]
+
+  @@unique([workspaceId, channel, externalThreadKey])
+  @@index([workspaceId, lastMessageAt])
+  @@index([contactId])
+  @@index([leadId])
+}
+
+model ConversationMessage {
+  id                String   @id
+  workspaceId       String
+  conversationId    String
+  direction         String
+  body              String
+  externalMessageId String
+  messageType       String   @default("text")
+  metadata          String?
+  time              DateTime
+  createdAt         DateTime @default(now())
+
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, externalMessageId])
+  @@index([conversationId, time])
 }

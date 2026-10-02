@@ -12,6 +12,7 @@ export class BusinessIntelligenceService {
     businessName: string,
     workspaceId: WorkspaceId,
     publisher?: DiscoveryEventPublisher,
+    model?: string,
   ): Promise<BusinessIntelligenceResult & { draft: BusinessReportDraft }> {
     const result = await businessIntelligenceRunner.run(
       {
@@ -20,6 +21,7 @@ export class BusinessIntelligenceService {
         websiteUrl: websiteUrl.trim(),
       },
       publisher,
+      model,
     );
 
     const draft: BusinessReportDraft = {

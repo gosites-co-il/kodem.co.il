@@ -78,4 +78,30 @@ export class WorkspaceModuleService {
     const entitlements = await this.entitlements.resolve(workspaceId);
     return this.syncFromSetup(workspaceId, entitlements.modules);
   }
+
+  /** Turn on plan modules that have no row yet. Leaves DISABLED rows alone. */
+  async enableMissingEntitledModules(
+    workspaceId: WorkspaceId,
+  ): Promise<WorkspaceModule[]> {
+    const entitlements = await this.entitlements.resolve(workspaceId);
+    const current = await this.moduleRepo.listByWorkspace(workspaceId);
+    const known = new Set(current.map((row) => row.moduleId));
+    const missing = entitlements.modules.filter((moduleId) => !known.has(moduleId));
+    if (missing.length === 0) return [];
+    return this.syncFromSetup(workspaceId, missing);
+  }
+
+  /** Enable modules on the current plan and disable the rest. */
+  async syncToEntitlements(workspaceId: WorkspaceId): Promise<WorkspaceModule[]> {
+    const entitlements = await this.entitlements.resolve(workspaceId);
+    const entitled = new Set(entitlements.modules);
+    const current = await this.moduleRepo.listByWorkspace(workspaceId);
+    const results = await this.syncFromSetup(workspaceId, entitlements.modules);
+    for (const row of current) {
+      if (!entitled.has(row.moduleId)) {
+        results.push(await this.disable(workspaceId, row.moduleId));
+      }
+    }
+    return results;
+  }
 }

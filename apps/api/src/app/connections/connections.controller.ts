@@ -17,6 +17,7 @@ import type {
   WhatsAppEmbeddedSignupCompleteInput,
 } from '@kodem/contracts';
 import { ConnectionService } from '@kodem/platform/connections';
+import { BusinessProfileSyncService } from '@kodem/platform/workspace';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ModuleGuard } from '../auth/guards/module.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
@@ -246,12 +247,28 @@ export class ConnectionsController {
     @Param('id') id: string,
     @Body() body: BindConnectionResourceInput,
   ) {
-    return this.connections.bindResource(
+    const result = await this.connections.bindResource(
       context.workspace.id,
       id,
       context.user.id,
       body ?? {},
     );
+    if (
+      isActionResult(result) &&
+      result.success &&
+      result.connection &&
+      (result.connection.integrationId === 'google_business' ||
+        result.connection.integrationId === 'facebook' ||
+        result.connection.integrationId === 'instagram')
+    ) {
+      const sync = new BusinessProfileSyncService(this.connections);
+      void sync
+        .refreshConnection(context.workspace.id, result.connection.id)
+        .catch(() => {
+          console.error('business profile sync after bind failed');
+        });
+    }
+    return result;
   }
 
   @Post(':id/active')

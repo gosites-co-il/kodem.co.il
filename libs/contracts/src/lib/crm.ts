@@ -26,6 +26,9 @@ export interface Lead extends Auditable {
   status: LeadStatus;
   notes?: string;
   contactId?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
 }
 
 export interface Contact extends Auditable {
@@ -79,6 +82,9 @@ export interface CreateLeadInput {
   source?: string;
   notes?: string;
   status?: LeadStatus;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
 }
 
 export interface UpdateLeadInput {

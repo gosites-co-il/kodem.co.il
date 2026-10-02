@@ -1,4 +1,4 @@
-import { UserId, WorkspaceId } from '@kodem/contracts';
+import { PlanId, UserId, WorkspaceId } from '@kodem/contracts';
 import { getPrismaClient } from './client';
 import { mapWorkspaceRowToDomain } from './mappers/workspace.mapper';
 
@@ -6,6 +6,7 @@ export interface AdminWorkspaceRow {
   workspace: ReturnType<typeof mapWorkspaceRowToDomain>;
   owner: { id: UserId; email: string; name: string };
   memberCount: number;
+  planId: PlanId;
 }
 
 export class AdminRepository {
@@ -17,6 +18,7 @@ export class AdminRepository {
       take: 500,
       include: {
         owner: true,
+        subscription: { select: { planId: true } },
         _count: { select: { members: true } },
       },
     });
@@ -29,6 +31,7 @@ export class AdminRepository {
         name: row.owner.name,
       },
       memberCount: row._count.members,
+      planId: isPlanId(row.subscription?.planId) ? row.subscription.planId : 'free',
     }));
   }
 
@@ -105,4 +108,10 @@ export class AdminRepository {
       await tx.user.delete({ where: { id: userId } });
     });
   }
+}
+
+const PLAN_IDS: PlanId[] = ['free', 'starter', 'growth', 'enterprise'];
+
+function isPlanId(value: string | null | undefined): value is PlanId {
+  return PLAN_IDS.includes(value as PlanId);
 }

@@ -345,6 +345,7 @@ Variables:
   OAUTH_GITHUB_CLIENT_ID     (optional)
   OAUTH_FACEBOOK_CLIENT_ID   (optional)
   SUPER_ADMIN_EMAIL          (optional, platform super-admin login, default dev@kodem.co.il)
+  AI_PROVIDER                (optional: openai, gemini, grok, or nvidia)
 
 Secrets:
   POSTGRES_ADMIN_PASSWORD    $suggestedPgPassword
@@ -352,6 +353,7 @@ Secrets:
   OAUTH_GOOGLE_CLIENT_SECRET     (optional)
   OAUTH_GITHUB_CLIENT_SECRET     (optional)
   OAUTH_FACEBOOK_CLIENT_SECRET   (optional)
+  AI_API_KEY                     (optional; empty still boots the API)
 
 The two suggested values above are freshly generated; store them somewhere safe.
 Changing POSTGRES_ADMIN_PASSWORD later resets the database administrator password.

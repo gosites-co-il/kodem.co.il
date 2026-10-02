@@ -18,6 +18,11 @@ export interface SubscriptionRepository {
     currentPeriodStart?: Date;
     currentPeriodEnd?: Date;
   }): Promise<Subscription>;
+  updatePlan(
+    workspaceId: WorkspaceId,
+    planId: PlanId,
+    status?: Subscription['status'],
+  ): Promise<Subscription>;
 }
 
 export class EntitlementsService {

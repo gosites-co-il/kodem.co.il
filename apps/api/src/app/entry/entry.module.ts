@@ -3,6 +3,7 @@ import { AuthModule } from '../auth/auth.module';
 import { EntryController } from './entry.controller';
 import { WorkspaceSetupController } from './workspace-setup.controller';
 import { WorkspaceOverviewController } from './workspace-overview.controller';
+import { BusinessProfileController } from './business-profile.controller';
 
 @Module({
   imports: [AuthModule],
@@ -10,6 +11,7 @@ import { WorkspaceOverviewController } from './workspace-overview.controller';
     EntryController,
     WorkspaceSetupController,
     WorkspaceOverviewController,
+    BusinessProfileController,
   ],
 })
 export class EntryModule {}

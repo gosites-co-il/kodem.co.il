@@ -32,4 +32,9 @@ export class SubscriptionService {
       currentPeriodEnd: new Date(now.getTime() + PERIOD_MS),
     });
   }
+
+  async setPlan(workspaceId: WorkspaceId, planId: PlanId): Promise<Subscription> {
+    await this.ensureForWorkspace(workspaceId);
+    return this.subscriptionRepo.updatePlan(workspaceId, planId, 'active');
+  }
 }

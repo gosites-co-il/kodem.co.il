@@ -11,6 +11,17 @@ export type ChannelType =
   | 'phone'
   | 'web_chat';
 
+export const CHANNEL_TYPES = [
+  'whatsapp',
+  'instagram',
+  'facebook_messenger',
+  'email',
+  'web_chat',
+  'sms',
+  'telegram',
+  'phone',
+] as const satisfies readonly ChannelType[];
+
 export type ChannelStatus = 'not_configured' | 'connected' | 'error';
 
 export interface ChannelConnectionBinding {

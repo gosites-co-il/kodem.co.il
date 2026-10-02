@@ -7,11 +7,13 @@ import type {
 } from '@kodem/contracts';
 import {
   extractBrandLogoUrl,
+  extractCleanVisibleExcerpt,
   extractEmails,
   extractJsonLd,
   extractLinks,
   extractListItems,
   extractMetaTags,
+  extractOfferHeadings,
   extractOpenGraph,
   extractPhones,
   extractTitle,
@@ -50,7 +52,7 @@ export class WebsiteProvider implements DiscoveryProvider {
     const factOptions = { assetId: asset.id, assetType: asset.type };
 
     const description =
-      og['og:description'] ?? meta.description ?? meta['twitter:description'];
+      og['og:description'] ?? meta['description'] ?? meta['twitter:description'];
     const businessName = og['og:site_name'] ?? title;
 
     appendFact(
@@ -72,7 +74,7 @@ export class WebsiteProvider implements DiscoveryProvider {
     );
 
     if (!description) {
-      const intro = extractVisibleText(html).slice(0, 600);
+      const intro = extractCleanVisibleExcerpt(html);
       if (intro.length > 40) {
         appendFact(
           facts,
@@ -101,8 +103,8 @@ export class WebsiteProvider implements DiscoveryProvider {
       createFact('language', og['og:locale'] ?? meta['language'], 'website', 0.6, factOptions),
     );
 
-    if (meta.keywords) {
-      const keywords = meta.keywords
+    if (meta['keywords']) {
+      const keywords = meta['keywords']
         .split(/[,،|]/)
         .map((k) => k.trim())
         .filter((k) => k.length >= 2);
@@ -116,7 +118,7 @@ export class WebsiteProvider implements DiscoveryProvider {
 
     const industryHint = inferIndustryFromSignals(
       title,
-      meta.keywords,
+      meta['keywords'],
       description ?? extractVisibleText(html).slice(0, 300),
     );
     if (industryHint) {
@@ -152,6 +154,8 @@ export class WebsiteProvider implements DiscoveryProvider {
       );
     }
 
+    const offers = extractOfferHeadings(html, businessName);
+
     assets.push(...detectSocialAssets(links, asset.id, asset.depth + 1));
 
     const internalPages = findInternalPages(links, asset.url);
@@ -161,6 +165,13 @@ export class WebsiteProvider implements DiscoveryProvider {
     }
 
     await this.scanRobotsAndSitemap(asset, context, facts, assets);
+
+    if (offers.length > 0 && !facts.some((fact) => fact.field === 'services')) {
+      appendFact(
+        facts,
+        createFact('services', offers, 'website', 0.62, factOptions),
+      );
+    }
 
     return { facts, assets };
   }

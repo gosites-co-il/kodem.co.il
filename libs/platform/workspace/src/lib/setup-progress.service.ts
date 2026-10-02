@@ -86,7 +86,7 @@ export class SetupProgressService {
 
   defaultModules(): SetupModulesData {
     return {
-      activated: ['crm', 'knowledge', 'insights', 'digital_card'],
+      activated: ['crm', 'conversations', 'knowledge', 'insights', 'digital_card'],
     };
   }
 

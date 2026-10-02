@@ -1,5 +1,4 @@
-import { User } from '@kodem/contracts';
-import { UserId } from '@kodem/contracts';
+import { SystemRole, User, UserId } from '@kodem/contracts';
 
 type UserRow = {
   id: string;
@@ -19,7 +18,8 @@ export function mapUserRowToDomain(row: UserRow): User {
     email: row.email,
     name: row.name,
     emailVerifiedAt: row.emailVerifiedAt ?? null,
-    platformRole: row.platformRole === 'super_admin' ? 'super_admin' : null,
+    platformRole:
+      row.platformRole === SystemRole.SuperAdmin ? SystemRole.SuperAdmin : null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

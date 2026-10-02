@@ -3,6 +3,7 @@ import {
   JwtPayload,
   LoginInput,
   PlatformContext,
+  SystemRole,
   RegisterInput,
   RefreshResult,
   User,
@@ -167,7 +168,7 @@ export class AuthService {
       return null;
     }
     const record = await this.userRepo.findByEmailWithPassword(email);
-    if (!record || record.user.platformRole !== 'super_admin') {
+    if (!record || record.user.platformRole !== SystemRole.SuperAdmin) {
       return null;
     }
     await this.userRepo.setPasswordHash(
@@ -236,7 +237,7 @@ export class AuthService {
     );
     const flags = await this.userRepo.getSessionFlags(user.id);
     if (
-      flags.platformRole === 'super_admin' &&
+      flags.platformRole === SystemRole.SuperAdmin &&
       flags.impersonatingWorkspaceId
     ) {
       const impersonated = await this.workspaceService.findById(
@@ -361,7 +362,7 @@ export class AuthService {
     }
 
     if (payload.impersonating) {
-      if (user.platformRole !== 'super_admin') {
+      if (user.platformRole !== SystemRole.SuperAdmin) {
         throw new Error('Impersonation is not allowed');
       }
       const flags = await this.userRepo.getSessionFlags(user.id);

@@ -1,11 +1,17 @@
 import { Permission } from './permission';
 
-export type RoleName =
-  | 'super_admin'
-  | 'owner'
-  | 'admin'
-  | 'member'
-  | 'viewer';
+/** Workspace and platform roles. Stored values stay the string on the right. */
+export const SystemRole = {
+  SuperAdmin: 'super_admin',
+  Owner: 'owner',
+  Admin: 'admin',
+  Member: 'member',
+  Viewer: 'viewer',
+} as const;
+
+export type SystemRole = (typeof SystemRole)[keyof typeof SystemRole];
+
+export type RoleName = SystemRole;
 
 export interface Role {
   name: RoleName;
@@ -40,24 +46,24 @@ const OWNER_PERMS: Permission[] = [
 const SUPER_ADMIN_PERMS: Permission[] = [...OWNER_PERMS];
 
 export const ROLE_DEFINITIONS: Record<RoleName, Role> = {
-  super_admin: {
-    name: 'super_admin',
+  [SystemRole.SuperAdmin]: {
+    name: SystemRole.SuperAdmin,
     permissions: SUPER_ADMIN_PERMS,
   },
-  owner: {
-    name: 'owner',
+  [SystemRole.Owner]: {
+    name: SystemRole.Owner,
     permissions: OWNER_PERMS,
   },
-  admin: {
-    name: 'admin',
+  [SystemRole.Admin]: {
+    name: SystemRole.Admin,
     permissions: ADMIN_PERMS,
   },
-  member: {
-    name: 'member',
+  [SystemRole.Member]: {
+    name: SystemRole.Member,
     permissions: MEMBER_BASE,
   },
-  viewer: {
-    name: 'viewer',
+  [SystemRole.Viewer]: {
+    name: SystemRole.Viewer,
     permissions: [
       'workspace.settings.read',
       'workspace.members.read',
@@ -68,13 +74,13 @@ export const ROLE_DEFINITIONS: Record<RoleName, Role> = {
 };
 
 /** Roles offered when inviting members (viewer kept for backward compat only). */
-export const INVITABLE_ROLES: RoleName[] = ['admin', 'member'];
+export const INVITABLE_ROLES: RoleName[] = [SystemRole.Admin, SystemRole.Member];
 
 /** Highest → lowest. Used by RoleService.isAtLeast. */
 export const ROLE_HIERARCHY: RoleName[] = [
-  'viewer',
-  'member',
-  'admin',
-  'owner',
-  'super_admin',
+  SystemRole.Viewer,
+  SystemRole.Member,
+  SystemRole.Admin,
+  SystemRole.Owner,
+  SystemRole.SuperAdmin,
 ];

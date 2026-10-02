@@ -1,4 +1,5 @@
 import type {
+  AgentWorkPlan,
   AiUnderstandingOutput,
   BusinessUnderstanding,
   NormalizedDiscoveryContext,
@@ -41,6 +42,7 @@ export function mapAiOutputToUnderstanding(
     marketingChannels: field(output.marketingChannels ?? [], c * 0.8),
     confidence: c,
     missingInformation: output.missingInformation ?? [],
+    agentPlan: mapAgentPlan(output.agentPlan),
   };
 }
 
@@ -86,19 +88,11 @@ export function buildFactBasedUnderstanding(
   ).length;
   const baseConfidence = signalCount >= 3 ? 0.62 : signalCount >= 2 ? 0.5 : 0.35;
 
-  const targetAudience =
-    industry?.includes('Job Board')
-      ? 'Job seekers and employers in Israel'
-      : 'Requires owner input';
+  const targetAudience = industry?.includes('Job Board')
+    ? 'Job seekers and employers in Israel'
+    : '';
 
-  const businessModel =
-    industry?.includes('Job Board')
-      ? 'Two-sided marketplace'
-      : services.length
-        ? 'Service-based'
-        : products.length
-          ? 'Product-based'
-          : 'Unknown';
+  const businessModel = industry?.includes('Job Board') ? 'Two-sided marketplace' : '';
 
   return {
     businessSummary: field(summary, baseConfidence, 'facts'),
@@ -113,21 +107,15 @@ export function buildFactBasedUnderstanding(
       'facts',
     ),
     idealCustomer: field(
-      industry?.includes('Job Board')
-        ? 'Young job seekers and hiring businesses'
-        : 'Requires owner input',
+      industry?.includes('Job Board') ? 'Young job seekers and hiring businesses' : '',
       industry?.includes('Job Board') ? 0.45 : 0.2,
       'facts',
     ),
     mainServices: field(serviceHints, serviceHints.length ? 0.7 : 0.2, 'facts'),
     products: field(products, products.length ? 0.75 : 0.2, 'facts'),
-    uniqueSellingProposition: field(
-      description?.slice(0, 200) ?? 'Not yet determined from public sources',
-      description ? 0.5 : 0.2,
-      'facts',
-    ),
+    uniqueSellingProposition: field('', 0.2, 'facts'),
     competitiveAdvantages: field([], 0.2, 'facts'),
-    brandVoice: field('Not yet determined', 0.2, 'facts'),
+    brandVoice: field('', 0.2, 'facts'),
     keywords: field(
       keywords.length
         ? keywords
@@ -135,7 +123,7 @@ export function buildFactBasedUnderstanding(
       keywords.length ? 0.65 : 0.4,
       'facts',
     ),
-    customerJourney: field('Not yet determined from public sources', 0.2, 'facts'),
+    customerJourney: field('', 0.2, 'facts'),
     marketingChannels: field(
       context.assetsProcessed.map((a) => a.type.toLowerCase()),
       0.5,
@@ -143,7 +131,59 @@ export function buildFactBasedUnderstanding(
     ),
     confidence: baseConfidence,
     missingInformation: missing,
+    agentPlan: factAgentPlan(name, description, services, context),
   };
+}
+
+function mapAgentPlan(plan: AiUnderstandingOutput['agentPlan']): AgentWorkPlan | undefined {
+  if (!plan) return undefined;
+  const tools = (plan.tools ?? [])
+    .map((tool) => ({
+      name: tool.name?.trim() ?? '',
+      description: tool.description?.trim() ?? '',
+      parameters: (tool.parameters ?? []).map((item) => item.trim()).filter(Boolean),
+    }))
+    .filter((tool) => tool.name && tool.description);
+  const overview = plan.overview?.trim() ?? '';
+  const workflow = plan.workflow?.trim() ?? '';
+  const systemPrompt = plan.systemPrompt?.trim() ?? '';
+  if (!overview && !workflow && !systemPrompt && tools.length === 0) return undefined;
+  return { overview, workflow, systemPrompt, tools };
+}
+
+function factAgentPlan(
+  name: string | undefined,
+  description: string | undefined,
+  services: string[],
+  context: NormalizedDiscoveryContext,
+): AgentWorkPlan | undefined {
+  if (!name && !description) return undefined;
+  const phone = getFactStringArray(context, 'phones')[0];
+  const email = getFactStringArray(context, 'emails')[0];
+  const contact = [phone, email].filter(Boolean).join(' או ');
+  const overview = [
+    description,
+    services.length ? `שירותים שנמצאו: ${services.slice(0, 8).join(', ')}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+  const systemPrompt = [
+    '# זהות ותפקיד',
+    name ? `אתה הנציג של ${name}.` : 'אתה הנציג של העסק.',
+    description ?? '',
+    '# מבנה המוצרים והשירותים',
+    services.length
+      ? services.slice(0, 8).map((service) => `- ${service}`).join('\n')
+      : 'לא נמצאה רשימת שירותים בממצאים.',
+    '# כללי הסלמה ובטיחות',
+    contact
+      ? `כשהבקשה חורגת ממה שכתוב כאן, העבר לנציג: ${contact}.`
+      : 'אין איש קשר בממצאים. אל תמציא טלפון או כתובת.',
+    'אל תמציא מחירים, הבטחות או תהליכים שלא מופיעים בממצאים.',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+  return { overview, workflow: '', systemPrompt, tools: [] };
 }
 
 export function isValidAiOutput(value: unknown): value is AiUnderstandingOutput {
@@ -171,6 +211,9 @@ function inferIndustryFromText(
   }
   if (/saas|software|פיתוח|תוכנה/.test(text)) {
     return 'Technology / Software';
+  }
+  if (/מלון|מלונות|hotel|נופש|resort/.test(text)) {
+    return 'Hospitality / Hotels';
   }
   if (/שיווק|marketing|פרסום|advertising/.test(text)) {
     return 'Marketing & Advertising';

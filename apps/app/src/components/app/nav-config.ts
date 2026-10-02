@@ -4,6 +4,7 @@ import {
   BookOpen,
   Brain,
   Building2,
+  Inbox,
   LayoutDashboard,
   LifeBuoy,
   MessageSquare,
@@ -38,6 +39,13 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         description: 'ניהול לקוחות, לידים ומעקב מכירות',
         href: ROUTES.crm,
         icon: Users,
+        badge: 'פעיל',
+      },
+      {
+        title: 'שיחות',
+        description: 'פניות שנכנסות מכל הערוצים',
+        href: ROUTES.conversations,
+        icon: Inbox,
         badge: 'פעיל',
       },
       {
@@ -95,7 +103,7 @@ export const APP_NAV_SECTIONS: NavSection[] = [
       {
         title: 'פרופיל עסקי',
         description: 'הבסיס הידע של הסביבה',
-        href: ROUTES.dashboard,
+        href: ROUTES.workspaceBusiness,
         icon: Building2,
       },
     ],

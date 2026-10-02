@@ -7,6 +7,7 @@ describe('subscription plans', () => {
     const free = getPlan('free');
     expect(free.modules).toEqual([
       'crm',
+      'conversations',
       'knowledge',
       'insights',
       'digital_card',
@@ -29,6 +30,9 @@ describe('subscription plans', () => {
       findByWorkspaceId: async () => null,
       create: async () => {
         throw new Error('should not create');
+      },
+      updatePlan: async () => {
+        throw new Error('should not update');
       },
     });
     const resolved = await entitlements.resolve('ws_test' as WorkspaceId);
@@ -56,6 +60,7 @@ describe('subscription plans', () => {
     const entitlements = new EntitlementsService({
       findByWorkspaceId: async () => sub,
       create: async () => sub,
+      updatePlan: async () => sub,
     });
     expect(
       await entitlements.hasModule('ws_test' as WorkspaceId, 'campaign_manager'),

@@ -10,11 +10,13 @@ export default function SettingsLayout({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">הגדרות סביבה</h1>
         <p className="text-sm text-muted-foreground">
-          ניהול סביבת העבודה, חיבורים וערוצי תקשורת
+          ניהול החשבון, הצוות וההגדרות של הסביבה
         </p>
       </div>
-      <SettingsNav />
-      {children}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <SettingsNav />
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
     </div>
   );
 }

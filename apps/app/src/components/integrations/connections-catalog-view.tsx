@@ -1361,6 +1361,7 @@ function ConnectionDetailSheet({
   canUse,
   busy,
   onBound,
+  onConnect,
   onDisconnect,
   onTest,
   onSetActive,
@@ -1375,6 +1376,11 @@ function ConnectionDetailSheet({
   canUse: boolean;
   busy: boolean;
   onBound: () => Promise<void>;
+  onConnect: (
+    integrationId: IntegrationId,
+    capabilities?: ConnectionCapability[],
+    accessMode?: 'full' | 'readonly',
+  ) => void;
   onDisconnect: (connectionId: string) => void;
   onTest: (connectionId: string) => void;
   onSetActive: (connectionId: string, active: boolean) => void;
@@ -1655,19 +1661,80 @@ function ConnectionDetailSheet({
             </div>
           </>
         ) : item ? (
-          <SheetHeader className="gap-3 p-6 text-start">
-            <div className="flex items-start gap-3 pe-8">
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-lg border bg-background p-2">
-                <IntegrationIcon id={item.integrationId} />
+          <>
+            <SheetHeader className="gap-3 border-b p-6 text-start">
+              <div className="flex items-start gap-3 pe-8">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-lg border bg-background p-2">
+                  <IntegrationIcon id={item.integrationId} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <SheetTitle>{item.name}</SheetTitle>
+                  <SheetDescription>
+                    אין חיבורים פעילים לניהול עדיין.
+                  </SheetDescription>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <SheetTitle>{item.name}</SheetTitle>
-                <SheetDescription>
-                  אין חיבורים פעילים לניהול עדיין.
-                </SheetDescription>
-              </div>
+            </SheetHeader>
+            <div className="p-6">
+              {item.status === 'available' &&
+              item.integrationId === 'google_sheets' ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild disabled={!canManage || busy}>
+                    <Button size="sm" disabled={!canManage || busy}>
+                      <PlusIcon data-icon="inline-start" />
+                      חבר
+                      <ChevronDownIcon data-icon="inline-end" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-52" dir="rtl">
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem
+                        className="items-start"
+                        onClick={() =>
+                          onConnect(item.integrationId, SHEETS_FULL_CAPS, 'full')
+                        }
+                      >
+                        <div className="flex w-full flex-col gap-0.5 text-start">
+                          <span>חיבור מלא</span>
+                          <span className="text-xs text-muted-foreground">
+                            קריאה וכתיבה
+                          </span>
+                        </div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="items-start"
+                        onClick={() =>
+                          onConnect(
+                            item.integrationId,
+                            SHEETS_READONLY_CAPS,
+                            'readonly',
+                          )
+                        }
+                      >
+                        <div className="flex w-full flex-col gap-0.5 text-start">
+                          <span>קריאה בלבד</span>
+                          <span className="text-xs text-muted-foreground">
+                            צפייה בגיליונות ללא שינוי
+                          </span>
+                        </div>
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : item.status === 'available' ? (
+                <Button
+                  size="sm"
+                  disabled={!canManage || busy}
+                  onClick={() => onConnect(item.integrationId)}
+                >
+                  <PlusIcon data-icon="inline-start" />
+                  חבר
+                </Button>
+              ) : (
+                <Badge variant="secondary">בקרוב</Badge>
+              )}
             </div>
-          </SheetHeader>
+          </>
         ) : (
           <SheetHeader className="gap-3 p-6 text-start">
             <SheetTitle>טוען חיבור…</SheetTitle>
@@ -2227,6 +2294,7 @@ export function ConnectionsCatalogView() {
         canUse={canUse}
         busy={busyId !== null}
         onBound={load}
+        onConnect={connect}
         onDisconnect={(id) => void disconnect(id)}
         onTest={(id) => void testConnection(id)}
         onSetActive={(id, active) => void setConnectionActive(id, active)}

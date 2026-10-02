@@ -9,6 +9,7 @@ export type { PlanId, PlanDefinition, UsageMetric };
 
 const FREE_MODULES: ModuleId[] = [
   'crm',
+  'conversations',
   'knowledge',
   'insights',
   'digital_card',

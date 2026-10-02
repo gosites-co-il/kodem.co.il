@@ -4,7 +4,12 @@ import type {
   GuestSetupResult,
   BillingSnapshot,
   BusinessProfile,
+  BusinessRecordView,
+  BusinessTryResult,
   ChannelCatalogItem,
+  ChannelType,
+  ConversationDetail,
+  ConversationListResult,
   ConfigureChannelInput,
   ConnectionActionResult,
   ConnectionAnalyticsPropertiesResult,
@@ -64,6 +69,7 @@ import type {
   AdminUpdateUserInput,
   AdminUpsertWorkspaceInput,
   AdminUserListItem,
+  AdminWorkspaceDetail,
   AdminWorkspaceListItem,
 } from '@kodem/contracts';
 
@@ -106,6 +112,8 @@ export interface WorkspaceListItem {
   workspace: Workspace;
   role: RoleName;
   membership: Member;
+  /** Super admin is opening a workspace they are not a member of. */
+  platformView?: boolean;
 }
 
 export interface MemberListItem extends Member {
@@ -295,6 +303,34 @@ export const api = {
     });
   },
 
+  adminWorkspaceDetail(id: string) {
+    return request<AdminWorkspaceDetail>(`/admin/workspaces/${id}`);
+  },
+
+  adminTransferWorkspaceOwner(id: string, userId: string) {
+    return request<AdminWorkspaceListItem>(`/admin/workspaces/${id}/transfer-owner`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+  },
+
+  adminSetWorkspacePlan(id: string, planId: PlanId) {
+    return request<AdminWorkspaceListItem>(`/admin/workspaces/${id}/plan`, {
+      method: 'PATCH',
+      body: JSON.stringify({ planId }),
+    });
+  },
+
+  adminUpdateMemberRole(workspaceId: string, userId: string, role: RoleName) {
+    return request<AdminWorkspaceDetail>(
+      `/admin/workspaces/${workspaceId}/members/${userId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ role }),
+      },
+    );
+  },
+
   adminBulkWorkspaces(body: {
     action: 'delete' | 'set_status';
     ids: string[];
@@ -356,7 +392,7 @@ export const api = {
   },
 
   switchWorkspace(workspaceId: string) {
-    return request<AuthResult>('/workspace/switch', {
+    return request<AuthResult & { impersonating?: boolean }>('/workspace/switch', {
       method: 'POST',
       body: JSON.stringify({ workspaceId }),
     }).then(persistAuthTokens);
@@ -387,6 +423,12 @@ export const api = {
       `/workspace/members/invites/${inviteId}/resend`,
       { method: 'POST' },
     );
+  },
+
+  deleteInvite(inviteId: string) {
+    return request<{ ok: boolean }>(`/workspace/members/invites/${inviteId}`, {
+      method: 'DELETE',
+    });
   },
 
   changeMemberRole(userId: UserId | string, role: RoleName) {
@@ -518,6 +560,35 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     });
+  },
+
+  getBusinessRecord() {
+    return request<BusinessRecordView>('/workspace/business');
+  },
+
+  refreshBusinessRecord() {
+    return request<BusinessRecordView>('/workspace/business/refresh', {
+      method: 'POST',
+    });
+  },
+
+  getBusinessAiStatus() {
+    return request<{
+      provider: string;
+      model: string | null;
+      configured: boolean;
+      models: string[];
+    }>('/workspace/business/ai');
+  },
+
+  tryBusinessWebsite(websiteUrl: string, model?: string) {
+    return request<BusinessTryResult>(
+      '/workspace/business/try',
+      {
+        method: 'POST',
+        body: JSON.stringify({ websiteUrl, model }),
+      },
+    );
   },
 
   discoverWebsite(websiteUrl: string) {
@@ -964,6 +1035,65 @@ export const api = {
         ? `?maxResults=${encodeURIComponent(String(maxResults))}`
         : '';
     return request<MessagingMessagesResult>(`${base}${q}`);
+  },
+
+  listConversations(query?: {
+    channel?: ChannelType;
+    unread?: boolean;
+    q?: string;
+    contactId?: string;
+  }) {
+    const params = new URLSearchParams();
+    if (query?.channel) params.set('channel', query.channel);
+    if (query?.unread) params.set('unread', '1');
+    if (query?.q) params.set('q', query.q);
+    if (query?.contactId) params.set('contactId', query.contactId);
+    const qs = params.toString();
+    return request<ConversationListResult>(
+      `/conversations${qs ? `?${qs}` : ''}`,
+    );
+  },
+
+  getConversation(id: string) {
+    return request<{ conversation: ConversationDetail }>(
+      `/conversations/${id}`,
+    );
+  },
+
+  markConversationRead(id: string) {
+    return request<{ conversation: ConversationDetail }>(
+      `/conversations/${id}/read`,
+      { method: 'POST' },
+    );
+  },
+
+  replyConversation(id: string, body: string) {
+    return request<{ conversation: ConversationDetail }>(
+      `/conversations/${id}/reply`,
+      { method: 'POST', body: JSON.stringify({ body }) },
+    );
+  },
+
+  syncConversationEmail() {
+    return request<{ imported: number; skipped: number }>(
+      '/conversations/email/sync',
+      { method: 'POST' },
+    );
+  },
+
+  submitConversationIntake(body: {
+    slug: string;
+    name: string;
+    email: string;
+    message: string;
+    utm_source?: string;
+    utm_medium?: string;
+    utm_campaign?: string;
+  }) {
+    return request<{ ok: true; conversationId: string }>(
+      '/conversations/intake',
+      { method: 'POST', body: JSON.stringify(body) },
+    );
   },
 
   getLegalStatus() {

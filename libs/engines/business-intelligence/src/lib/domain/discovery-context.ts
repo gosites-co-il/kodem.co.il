@@ -77,13 +77,32 @@ export function buildDiscoveryContext(
   };
 }
 
+function clipValue(value: unknown): unknown {
+  if (typeof value === 'string') return value.slice(0, 700);
+  if (Array.isArray(value)) return value.slice(0, 12).map(clipValue);
+  return value;
+}
+
+function clipFacts(
+  facts: NormalizedDiscoveryContext['factsByField'],
+): NormalizedDiscoveryContext['factsByField'] {
+  const clipped: NormalizedDiscoveryContext['factsByField'] = {};
+  for (const [field, items] of Object.entries(facts)) {
+    clipped[field] = items.map((item) => ({
+      ...item,
+      value: clipValue(item.value),
+    }));
+  }
+  return clipped;
+}
+
 export function contextToPromptPayload(
   context: NormalizedDiscoveryContext,
 ): Record<string, unknown> {
   return {
     businessName: context.businessName,
     websiteUrl: context.websiteUrl,
-    facts: context.factsByField,
+    facts: clipFacts(context.factsByField),
     assets: context.assetsProcessed,
     openGraph: context.openGraph,
     schemaOrg: context.schemaOrg,
@@ -102,9 +121,13 @@ export function getFactString(
   context: NormalizedDiscoveryContext,
   field: string,
 ): string | undefined {
-  const values = getFactValues(context, field);
-  const first = values.find((v) => typeof v === 'string' && v.trim());
-  return typeof first === 'string' ? first : undefined;
+  const ranked = [...(context.factsByField[field] ?? [])].sort(
+    (a, b) => b.confidence - a.confidence,
+  );
+  const best = ranked.find(
+    (fact) => typeof fact.value === 'string' && fact.value.trim(),
+  );
+  return typeof best?.value === 'string' ? best.value : undefined;
 }
 
 export function getFactStringArray(

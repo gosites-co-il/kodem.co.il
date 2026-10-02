@@ -5,9 +5,13 @@ import {
   AdminUpdateUserInput,
   AdminUpsertWorkspaceInput,
   AdminUserListItem,
+  AdminWorkspaceDetail,
   AdminWorkspaceListItem,
+  PlanId,
+  RoleName,
   ONBOARDING_STATUSES,
   PLATFORM_WORKSPACE_SLUG,
+  SystemRole,
   User,
   UserId,
   Workspace,
@@ -19,6 +23,7 @@ import {
   AdminRepository,
   MemberRepository,
   UserRepository,
+  WorkspaceInviteRepository,
   WorkspaceRepository,
 } from '@kodem/database';
 import { isPlatformSuperAdminEmail } from '@kodem/platform/auth';
@@ -38,6 +43,7 @@ export class AdminService {
   private readonly workspaceRepo = new WorkspaceRepository();
   private readonly userRepo = new UserRepository();
   private readonly memberRepo = new MemberRepository();
+  private readonly inviteRepo = new WorkspaceInviteRepository();
   private readonly workspaceService = new WorkspaceService();
   private readonly subscriptions = new SubscriptionService();
   private readonly modules = new WorkspaceModuleService();
@@ -159,10 +165,13 @@ export class AdminService {
         await this.memberRepo.create({
           workspaceId: id,
           userId: owner.id,
-          role: 'owner',
+          role: SystemRole.Owner,
         });
-      } else if (membership.role !== 'owner' && membership.role !== 'super_admin') {
-        await this.memberRepo.updateRole(id, owner.id, 'owner');
+      } else if (
+        membership.role !== SystemRole.Owner &&
+        membership.role !== SystemRole.SuperAdmin
+      ) {
+        await this.memberRepo.updateRole(id, owner.id, SystemRole.Owner);
       }
     }
 
@@ -176,6 +185,104 @@ export class AdminService {
       throw new Error('לא ניתן למחוק את סביבת המערכת');
     }
     await this.adminRepo.deleteWorkspace(id);
+  }
+
+  async transferOwnership(
+    id: WorkspaceId,
+    userId: UserId,
+  ): Promise<AdminWorkspaceListItem> {
+    const existing = await this.workspaceRepo.findById(id);
+    if (!existing) throw new Error('הסביבה לא נמצאה');
+    const next = await this.userRepo.findById(userId);
+    if (!next) throw new Error('המשתמש לא נמצא');
+    if (existing.ownerId === userId) throw new Error('המשתמש כבר הבעלים');
+
+    const previousId = existing.ownerId;
+    await this.workspaceRepo.updateOwner(id, userId);
+
+    const nextMembership = await this.memberRepo.findByUserAndWorkspace(userId, id);
+    if (!nextMembership) {
+      await this.memberRepo.create({
+        workspaceId: id,
+        userId,
+        role: SystemRole.Owner,
+      });
+    } else if (nextMembership.role !== SystemRole.Owner) {
+      await this.memberRepo.updateRole(id, userId, SystemRole.Owner);
+    }
+
+    if (previousId !== userId) {
+      const previous = await this.memberRepo.findByUserAndWorkspace(previousId, id);
+      if (
+        previous &&
+        (previous.role === SystemRole.Owner || previous.role === SystemRole.SuperAdmin)
+      ) {
+        await this.memberRepo.updateRole(id, previousId, SystemRole.Admin);
+      }
+    }
+
+    return this.workspaceItem(id);
+  }
+
+  async setWorkspacePlan(
+    id: WorkspaceId,
+    planId: PlanId,
+  ): Promise<AdminWorkspaceListItem> {
+    const existing = await this.workspaceRepo.findById(id);
+    if (!existing) throw new Error('הסביבה לא נמצאה');
+    if (!isPlanId(planId)) throw new Error('תוכנית לא תקינה');
+    await this.subscriptions.setPlan(id, planId);
+    await this.modules.syncToEntitlements(id);
+    return this.workspaceItem(id);
+  }
+
+  async workspaceDetail(id: WorkspaceId): Promise<AdminWorkspaceDetail> {
+    const item = await this.workspaceItem(id);
+    const members = await this.memberRepo.listByWorkspace(id);
+    const invites = await this.inviteRepo.listByWorkspace(id);
+    const people = await Promise.all(
+      members.map(async (member) => {
+        const user = await this.userRepo.findById(member.userId);
+        return {
+          userId: member.userId,
+          name: user?.name ?? '',
+          email: user?.email ?? '',
+          role: member.role,
+        };
+      }),
+    );
+    return {
+      ...item,
+      members: people,
+      invites: invites
+        .filter((invite) => invite.status === 'pending')
+        .map((invite) => ({
+          id: invite.id,
+          email: invite.email,
+          role: invite.role,
+          status: invite.status,
+        })),
+    };
+  }
+
+  async updateMemberRole(
+    id: WorkspaceId,
+    userId: UserId,
+    role: RoleName,
+  ): Promise<AdminWorkspaceDetail> {
+    const existing = await this.workspaceRepo.findById(id);
+    if (!existing) throw new Error('הסביבה לא נמצאה');
+    if (role === SystemRole.Owner) {
+      throw new Error('העבירו בעלות כדי למנות בעלים');
+    }
+    if (!isMemberRole(role)) throw new Error('תפקיד לא תקין');
+    if (existing.ownerId === userId) {
+      throw new Error('לא ניתן לשנות את תפקיד הבעלים כאן');
+    }
+    const membership = await this.memberRepo.findByUserAndWorkspace(userId, id);
+    if (!membership) throw new Error('החבר לא נמצא');
+    await this.memberRepo.updateRole(id, userId, role);
+    return this.workspaceDetail(id);
   }
 
   async bulkWorkspaces(input: {
@@ -196,7 +303,7 @@ export class AdminService {
   }
 
   async beginImpersonation(actor: User, workspaceId: WorkspaceId): Promise<Workspace> {
-    if (actor.platformRole !== 'super_admin') {
+    if (actor.platformRole !== SystemRole.SuperAdmin) {
       throw new Error('נדרשת הרשאת סופר־אדמין');
     }
     const workspace = await this.workspaceRepo.findById(workspaceId);
@@ -256,7 +363,7 @@ export class AdminService {
       passwordHash: await bcrypt.hash(input.password, 12),
       emailVerifiedAt: new Date(),
       platformRole:
-        input.platformRole === 'super_admin' ? 'super_admin' : null,
+        input.platformRole === SystemRole.SuperAdmin ? SystemRole.SuperAdmin : null,
     });
     return this.userItem(user.id);
   }
@@ -309,7 +416,7 @@ export class AdminService {
     }
     if (input.platformRole !== undefined && !system) {
       data.platformRole =
-        input.platformRole === 'super_admin' ? 'super_admin' : null;
+        input.platformRole === SystemRole.SuperAdmin ? SystemRole.SuperAdmin : null;
     }
     if (input.emailVerified !== undefined) {
       data.emailVerifiedAt = input.emailVerified ? (existing.emailVerifiedAt ?? new Date()) : null;
@@ -385,7 +492,13 @@ export class AdminService {
       },
       memberCount: members.length,
       protected: workspace.slug === PLATFORM_WORKSPACE_SLUG,
+      planId: await this.planIdFor(id),
     };
+  }
+
+  private async planIdFor(id: WorkspaceId): Promise<PlanId> {
+    const subscription = await this.subscriptions.getByWorkspace(id);
+    return isPlanId(subscription?.planId) ? subscription.planId : 'free';
   }
 
   private async userItem(id: UserId): Promise<AdminUserListItem> {
@@ -439,6 +552,22 @@ function isOnboardingStatus(
   return Boolean(
     value &&
       (ONBOARDING_STATUSES as readonly string[]).includes(value),
+  );
+}
+
+const PLAN_IDS: PlanId[] = ['free', 'starter', 'growth', 'enterprise'];
+
+function isPlanId(value: string | null | undefined): value is PlanId {
+  return Boolean(value && PLAN_IDS.includes(value as PlanId));
+}
+
+function isMemberRole(value: string): value is RoleName {
+  return (
+    value === SystemRole.SuperAdmin ||
+    value === SystemRole.Owner ||
+    value === SystemRole.Admin ||
+    value === SystemRole.Member ||
+    value === SystemRole.Viewer
   );
 }
 

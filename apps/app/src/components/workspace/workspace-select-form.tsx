@@ -12,15 +12,23 @@ import {
 } from '@kodem/design-system/components/ui/card';
 import { Input } from '@kodem/design-system/components/ui/input';
 import { Label } from '@kodem/design-system/components/ui/label';
-import { requiresOnboarding } from '@kodem/contracts';
+import { requiresOnboarding, SystemRole } from '@kodem/contracts';
 import { api, isApiError, type WorkspaceListItem } from '../../lib/api';
 import { setupStartOverHref } from '../../lib/setup/routes';
 import { useAuth } from '../../providers/auth-provider';
 import { AuthShell } from '../auth/auth-shell';
 
+const STATUS_LABELS: Record<string, string> = {
+  active: 'פעיל',
+  suspended: 'מושעה',
+  onboarding: 'בהקמה',
+  deactivated: 'מושבת',
+};
+
 export function WorkspaceSelectForm() {
   const router = useRouter();
-  const { setSession } = useAuth();
+  const { setSession, user } = useAuth();
+  const isSuperAdmin = user?.platformRole === SystemRole.SuperAdmin;
   const [workspaces, setWorkspaces] = useState<WorkspaceListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -67,7 +75,8 @@ export function WorkspaceSelectForm() {
         user: result.user,
         workspace: result.workspace,
         role: result.role,
-        token: result.token,
+        token: result.accessToken ?? result.token,
+        impersonating: Boolean(result.impersonating),
       });
 
       const resolution = await api.resolveEntry(true);
@@ -126,18 +135,26 @@ export function WorkspaceSelectForm() {
   return (
     <AuthShell
       title="בחירת סביבת עבודה"
-      description="בחרו סביבה קיימת או הוסיפו לקוח חדש"
+      description={
+        isSuperAdmin
+          ? 'כסופר־אדמין אפשר לצפות בכל סביבה'
+          : 'בחרו סביבה קיימת או הוסיפו לקוח חדש'
+      }
     >
       <Card>
         <CardHeader>
           <CardTitle className="text-base">הסביבות שלכם</CardTitle>
           <CardDescription>
-            כל סביבה היא לקוח נפרד. סביבות שטרם הושלמו יופיעו עם סטטוס הגדרה.
+            {isSuperAdmin
+              ? 'סביבה שאינכם חברים בה נפתחת לצפייה, עם אפשרות לחזור לניהול.'
+              : 'כל סביבה היא לקוח נפרד. סביבות שטרם הושלמו יופיעו עם סטטוס הגדרה.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {workspaces.map((item) => {
             const incomplete = requiresOnboarding(item.workspace);
+            const deactivated = item.workspace.status === 'deactivated';
+            const viewing = Boolean(item.platformView);
             return (
               <div
                 key={item.workspace.id}
@@ -146,19 +163,27 @@ export function WorkspaceSelectForm() {
                 <div>
                   <p className="font-medium">{item.workspace.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {incomplete ? 'הגדרה בתהליך' : item.role}
+                    {viewing
+                      ? `צפייה · ${STATUS_LABELS[item.workspace.status] ?? item.workspace.status}`
+                      : incomplete
+                        ? 'הגדרה בתהליך'
+                        : item.role}
                   </p>
                 </div>
                 <Button
                   size="sm"
                   onClick={() => handleSelect(item.workspace.id)}
-                  disabled={loadingId !== null || isCreating}
+                  disabled={loadingId !== null || isCreating || deactivated}
                 >
                   {loadingId === item.workspace.id
                     ? 'בוחר…'
-                    : incomplete
-                      ? 'המשך הגדרה'
-                      : 'בחר'}
+                    : deactivated
+                      ? 'מושבת'
+                      : viewing
+                        ? 'צפייה'
+                        : incomplete
+                          ? 'המשך הגדרה'
+                          : 'בחר'}
                 </Button>
               </div>
             );

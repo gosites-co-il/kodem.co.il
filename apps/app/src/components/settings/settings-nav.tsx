@@ -6,9 +6,16 @@ import { cn } from '@kodem/design-system/lib/utils';
 import { ROUTES } from '../../lib/constants';
 
 const LINKS = [
-  { href: ROUTES.workspaceSettings, label: 'כללי', exact: true },
-  { href: ROUTES.workspaceIntegrationsConnections, label: 'חיבורים' },
-  { href: ROUTES.workspaceIntegrationsChannels, label: 'ערוצים' },
+  { href: ROUTES.workspaceSettings, label: 'חשבון', exact: true },
+  { href: ROUTES.workspaceSettingsProfile, label: 'פרופיל' },
+  { href: ROUTES.workspaceSettingsTeam, label: 'צוות' },
+  { href: ROUTES.workspaceSettingsNotifications, label: 'התראות' },
+  { href: ROUTES.workspaceSettingsEmailLog, label: 'יומן מיילים' },
+  { href: ROUTES.workspaceSettingsMessages, label: 'הודעות מוכנות' },
+  { href: ROUTES.workspaceSettingsCrm, label: 'CRM' },
+  { href: ROUTES.workspaceSettingsTags, label: 'תגיות' },
+  { href: ROUTES.workspaceSettingsApiKeys, label: 'מפתחות API' },
+  { href: ROUTES.workspaceSettingsFiles, label: 'קבצים' },
 ] as const;
 
 export function SettingsNav() {
@@ -16,7 +23,7 @@ export function SettingsNav() {
 
   return (
     <nav
-      className="flex flex-wrap gap-1 border-b border-border pb-px"
+      className="flex flex-row flex-wrap gap-1 lg:w-52 lg:shrink-0 lg:flex-col"
       aria-label="ניווט הגדרות"
     >
       {LINKS.map((link) => {
@@ -30,10 +37,10 @@ export function SettingsNav() {
             href={link.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              '-mb-px rounded-t-md border-b-2 px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+              'rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               active
-                ? 'border-primary font-semibold text-foreground'
-                : 'border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                ? 'bg-muted font-semibold text-foreground'
+                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
             )}
           >
             {link.label}

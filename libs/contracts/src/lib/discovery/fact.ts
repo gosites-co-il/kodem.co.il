@@ -41,7 +41,9 @@ export type BusinessFactSource =
   | 'regex'
   | 'user_input'
   | 'sitemap'
-  | 'robots';
+  | 'robots'
+  | 'wikipedia'
+  | 'google_search';
 
 export interface BusinessFact {
   field: BusinessFactField;

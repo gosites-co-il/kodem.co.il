@@ -5,6 +5,8 @@ import {
   MemberId,
   WorkspaceId,
   RoleName,
+  PlatformRole,
+  SystemRole,
   OAuthAccount,
   OAuthProvider,
   createId,
@@ -143,7 +145,7 @@ export class UserRepository {
   }
 
   async getSessionFlags(userId: UserId): Promise<{
-    platformRole: 'super_admin' | null;
+    platformRole: PlatformRole | null;
     impersonatingWorkspaceId: WorkspaceId | null;
   }> {
     const row = await this.db.user.findUnique({
@@ -151,7 +153,8 @@ export class UserRepository {
       select: { platformRole: true, impersonatingWorkspaceId: true },
     });
     return {
-      platformRole: row?.platformRole === 'super_admin' ? 'super_admin' : null,
+      platformRole:
+        row?.platformRole === SystemRole.SuperAdmin ? SystemRole.SuperAdmin : null,
       impersonatingWorkspaceId:
         (row?.impersonatingWorkspaceId as WorkspaceId) ?? null,
     };
@@ -269,7 +272,7 @@ export class MemberRepository {
 
   async countOwners(workspaceId: WorkspaceId): Promise<number> {
     return this.db.member.count({
-      where: { workspaceId, role: 'owner' },
+      where: { workspaceId, role: SystemRole.Owner },
     });
   }
 }

@@ -5,7 +5,6 @@ import type {
   NormalizedDiscoveryContext,
 } from '@kodem/contracts';
 import {
-  createJsonParser,
   defaultLLMProvider,
   routeModel,
   type LLMProvider,
@@ -24,7 +23,7 @@ import {
 export class UnderstandingService {
   constructor(private readonly llm: LLMProvider = defaultLLMProvider) {}
 
-  async generate(context: NormalizedDiscoveryContext) {
+  async generate(context: NormalizedDiscoveryContext, model?: string) {
     const payload = contextToPromptPayload(context);
     const prompt = renderUnderstandingPrompt(JSON.stringify(payload, null, 2));
 
@@ -37,13 +36,17 @@ export class UnderstandingService {
             {
               role: 'system',
               content:
-                'You are a business intelligence analyst. Respond with valid JSON only.',
+                'החזר JSON תקין בלבד. בלי markdown.',
             },
             { role: 'user', content: prompt },
           ],
-          { model: routeModel('discovery'), temperature: 0.2 },
+          {
+            model: model?.trim() || routeModel('discovery'),
+            temperature: 0.2,
+            maxTokens: 2800,
+          },
         );
-        const parsed = createJsonParser<AiUnderstandingOutput>().parse(raw);
+        const parsed = parseUnderstandingJson(raw);
         if (isValidAiOutput(parsed)) {
           aiOutput = parsed;
         }
@@ -68,6 +71,18 @@ export class UnderstandingService {
     );
 
     return { understanding, recommendations, questions, aiOutput };
+  }
+}
+
+function parseUnderstandingJson(raw: string): AiUnderstandingOutput {
+  const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim();
+  try {
+    return JSON.parse(cleaned) as AiUnderstandingOutput;
+  } catch {
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start < 0 || end <= start) throw new Error('invalid json');
+    return JSON.parse(cleaned.slice(start, end + 1)) as AiUnderstandingOutput;
   }
 }
 

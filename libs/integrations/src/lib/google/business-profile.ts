@@ -115,6 +115,94 @@ export async function listBusinessLocations(
   return out;
 }
 
+export interface OfficialBusinessLocation {
+  locationName: string;
+  title?: string;
+  phone?: string;
+  website?: string;
+  address?: string;
+  description?: string;
+  category?: string;
+  openingHours?: string;
+}
+
+const LOCATION_PROFILE_MASK =
+  'name,title,phoneNumbers,websiteUri,storefrontAddress,profile,categories,regularHours';
+
+function formatOpeningHours(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const periods = (value as { periods?: unknown[] }).periods;
+  if (!Array.isArray(periods) || periods.length === 0) return undefined;
+  return periods
+    .map((period) => {
+      if (!period || typeof period !== 'object') return '';
+      const row = period as Record<string, unknown>;
+      const open = typeof row['openDay'] === 'string' ? row['openDay'] : '';
+      const close = typeof row['closeDay'] === 'string' ? row['closeDay'] : '';
+      const openTime = row['openTime'] as { hours?: number; minutes?: number } | undefined;
+      const closeTime = row['closeTime'] as { hours?: number; minutes?: number } | undefined;
+      const fmt = (time?: { hours?: number; minutes?: number }) =>
+        time ? `${String(time.hours ?? 0).padStart(2, '0')}:${String(time.minutes ?? 0).padStart(2, '0')}` : '';
+      return [open, fmt(openTime), close, fmt(closeTime)].filter(Boolean).join(' ');
+    })
+    .filter(Boolean)
+    .join('; ');
+}
+
+function formatAddress(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const address = value as { addressLines?: string[]; locality?: string; postalCode?: string };
+  const parts = [
+    ...(address.addressLines ?? []),
+    address.locality,
+    address.postalCode,
+  ].filter((part): part is string => !!part?.trim());
+  return parts.length > 0 ? parts.join(', ') : undefined;
+}
+
+/** Official Business Profile fields for the canonical profile. */
+export async function readOfficialBusinessLocation(
+  accessToken: string,
+  locationName: string,
+): Promise<OfficialBusinessLocation> {
+  const normalized = normalizeBusinessLocationName(locationName);
+  if (!normalized) {
+    throw new Error('שם מיקום לא תקין');
+  }
+
+  const url = new URL(`${BUSINESS_INFO}/${normalized}`);
+  url.searchParams.set('readMask', LOCATION_PROFILE_MASK);
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(
+      googleApiErrorMessage(res.status, text, 'Failed to load Business Profile location'),
+    );
+  }
+  const json = (await res.json()) as {
+    name?: string;
+    title?: string;
+    phoneNumbers?: { primaryPhone?: string };
+    websiteUri?: string;
+    storefrontAddress?: unknown;
+    profile?: { description?: string };
+    categories?: { primaryCategory?: { displayName?: string } };
+    regularHours?: unknown;
+  };
+  return {
+    locationName: json.name ?? normalized,
+    title: json.title,
+    phone: json.phoneNumbers?.primaryPhone,
+    website: json.websiteUri,
+    address: formatAddress(json.storefrontAddress),
+    description: json.profile?.description,
+    category: json.categories?.primaryCategory?.displayName,
+    openingHours: formatOpeningHours(json.regularHours),
+  };
+}
+
 export async function getBusinessLocation(
   accessToken: string,
   locationName: string,

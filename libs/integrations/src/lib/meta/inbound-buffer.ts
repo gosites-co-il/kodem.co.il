@@ -10,6 +10,8 @@ export interface MetaInboundMessage {
   from?: string;
   to?: string;
   body?: string;
+  name?: string;
+  messageType?: 'text' | 'image' | 'file' | 'audio' | 'video' | 'system';
   timestamp: string;
   phoneNumberId?: string;
   pageId?: string;
@@ -42,6 +44,17 @@ export function listMetaInboundMessages(filter: {
       return true;
     })
     .slice(0, limit);
+}
+
+function metaMessageType(
+  type: string | undefined,
+  body?: string,
+): MetaInboundMessage['messageType'] {
+  if (type === 'image' || type === 'audio' || type === 'video') return type;
+  if (type === 'document' || type === 'file') return 'file';
+  if (type === 'system') return 'system';
+  if (!body && type && type !== 'text') return 'file';
+  return 'text';
 }
 
 export function parseMetaWebhookPayload(body: unknown): MetaInboundMessage[] {
@@ -87,7 +100,10 @@ export function parseMetaWebhookPayload(body: unknown): MetaInboundMessage[] {
           id: msg.id,
           channel: 'whatsapp',
           from: msg.from,
+          name: value?.contacts?.find((contact) => contact.wa_id === msg.from)
+            ?.profile?.name,
           body: msg.text?.body,
+          messageType: metaMessageType(msg.type, msg.text?.body),
           timestamp: msg.timestamp
             ? new Date(Number(msg.timestamp) * 1000).toISOString()
             : new Date().toISOString(),
@@ -106,6 +122,7 @@ export function parseMetaWebhookPayload(body: unknown): MetaInboundMessage[] {
         from: m.sender?.id,
         to: m.recipient?.id,
         body: m.message.text,
+        messageType: m.message.text ? 'text' : 'file',
         timestamp: m.timestamp
           ? new Date(m.timestamp).toISOString()
           : new Date().toISOString(),

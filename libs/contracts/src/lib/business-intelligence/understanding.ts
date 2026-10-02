@@ -25,6 +25,21 @@ export interface BusinessUnderstanding {
   marketingStrategy?: UnderstandingField;
   confidence: number;
   missingInformation: string[];
+  /** Operating brief for an AI agent, filled only from discovery evidence. */
+  agentPlan?: AgentWorkPlan;
+}
+
+export interface AgentToolDefinition {
+  name: string;
+  description: string;
+  parameters: string[];
+}
+
+export interface AgentWorkPlan {
+  overview: string;
+  workflow: string;
+  systemPrompt: string;
+  tools: AgentToolDefinition[];
 }
 
 /** Raw structured JSON shape returned by the AI (no markdown). */
@@ -52,4 +67,14 @@ export interface AiUnderstandingOutput {
     reason: string;
     priority: 'high' | 'medium' | 'low';
   }>;
+  agentPlan?: {
+    overview?: string;
+    workflow?: string;
+    systemPrompt?: string;
+    tools?: Array<{
+      name?: string;
+      description?: string;
+      parameters?: string[];
+    }>;
+  };
 }

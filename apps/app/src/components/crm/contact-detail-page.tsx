@@ -13,14 +13,20 @@ import { Input } from '@kodem/design-system/components/ui/input';
 import { Label } from '@kodem/design-system/components/ui/label';
 import { Textarea } from '@kodem/design-system/components/ui/textarea';
 import { api, isApiError } from '../../lib/api';
+import type { ConversationSummary } from '@kodem/contracts';
 import type { Contact, Task } from '../../lib/crm';
 import { CRM_TASK_STATUS_LABELS } from '../../lib/crm';
+import {
+  CONVERSATION_CHANNEL_LABELS,
+  formatConversationTime,
+} from '../../lib/conversations';
 import { CrmShell } from './crm-shell';
 import { CrmError, CrmLoading, CrmStatusBadge, CrmSubmitButton } from './crm-ui';
 
 export function ContactDetailPage({ contactId }: { contactId: string }) {
   const [contact, setContact] = useState<Contact | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -28,12 +34,14 @@ export function ContactDetailPage({ contactId }: { contactId: string }) {
 
   async function load() {
     try {
-      const [contactRes, tasksRes] = await Promise.all([
+      const [contactRes, tasksRes, conversationsRes] = await Promise.all([
         api.getCrmContact(contactId),
         api.listCrmTasks({ contactId }),
+        api.listConversations({ contactId }),
       ]);
       setContact(contactRes.contact);
       setTasks(tasksRes.tasks);
+      setConversations(conversationsRes.conversations);
       setError(null);
     } catch (err) {
       setError(isApiError(err) ? err.message : 'שגיאה בטעינת איש הקשר');
@@ -230,6 +238,40 @@ export function ContactDetailPage({ contactId }: { contactId: string }) {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">שיחות</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {conversations.length === 0 ? (
+            <p className="text-sm text-muted-foreground">אין שיחות לאיש קשר זה.</p>
+          ) : (
+            <ul className="space-y-2">
+              {conversations.map((conversation) => (
+                <li key={conversation.id}>
+                  <Link
+                    href={`/conversations?conversationId=${conversation.id}`}
+                    className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm hover:bg-muted/60"
+                  >
+                    <span className="min-w-0">
+                      <span className="block font-medium">
+                        {CONVERSATION_CHANNEL_LABELS[conversation.channel]}
+                      </span>
+                      <span className="block truncate text-muted-foreground">
+                        {conversation.preview || conversation.subject || '—'}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {formatConversationTime(conversation.lastMessageAt)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </CrmShell>
   );
 }

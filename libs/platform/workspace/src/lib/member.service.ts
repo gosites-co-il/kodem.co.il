@@ -4,6 +4,7 @@ import {
   INVITABLE_ROLES,
   Member,
   RoleName,
+  SystemRole,
   UserId,
   WorkspaceId,
   WorkspaceInvite,
@@ -38,7 +39,9 @@ function inviteTtlMs(): number {
   return 7 * 24 * 60 * 60 * 1000;
 }
 
-function isInvitableRole(role: RoleName): role is 'admin' | 'member' {
+function isInvitableRole(
+  role: RoleName,
+): role is typeof SystemRole.Admin | typeof SystemRole.Member {
   return (INVITABLE_ROLES as RoleName[]).includes(role);
 }
 
@@ -204,6 +207,30 @@ export class MemberService {
     return { invite: updated, rawToken };
   }
 
+  async revokeInvite(
+    inviteId: string,
+    workspaceId: WorkspaceId,
+    actorId: UserId,
+  ): Promise<WorkspaceInvite> {
+    const invite = await this.inviteRepo.findById(inviteId);
+    if (!invite || invite.workspaceId !== workspaceId) {
+      throw new Error('Invite not found');
+    }
+    if (invite.status !== 'pending') {
+      throw new Error('Invite is no longer pending');
+    }
+
+    const revoked = await this.inviteRepo.updateStatus(invite.id, 'revoked');
+    await this.audit.record({
+      workspaceId,
+      actorId,
+      targetId: invite.id,
+      action: 'workspace.member.invite_revoked',
+      metadata: { email: invite.email },
+    });
+    return revoked;
+  }
+
   async getInvitePublic(rawToken: string): Promise<InvitePublicView> {
     const invite = await this.inviteRepo.findByTokenHash(hashToken(rawToken));
     if (!invite) {
@@ -320,7 +347,7 @@ export class MemberService {
     newRole: RoleName,
     actorId: UserId,
   ): Promise<Member> {
-    if (newRole === 'owner') {
+    if (newRole === SystemRole.Owner) {
       throw new Error('Use transferOwnership to assign the owner role');
     }
 
@@ -341,18 +368,18 @@ export class MemberService {
     }
 
     if (
-      newRole === 'super_admin' &&
-      actor.role !== 'super_admin' &&
-      actor.role !== 'owner'
+      newRole === SystemRole.SuperAdmin &&
+      actor.role !== SystemRole.SuperAdmin &&
+      actor.role !== SystemRole.Owner
     ) {
       throw new Error('Only owners or super admins can assign super_admin');
     }
 
-    if (target.role === 'super_admin' && actor.role !== 'super_admin') {
+    if (target.role === SystemRole.SuperAdmin && actor.role !== SystemRole.SuperAdmin) {
       throw new Error('Only a super admin can change another super admin');
     }
 
-    if (target.role === 'owner') {
+    if (target.role === SystemRole.Owner) {
       const owners = await this.memberRepo.countOwners(workspaceId);
       if (owners <= 1) {
         throw new Error('Cannot demote the last owner');
@@ -397,11 +424,11 @@ export class MemberService {
       throw new Error('Member not found');
     }
 
-    if (target.role === 'super_admin' && actor.role !== 'super_admin') {
+    if (target.role === SystemRole.SuperAdmin && actor.role !== SystemRole.SuperAdmin) {
       throw new Error('Only a super admin can remove another super admin');
     }
 
-    if (target.role === 'owner') {
+    if (target.role === SystemRole.Owner) {
       const owners = await this.memberRepo.countOwners(workspaceId);
       if (owners <= 1) {
         throw new Error('Cannot remove the last owner');
@@ -429,7 +456,7 @@ export class MemberService {
       throw new Error('Not a member of this workspace');
     }
 
-    if (membership.role === 'owner') {
+    if (membership.role === SystemRole.Owner) {
       const owners = await this.memberRepo.countOwners(workspaceId);
       if (owners <= 1) {
         throw new Error(
@@ -456,7 +483,7 @@ export class MemberService {
       fromUserId,
       workspaceId,
     );
-    if (!from || from.role !== 'owner') {
+    if (!from || from.role !== SystemRole.Owner) {
       throw new Error('Only the current owner can transfer ownership');
     }
 
@@ -468,8 +495,8 @@ export class MemberService {
       throw new Error('Target user is not a member of this workspace');
     }
 
-    await this.memberRepo.updateRole(workspaceId, toUserId, 'owner');
-    await this.memberRepo.updateRole(workspaceId, fromUserId, 'admin');
+    await this.memberRepo.updateRole(workspaceId, toUserId, SystemRole.Owner);
+    await this.memberRepo.updateRole(workspaceId, fromUserId, SystemRole.Admin);
     await this.workspaceRepo.updateOwner(workspaceId, toUserId);
 
     await this.audit.record({

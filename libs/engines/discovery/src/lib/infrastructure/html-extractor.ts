@@ -1,6 +1,7 @@
 export function extractTitle(html: string): string | undefined {
   const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  return match?.[1]?.replace(/\s+/g, ' ').trim();
+  const text = match?.[1] ? decodeHtml(match[1]).replace(/\s+/g, ' ').trim() : '';
+  return text || undefined;
 }
 
 export function extractMetaTags(html: string): Record<string, string> {
@@ -122,10 +123,39 @@ export function extractLinks(html: string, baseUrl: string): string[] {
 }
 
 const EMAIL_PATTERN =
-  /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
 
 const PHONE_PATTERN =
   /(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?\d{3}[\s.-]?\d{4,}/g;
+
+const CONTACT_HEADING =
+  /טלפון|שיחת ייעוץ|דברו|צור קשר|call us|contact us|phone call|אנחנו במרחק/i;
+
+const CHROME_HEADING =
+  /חיפוש|התחבר|התנתק|ניוזלטר|דוא.?ל|הרשמ|כניסה|תפריט|menu|search|login|sign in|cookie|הקלידו|תאריכים|מבוגרים|אחרונים|מעוניינים|newsletter|subscribe|cart|סל קניות/i;
+
+/** Cloudflare email-protection hex: first byte is the XOR key. */
+export function decodeCloudflareEmail(hex: string): string | null {
+  const cleaned = hex.trim().toLowerCase();
+  if (!/^[0-9a-f]+$/.test(cleaned) || cleaned.length < 4 || cleaned.length % 2 !== 0) {
+    return null;
+  }
+  const key = parseInt(cleaned.slice(0, 2), 16);
+  let email = '';
+  for (let index = 2; index < cleaned.length; index += 2) {
+    email += String.fromCharCode(parseInt(cleaned.slice(index, index + 2), 16) ^ key);
+  }
+  const normalized = email.trim().toLowerCase();
+  if (!EMAIL_PATTERN.test(normalized)) return null;
+  return normalized;
+}
+
+function rememberEmail(emails: Set<string>, value: string | null | undefined): void {
+  const email = value?.trim().toLowerCase();
+  if (!email || !EMAIL_PATTERN.test(email)) return;
+  if (email.endsWith('.png') || email.endsWith('.jpg') || email.endsWith('.gif')) return;
+  emails.add(email);
+}
 
 export function extractEmails(html: string): string[] {
   const mailtoPattern = /href=["']mailto:([^"'?]+)/gi;
@@ -133,42 +163,126 @@ export function extractEmails(html: string): string[] {
 
   let match: RegExpExecArray | null;
   while ((match = mailtoPattern.exec(html)) !== null) {
-    emails.add(match[1].trim().toLowerCase());
+    rememberEmail(emails, safeDecode(match[1]));
   }
 
-  for (const email of html.match(EMAIL_PATTERN) ?? []) {
-    if (!email.endsWith('.png') && !email.endsWith('.jpg')) {
-      emails.add(email.toLowerCase());
-    }
+  const cfHref = /email-protection#([0-9a-fA-F]+)/g;
+  while ((match = cfHref.exec(html)) !== null) {
+    rememberEmail(emails, decodeCloudflareEmail(match[1]));
+  }
+
+  const cfData = /data-cfemail=["']([0-9a-fA-F]+)["']/gi;
+  while ((match = cfData.exec(html)) !== null) {
+    rememberEmail(emails, decodeCloudflareEmail(match[1]));
+  }
+
+  for (const email of html.match(new RegExp(EMAIL_PATTERN.source, 'g')) ?? []) {
+    rememberEmail(emails, email);
   }
 
   return [...emails];
 }
 
+function isPhoneShaped(value: string): boolean {
+  const digits = value.replace(/\D/g, '');
+  return digits.length >= 9 && digits.length <= 15;
+}
+
+function phoneKey(value: string): string {
+  return value.replace(/\D/g, '').slice(-9);
+}
+
 export function extractPhones(html: string): string[] {
   const telPattern = /href=["']tel:([^"']+)["']/gi;
-  const phones = new Set<string>();
+  const phones: string[] = [];
+  const seen = new Set<string>();
+  const add = (value: string) => {
+    const cleaned = cleanPhone(value);
+    if (!isPhoneShaped(cleaned)) return;
+    const key = phoneKey(cleaned);
+    if (seen.has(key)) return;
+    seen.add(key);
+    phones.push(cleaned);
+  };
 
   let match: RegExpExecArray | null;
   while ((match = telPattern.exec(html)) !== null) {
-    phones.add(cleanPhone(match[1]));
+    add(safeDecode(match[1]));
   }
 
-  for (const phone of html.match(PHONE_PATTERN) ?? []) {
-    const cleaned = cleanPhone(phone);
-    if (cleaned.replace(/\D/g, '').length >= 9) {
-      phones.add(cleaned);
-    }
+  const visible = html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ');
+
+  for (const phone of visible.match(PHONE_PATTERN) ?? []) {
+    add(phone);
   }
 
-  return [...phones].slice(0, 5);
+  return phones.slice(0, 5);
 }
 
-export function extractVisibleText(html: string): string {
+const CHROME_TEXT =
+  /\b(skip to content|top of page|bottom of page|use tab to navigate through the menu items)\b/gi;
+
+function stripPageChrome(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
+    .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
+    .replace(/<header[\s\S]*?<\/header>/gi, ' ')
+    .replace(/<footer[\s\S]*?<\/footer>/gi, ' ')
+    .replace(/<aside[\s\S]*?<\/aside>/gi, ' ')
+    .replace(/<form[\s\S]*?<\/form>/gi, ' ');
+}
+
+/** Sentences from the page body. Menus and booking widgets are left out. */
+export function extractCleanVisibleExcerpt(html: string, maxLength = 700): string {
+  const body = stripPageChrome(html);
+  const paragraphs: string[] = [];
+  const pattern = /<p\b[^>]*>([\s\S]*?)<\/p>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(body)) !== null) {
+    const text = extractVisibleText(match[1]).replace(CHROME_TEXT, ' ').replace(/\s+/g, ' ').trim();
+    if (text.length < 40) continue;
+    if (CHROME_HEADING.test(text)) continue;
+    paragraphs.push(text);
+    if (paragraphs.join(' ').length >= maxLength) break;
+  }
+
+  return paragraphs.join(' ').slice(0, maxLength).trim();
+}
+
+/** h2–h4 offer headings. Skips the business name, menus, and contact calls to action. */
+export function extractOfferHeadings(html: string, businessName?: string): string[] {
+  const items: string[] = [];
+  const pattern = /<h[2-4][^>]*>([\s\S]*?)<\/h[2-4]>/gi;
+  const name = businessName?.trim().toLowerCase();
+  const body = stripPageChrome(html);
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(body)) !== null) {
+    const text = extractVisibleText(match[1]);
+    if (text.length < 3 || text.length > 80) continue;
+    if (text.endsWith('?')) continue;
+    if (CONTACT_HEADING.test(text) || CHROME_HEADING.test(text)) continue;
+    if (name && text.toLowerCase() === name) continue;
+    items.push(text);
+  }
+
+  return [...new Set(items)].slice(0, 8);
+}
+
+export function extractVisibleText(html: string): string {
+  return decodeHtml(
+    html
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' '),
+  )
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -192,11 +306,21 @@ function cleanPhone(value: string): string {
   return value.replace(/[^\d+().\s-]/g, '').trim();
 }
 
+function safeDecode(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 function decodeHtml(value: string): string {
   return value
-    .replace(/&amp;/g, '&')
+    .replace(/&nbsp;/g, ' ')
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
     .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>');
+    .replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/&amp;/g, '&');
 }

@@ -31,7 +31,7 @@ import { WhatsAppSignupWizard } from '../integrations/whatsapp-signup-wizard';
 const SUGGESTED_ACTIONS = [
   { label: 'חברו Google Analytics', href: '/workspace/integrations/connections' },
   { label: 'הוסיפו אנשי קשר', href: '/crm/contacts' },
-  { label: 'הזמינו חברי צוות', href: '/workspace/settings' },
+  { label: 'הזמינו חברי צוות', href: ROUTES.workspaceSettingsTeam },
   { label: 'צרו קמפיין ראשון', href: '#' },
 ];
 

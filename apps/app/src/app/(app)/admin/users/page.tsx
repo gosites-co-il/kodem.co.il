@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type { AdminUserListItem } from '@kodem/contracts';
+import { SystemRole, type AdminUserListItem } from '@kodem/contracts';
 import { Button } from '@kodem/design-system/components/ui/button';
 import {
   Dialog,
@@ -77,7 +77,7 @@ export default function AdminUsersPage() {
       name: row.name,
       email: row.email,
       password: '',
-      platformRole: row.platformRole === 'super_admin',
+      platformRole: row.platformRole === SystemRole.SuperAdmin,
       emailVerified: row.emailVerified,
     });
     setEditing(row);
@@ -93,14 +93,14 @@ export default function AdminUsersPage() {
           name: form.name,
           email: form.email,
           password: form.password,
-          platformRole: form.platformRole ? 'super_admin' : null,
+          platformRole: form.platformRole ? SystemRole.SuperAdmin : null,
         });
       } else if (editing) {
         await api.adminUpdateUser(editing.id, {
           name: form.name,
           email: form.email,
           password: form.password || undefined,
-          platformRole: form.platformRole ? 'super_admin' : null,
+          platformRole: form.platformRole ? SystemRole.SuperAdmin : null,
           emailVerified: form.emailVerified,
         });
       }
@@ -238,7 +238,7 @@ export default function AdminUsersPage() {
                     {row.email}
                   </TableCell>
                   <TableCell>
-                    {row.platformRole === 'super_admin' ? 'סופר־אדמין' : 'משתמש'}
+                    {row.platformRole === SystemRole.SuperAdmin ? 'סופר־אדמין' : 'משתמש'}
                   </TableCell>
                   <TableCell>
                     {row.membershipCount}

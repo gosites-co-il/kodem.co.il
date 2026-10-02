@@ -1,5 +1,8 @@
 import type { OnboardingStatus } from './onboarding';
 import type { UserId } from './ids';
+import type { InviteStatus } from './invite';
+import type { RoleName } from './role';
+import type { PlanId } from './subscription';
 import type { PlatformRole } from './user';
 import type { Workspace, WorkspaceStatus } from './workspace';
 
@@ -11,6 +14,26 @@ export interface AdminWorkspaceListItem {
   owner: { id: UserId; email: string; name: string };
   memberCount: number;
   protected: boolean;
+  planId: PlanId;
+}
+
+export interface AdminWorkspaceMember {
+  userId: UserId;
+  name: string;
+  email: string;
+  role: RoleName;
+}
+
+export interface AdminWorkspaceInvite {
+  id: string;
+  email: string;
+  role: RoleName;
+  status: InviteStatus;
+}
+
+export interface AdminWorkspaceDetail extends AdminWorkspaceListItem {
+  members: AdminWorkspaceMember[];
+  invites: AdminWorkspaceInvite[];
 }
 
 export interface AdminUserListItem {

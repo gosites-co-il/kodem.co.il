@@ -14,6 +14,13 @@ export const PLATFORM_MODULES: PlatformModuleDefinition[] = [
     commercial: { includedIn: ALL_PLANS },
   },
   {
+    id: 'conversations',
+    name: 'Conversations',
+    description: 'Inbound conversations and lead intake across channels',
+    category: 'core',
+    commercial: { includedIn: ALL_PLANS },
+  },
+  {
     id: 'knowledge',
     name: 'Knowledge',
     description: 'Business knowledge base and documents',

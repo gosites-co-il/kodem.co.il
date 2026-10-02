@@ -24,6 +24,10 @@ export function inferIndustryFromSignals(
       industry: 'Technology / Software',
     },
     {
+      pattern: /מלון|מלונות|hotel|נופש|resort|hospitality/,
+      industry: 'Hospitality / Hotels',
+    },
+    {
       pattern: /מסעד|restaurant|food|קפה|בית קפה|catering/,
       industry: 'Food & Beverage',
     },

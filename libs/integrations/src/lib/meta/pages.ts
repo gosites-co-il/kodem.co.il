@@ -30,6 +30,66 @@ export async function listFacebookPages(
     }));
 }
 
+export interface OfficialFacebookPage {
+  pageId: string;
+  name?: string;
+  about?: string;
+  category?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  address?: string;
+  openingHours?: string;
+  link?: string;
+}
+
+/** Official Page fields available with pages_read_engagement. */
+export async function readOfficialFacebookPage(
+  pageAccessToken: string,
+  pageId: string,
+): Promise<OfficialFacebookPage> {
+  const url = new URL(`${META_GRAPH_BASE}/${encodeURIComponent(pageId)}`);
+  url.searchParams.set(
+    'fields',
+    'name,about,category,phone,emails,website,single_line_address,hours,fan_count,link',
+  );
+  url.searchParams.set('access_token', pageAccessToken);
+  const res = await fetch(url.toString());
+  if (!res.ok) {
+    throw new Error(
+      parseMetaError(res.status, await res.text(), 'טעינת דף Facebook נכשלה'),
+    );
+  }
+  const json = (await res.json()) as {
+    name?: string;
+    about?: string;
+    category?: string;
+    phone?: string;
+    emails?: string[];
+    website?: string;
+    single_line_address?: string;
+    hours?: Record<string, string>;
+    link?: string;
+  };
+  const hours = json.hours
+    ? Object.entries(json.hours)
+        .map(([day, time]) => `${day} ${time}`)
+        .join('; ')
+    : undefined;
+  return {
+    pageId,
+    name: json.name,
+    about: json.about,
+    category: json.category,
+    phone: json.phone,
+    email: json.emails?.[0],
+    website: json.website,
+    address: json.single_line_address,
+    openingHours: hours,
+    link: json.link,
+  };
+}
+
 export async function messengerSendText(
   pageAccessToken: string,
   pageId: string,

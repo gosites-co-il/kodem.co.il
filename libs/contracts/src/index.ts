@@ -15,6 +15,7 @@ export * from './lib/profile';
 export * from './lib/insight';
 export * from './lib/recommendation';
 export * from './lib/crm';
+export * from './lib/conversations';
 export * from './lib/crm-boards';
 export * from './lib/connections';
 export * from './lib/channels';

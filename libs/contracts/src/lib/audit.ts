@@ -2,6 +2,7 @@ import type { UserId, WorkspaceId } from './ids';
 
 export type AuditAction =
   | 'workspace.member.invited'
+  | 'workspace.member.invite_revoked'
   | 'workspace.member.joined'
   | 'workspace.member.removed'
   | 'workspace.member.role_changed'

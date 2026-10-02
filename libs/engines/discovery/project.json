@@ -4,5 +4,13 @@
   "sourceRoot": "libs/engines/discovery/src",
   "projectType": "library",
   "tags": ["scope:engine", "type:feature"],
-  "targets": {}
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/engines/discovery"],
+      "options": {
+        "jestConfig": "libs/engines/discovery/jest.config.cts"
+      }
+    }
+  }
 }

@@ -258,6 +258,8 @@ jobs:
           SYSTEM_MAIL_PROVIDER: ${{ vars.SYSTEM_MAIL_PROVIDER }}
           MAIL_FROM: ${{ vars.MAIL_FROM }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          AI_PROVIDER: ${{ vars.AI_PROVIDER }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AUDIT_MAIL_PROVIDER: ${{ vars.AUDIT_MAIL_PROVIDER }}
           AUDIT_MAIL_FROM: ${{ vars.AUDIT_MAIL_FROM }}
           AUDIT_SMTP_USER: ${{ vars.AUDIT_SMTP_USER }}
@@ -456,6 +458,8 @@ jobs:
                 systemMailProvider="${SYSTEM_MAIL_PROVIDER:-stub}" \
                 mailFrom="${MAIL_FROM:-noreply@kodem.co.il}" \
                 resendApiKey="${RESEND_API_KEY:-}" \
+                aiProvider="${AI_PROVIDER:-}" \
+                aiApiKey="${AI_API_KEY:-}" \
                 auditMailProvider="${AUDIT_MAIL_PROVIDER:-stub}" \
                 auditMailFrom="${AUDIT_MAIL_FROM:-admin@kodem.co.il}" \
                 auditSmtpUser="${AUDIT_SMTP_USER:-}" \

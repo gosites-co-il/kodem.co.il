@@ -14,5 +14,3 @@ export class StubLLMProvider implements LLMProvider {
     });
   }
 }
-
-export const defaultLLMProvider = new StubLLMProvider();

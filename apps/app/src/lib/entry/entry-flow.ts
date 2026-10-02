@@ -1,4 +1,4 @@
-import { ENTRY_ROUTES, type EntryResolution } from '@kodem/contracts';
+import { ENTRY_ROUTES, SystemRole, type EntryResolution } from '@kodem/contracts';
 import { api } from '../api';
 import { setToken } from '../auth/storage';
 
@@ -26,7 +26,7 @@ export async function completeAuthFlow(
   if (next && isSafeNextPath(next)) {
     return next;
   }
-  if (result.user.platformRole === 'super_admin') {
+  if (result.user.platformRole === SystemRole.SuperAdmin) {
     return ENTRY_ROUTES.adminWorkspaces;
   }
   return ENTRY_ROUTES.entry;

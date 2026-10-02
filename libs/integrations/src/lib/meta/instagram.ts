@@ -41,6 +41,45 @@ export async function listInstagramAccounts(
   return out;
 }
 
+export interface OfficialInstagramProfile {
+  igUserId: string;
+  name?: string;
+  username?: string;
+  biography?: string;
+  website?: string;
+  profileUrl?: string;
+}
+
+export async function readOfficialInstagramProfile(
+  pageAccessToken: string,
+  igUserId: string,
+): Promise<OfficialInstagramProfile> {
+  const url = new URL(`${META_GRAPH_BASE}/${encodeURIComponent(igUserId)}`);
+  url.searchParams.set('fields', 'name,username,biography,website,followers_count');
+  url.searchParams.set('access_token', pageAccessToken);
+  const res = await fetch(url.toString());
+  if (!res.ok) {
+    throw new Error(
+      parseMetaError(res.status, await res.text(), 'טעינת פרופיל Instagram נכשלה'),
+    );
+  }
+  const json = (await res.json()) as {
+    name?: string;
+    username?: string;
+    biography?: string;
+    website?: string;
+  };
+  const username = json.username?.replace(/^@/, '');
+  return {
+    igUserId,
+    name: json.name,
+    username,
+    biography: json.biography,
+    website: json.website,
+    profileUrl: username ? `https://instagram.com/${username}` : undefined,
+  };
+}
+
 export async function instagramSendText(
   pageAccessToken: string,
   igUserId: string,

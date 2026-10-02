@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { AdminWorkspaceListItem } from '@kodem/contracts';
+import type { AdminUserListItem, AdminWorkspaceListItem, PlanId } from '@kodem/contracts';
 import { Button } from '@kodem/design-system/components/ui/button';
 import {
   Dialog,
@@ -24,6 +25,13 @@ import {
 import { api, isApiError } from '../../../../lib/api';
 import { ROUTES } from '../../../../lib/constants';
 import { useAuth } from '../../../../providers/auth-provider';
+
+const PLAN_OPTIONS: { value: PlanId; label: string }[] = [
+  { value: 'free', label: 'Free' },
+  { value: 'starter', label: 'Starter' },
+  { value: 'growth', label: 'Growth' },
+  { value: 'enterprise', label: 'Enterprise' },
+];
 
 const STATUS_OPTIONS = [
   { value: 'active', label: 'פעיל' },
@@ -75,6 +83,9 @@ export default function AdminWorkspacesPage() {
   );
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [transferRow, setTransferRow] = useState<AdminWorkspaceListItem | null>(null);
+  const [transferUserId, setTransferUserId] = useState('');
+  const [users, setUsers] = useState<AdminUserListItem[]>([]);
   const [bulkStatus, setBulkStatus] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -160,6 +171,47 @@ export default function AdminWorkspacesPage() {
       await load();
     } catch (err) {
       setError(isApiError(err) ? err.message : 'מחיקת הסביבה נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function openTransfer(row: AdminWorkspaceListItem) {
+    setTransferRow(row);
+    setTransferUserId('');
+    setError(null);
+    if (users.length > 0) return;
+    try {
+      const data = await api.adminListUsers();
+      setUsers(data.users);
+    } catch (err) {
+      setError(isApiError(err) ? err.message : 'טעינת המשתמשים נכשלה');
+    }
+  }
+
+  async function confirmTransfer() {
+    if (!transferRow || !transferUserId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.adminTransferWorkspaceOwner(transferRow.workspace.id, transferUserId);
+      setTransferRow(null);
+      await load();
+    } catch (err) {
+      setError(isApiError(err) ? err.message : 'העברת הבעלות נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function changePlan(id: string, planId: PlanId) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.adminSetWorkspacePlan(id, planId);
+      await load();
+    } catch (err) {
+      setError(isApiError(err) ? err.message : 'עדכון התוכנית נכשל');
     } finally {
       setBusy(false);
     }
@@ -321,6 +373,7 @@ export default function AdminWorkspacesPage() {
               <TableHead className="text-start">מזהה</TableHead>
               <TableHead className="text-start">בעלים</TableHead>
               <TableHead className="text-start">סטטוס</TableHead>
+              <TableHead className="text-start">תוכנית</TableHead>
               <TableHead className="text-start">חברים</TableHead>
               <TableHead className="text-start">פעולות</TableHead>
             </TableRow>
@@ -356,6 +409,23 @@ export default function AdminWorkspacesPage() {
                   {STATUS_OPTIONS.find((option) => option.value === row.workspace.status)
                     ?.label ?? row.workspace.status}
                 </TableCell>
+                <TableCell>
+                  <select
+                    className="h-9 rounded-md border bg-background px-2 text-sm"
+                    value={row.planId}
+                    disabled={busy}
+                    aria-label={`תוכנית ${row.workspace.name}`}
+                    onChange={(event) =>
+                      void changePlan(row.workspace.id, event.target.value as PlanId)
+                    }
+                  >
+                    {PLAN_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </TableCell>
                 <TableCell>{row.memberCount}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-2">
@@ -366,7 +436,19 @@ export default function AdminWorkspacesPage() {
                       disabled={busy || row.workspace.status === 'deactivated'}
                       onClick={() => void impersonate(row)}
                     >
-                      כניסה
+                      צפייה
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" asChild>
+                      <Link href={`/admin/workspaces/${row.workspace.id}`}>אנשים</Link>
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => void openTransfer(row)}
+                    >
+                      בעלות
                     </Button>
                     <Button
                       type="button"
@@ -528,6 +610,50 @@ export default function AdminWorkspacesPage() {
               onClick={() => void confirmBulkDelete()}
             >
               מחיקה
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={transferRow !== null}
+        onOpenChange={(open) => !open && setTransferRow(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>העברת בעלות</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            הבעלים החדש של {transferRow?.workspace.name} ימונה, והבעלים הקודם
+            יהפוך למנהל.
+          </p>
+          <label className="grid gap-1.5 text-sm">
+            <span>בעלים חדש</span>
+            <select
+              className="h-10 rounded-md border bg-background px-3"
+              value={transferUserId}
+              onChange={(event) => setTransferUserId(event.target.value)}
+            >
+              <option value="">בחרו משתמש</option>
+              {users
+                .filter((user) => user.id !== transferRow?.owner.id)
+                .map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.email})
+                  </option>
+                ))}
+            </select>
+          </label>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setTransferRow(null)}>
+              ביטול
+            </Button>
+            <Button
+              type="button"
+              disabled={busy || !transferUserId}
+              onClick={() => void confirmTransfer()}
+            >
+              העברה
             </Button>
           </DialogFooter>
         </DialogContent>

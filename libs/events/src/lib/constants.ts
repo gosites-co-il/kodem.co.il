@@ -26,4 +26,8 @@ export const EVENT_TYPES = {
   MESSAGE_FAILED: 'message.failed',
   CONVERSATION_CREATED: 'conversation.created',
   CONVERSATION_UPDATED: 'conversation.updated',
+  BUSINESS_PROFILE_SYNC_STARTED: 'business_profile.sync.started',
+  BUSINESS_PROFILE_SYNC_COMPLETED: 'business_profile.sync.completed',
+  BUSINESS_PROFILE_SYNC_FAILED: 'business_profile.sync.failed',
+  BUSINESS_PROFILE_FIELD_UPDATED: 'business_profile.field.updated',
 } as const satisfies Record<string, EventType>;
