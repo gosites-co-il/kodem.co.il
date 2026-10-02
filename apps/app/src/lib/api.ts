@@ -31,6 +31,7 @@ import type {
   CrmBoardDetail,
   CrmBoardItem,
   CrmBoardPresetDefinition,
+  CrmSettings,
   EmailMessagesResult,
   EmailSendInput,
   EmailSendResult,
@@ -660,6 +661,17 @@ export const api = {
 
   getCrmOverview() {
     return request<CrmOverviewResponse>('/crm/overview');
+  },
+
+  getCrmSettings() {
+    return request<CrmSettings>('/crm/settings');
+  },
+
+  saveCrmSettings(body: CrmSettings) {
+    return request<CrmSettings>('/crm/settings', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
   },
 
   listCrmLeads() {

@@ -3,6 +3,7 @@ import {
   CreateContactInput,
   CreateLeadInput,
   CreateTaskInput,
+  CrmSettings,
   Lead,
   LeadStatus,
   Task,
@@ -391,5 +392,50 @@ export class CrmTaskRepository {
         ...(status ? { status } : {}),
       },
     });
+  }
+}
+
+function readJson<T>(value: string, fallback: T): T {
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+export class CrmSettingsRepository {
+  private readonly db = getPrismaClient();
+
+  async find(workspaceId: WorkspaceId): Promise<CrmSettings | null> {
+    const rows = await this.db.$queryRaw<
+      Array<{ stages: string; groups: string; fields: string }>
+    >`
+      SELECT "stages", "groups", "fields"
+      FROM "CrmSettings"
+      WHERE "workspaceId" = ${workspaceId}
+    `;
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      stages: readJson(row.stages, []),
+      groups: readJson(row.groups, []),
+      fields: readJson(row.fields, []),
+    };
+  }
+
+  async save(workspaceId: WorkspaceId, settings: CrmSettings): Promise<CrmSettings> {
+    const stages = JSON.stringify(settings.stages);
+    const groups = JSON.stringify(settings.groups);
+    const fields = JSON.stringify(settings.fields);
+    await this.db.$executeRaw`
+      INSERT INTO "CrmSettings" ("workspaceId", "stages", "groups", "fields", "updatedAt")
+      VALUES (${workspaceId}, ${stages}, ${groups}, ${fields}, NOW())
+      ON CONFLICT ("workspaceId") DO UPDATE SET
+        "stages" = EXCLUDED."stages",
+        "groups" = EXCLUDED."groups",
+        "fields" = EXCLUDED."fields",
+        "updatedAt" = NOW()
+    `;
+    return settings;
   }
 }

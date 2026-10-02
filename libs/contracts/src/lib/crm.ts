@@ -139,3 +139,33 @@ export interface UpdateTaskInput {
 
 export type { Lead as CrmLead };
 export type { Contact as CrmContact };
+
+export type CrmCustomFieldType = 'text' | 'number';
+
+export interface CrmStage {
+  id: string;
+  label: string;
+  color: string;
+  position: number;
+}
+
+export interface CrmContactGroup {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface CrmCustomField {
+  id: string;
+  name: string;
+  type: CrmCustomFieldType;
+  /** Visible to the AI agent only. */
+  aiOnly: boolean;
+  active: boolean;
+}
+
+export interface CrmSettings {
+  stages: CrmStage[];
+  groups: CrmContactGroup[];
+  fields: CrmCustomField[];
+}

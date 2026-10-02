@@ -46,6 +46,7 @@ model Workspace {
   crmBoards         CrmBoard[]
   crmBoardColumns   CrmBoardColumn[]
   crmBoardItems     CrmBoardItem[]
+  crmSettings       CrmSettings?
   connections       WorkspaceConnection[]
   channels          WorkspaceChannel[]
 }
@@ -481,6 +482,16 @@ model CrmBoardItem {
   @@index([leadId])
   @@index([contactId])
   @@index([taskId])
+}
+
+model CrmSettings {
+  workspaceId String   @id
+  stages      String   @default("[]")
+  groups      String   @default("[]")
+  fields      String   @default("[]")
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 model WorkspaceConnection {

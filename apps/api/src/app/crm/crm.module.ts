@@ -5,6 +5,7 @@ import { CrmContactsController } from './contacts.controller';
 import { CrmTasksController } from './tasks.controller';
 import { CrmOverviewController } from './overview.controller';
 import { CrmBoardsController } from './boards.controller';
+import { CrmSettingsController } from './settings.controller';
 
 @Module({
   imports: [AuthModule],
@@ -14,6 +15,7 @@ import { CrmBoardsController } from './boards.controller';
     CrmLeadsController,
     CrmContactsController,
     CrmTasksController,
+    CrmSettingsController,
   ],
 })
 export class CrmModule {}
