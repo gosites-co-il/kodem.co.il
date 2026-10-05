@@ -1,21 +1,21 @@
 (function () {
-  var script = document.currentScript;
+  const script = document.currentScript;
   if (!script || !script.getAttribute) return;
-  var slug = script.getAttribute('data-kodem-slug');
+  const slug = script.getAttribute('data-kodem-slug');
   if (!slug || !script.parentNode) return;
-  var params = new URLSearchParams(window.location.search);
-  var query = new URLSearchParams();
+  const params = new URLSearchParams(window.location.search);
+  const query = new URLSearchParams();
   ['utm_source', 'utm_medium', 'utm_campaign'].forEach(function (key) {
-    var value = params.get(key);
+    const value = params.get(key);
     if (value) query.set(key, value);
   });
-  var origin = script.src ? new URL(script.src).origin : window.location.origin;
-  var href =
+  const origin = script.src ? new URL(script.src).origin : window.location.origin;
+  const href =
     origin +
     '/f/' +
     encodeURIComponent(slug) +
     (query.toString() ? '?' + query.toString() : '');
-  var link = document.createElement('a');
+  const link = document.createElement('a');
   link.href = href;
   link.target = '_blank';
   link.rel = 'noopener';

@@ -3,13 +3,13 @@
  */
 
 import { configureDatabaseEnv } from '@kodem/database';
+import { describeAiChat } from '@kodem/platform/ai';
 
 configureDatabaseEnv(__dirname);
 
 async function bootstrap() {
   const { Logger } = await import('@nestjs/common');
   const { NestFactory } = await import('@nestjs/core');
-  const { describeAiChat } = await import('@kodem/platform/ai');
   const { AppModule } = await import('./app/app.module');
   const ai = describeAiChat();
   Logger.log(
