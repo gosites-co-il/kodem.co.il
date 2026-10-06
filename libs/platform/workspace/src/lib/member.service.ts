@@ -68,18 +68,16 @@ export class MemberService {
 
   async listMembers(workspaceId: WorkspaceId): Promise<MemberListItem[]> {
     const members = await this.memberRepo.listByWorkspace(workspaceId);
-    const results: MemberListItem[] = [];
-
-    for (const member of members) {
-      const user = await this.userRepo.findById(member.userId);
-      results.push({
-        ...member,
-        email: user?.email ?? '',
-        name: user?.name ?? '',
-      });
-    }
-
-    return results;
+    return Promise.all(
+      members.map(async (member) => {
+        const user = await this.userRepo.findById(member.userId);
+        return {
+          ...member,
+          email: user?.email ?? '',
+          name: user?.name ?? '',
+        };
+      }),
+    );
   }
 
   async inviteMember(
@@ -112,12 +110,10 @@ export class MemberService {
       }
     }
 
-    const memberCount = await this.memberRepo.countByWorkspace(
-      input.workspaceId,
-    );
-    const pendingCount = await this.inviteRepo.countPendingByWorkspace(
-      input.workspaceId,
-    );
+    const [memberCount, pendingCount] = await Promise.all([
+      this.memberRepo.countByWorkspace(input.workspaceId),
+      this.inviteRepo.countPendingByWorkspace(input.workspaceId),
+    ]);
     await this.entitlements.assertLimit(
       input.workspaceId,
       'members',
@@ -247,8 +243,10 @@ export class MemberService {
       status = 'expired';
     }
 
-    const inviter = await this.userRepo.findById(invite.invitedById);
-    const members = await this.listMembers(invite.workspaceId);
+    const [inviter, members] = await Promise.all([
+      this.userRepo.findById(invite.invitedById),
+      this.listMembers(invite.workspaceId),
+    ]);
     const membersPreview = members.slice(0, 4).map((m) => ({
       name: m.name || m.email,
       initials: initialsFromName(m.name || m.email),

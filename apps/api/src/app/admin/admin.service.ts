@@ -70,8 +70,10 @@ export class AdminService {
     if (!name) throw new Error('חסר שם סביבה');
 
     const owner = await this.requireUserByEmail(input.ownerEmail);
-    const slug = await this.uniqueSlug(input.slug?.trim() || name);
-    const previousActive = await this.userRepo.getActiveWorkspaceId(owner.id);
+    const [slug, previousActive] = await Promise.all([
+      this.uniqueSlug(input.slug?.trim() || name),
+      this.userRepo.getActiveWorkspaceId(owner.id),
+    ]);
 
     const created = await this.workspaceRepo.createForUser({
       name,
@@ -237,9 +239,11 @@ export class AdminService {
   }
 
   async workspaceDetail(id: WorkspaceId): Promise<AdminWorkspaceDetail> {
-    const item = await this.workspaceItem(id);
-    const members = await this.memberRepo.listByWorkspace(id);
-    const invites = await this.inviteRepo.listByWorkspace(id);
+    const [item, members, invites] = await Promise.all([
+      this.workspaceItem(id),
+      this.memberRepo.listByWorkspace(id),
+      this.inviteRepo.listByWorkspace(id),
+    ]);
     const people = await Promise.all(
       members.map(async (member) => {
         const user = await this.userRepo.findById(member.userId);
@@ -481,8 +485,10 @@ export class AdminService {
   private async workspaceItem(id: WorkspaceId): Promise<AdminWorkspaceListItem> {
     const workspace = await this.workspaceRepo.findById(id);
     if (!workspace) throw new Error('הסביבה לא נמצאה');
-    const owner = await this.userRepo.findById(workspace.ownerId);
-    const members = await this.memberRepo.listByWorkspace(id);
+    const [owner, members] = await Promise.all([
+      this.userRepo.findById(workspace.ownerId),
+      this.memberRepo.listByWorkspace(id),
+    ]);
     return {
       workspace,
       owner: {

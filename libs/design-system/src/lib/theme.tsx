@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { THEME_STORAGE_KEY } from './theme-script';
@@ -50,10 +51,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeSetting>('system');
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light');
   const [mounted, setMounted] = useState(false);
+  const themeRef = useRef<ThemeSetting>('system');
 
   useEffect(() => {
     const stored = readStoredTheme();
     const resolved = resolveTheme(stored);
+    themeRef.current = stored;
     setThemeState(stored);
     setResolvedTheme(resolved);
     applyTheme(resolved);
@@ -61,14 +64,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     function onSystemChange() {
-      setThemeState((current) => {
-        if (current === 'system') {
-          const next = getSystemTheme();
-          setResolvedTheme(next);
-          applyTheme(next);
-        }
-        return current;
-      });
+      if (themeRef.current !== 'system') return;
+      const next = getSystemTheme();
+      setResolvedTheme(next);
+      applyTheme(next);
     }
 
     media.addEventListener('change', onSystemChange);
@@ -76,6 +75,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setTheme = useCallback((next: ThemeSetting) => {
+    themeRef.current = next;
     localStorage.setItem(THEME_STORAGE_KEY, next);
     const resolved = resolveTheme(next);
     setThemeState(next);

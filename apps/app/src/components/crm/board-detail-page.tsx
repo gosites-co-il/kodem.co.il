@@ -87,7 +87,38 @@ export function BoardDetailPage({ boardId }: { boardId: string }) {
   }
 
   useEffect(() => {
-    void load();
+    let ignore = false;
+    setLoading(true);
+    void (async () => {
+      try {
+        const [boardRes, presetsRes, leadsRes, contactsRes, tasksRes] =
+          await Promise.all([
+            api.getCrmBoard(boardId),
+            api.listCrmPresets(),
+            api.listCrmLeads(),
+            api.listCrmContacts(),
+            api.listCrmTasks(),
+          ]);
+        if (ignore) return;
+        setBoard(boardRes.board);
+        setPreset(
+          presetsRes.presets.find((p) => p.id === boardRes.board.preset) ?? null,
+        );
+        setLeads(leadsRes.leads);
+        setContacts(contactsRes.contacts);
+        setTasks(tasksRes.tasks);
+        setColumnId((current) => current || boardRes.board.columns[0]?.id || '');
+        setError(null);
+      } catch (err) {
+        if (ignore) return;
+        setError(isApiError(err) ? err.message : 'שגיאה בטעינת הלוח');
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
   }, [boardId]);
 
   async function onCreate(event: FormEvent) {

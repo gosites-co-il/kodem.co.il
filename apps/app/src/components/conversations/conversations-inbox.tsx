@@ -1,8 +1,20 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  Camera,
+  Globe,
+  Mail,
+  MessageCircle,
+  MessageSquare,
+  MessagesSquare,
+  Phone,
+  Search,
+  Send,
+  type LucideIcon,
+} from 'lucide-react';
 import { CHANNEL_TYPES, CONVERSATION_REPLY_CHANNELS } from '@kodem/contracts';
 import type {
   ChannelType,
@@ -10,13 +22,6 @@ import type {
   ConversationSummary,
 } from '@kodem/contracts';
 import { Button } from '@kodem/design-system/components/ui/button';
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from '@kodem/design-system/components/ui/drawer';
 import { Input } from '@kodem/design-system/components/ui/input';
 import { ScrollArea } from '@kodem/design-system/components/ui/scroll-area';
 import { Textarea } from '@kodem/design-system/components/ui/textarea';
@@ -30,57 +35,114 @@ import {
   formatConversationTime,
 } from '../../lib/conversations';
 
+const CHANNEL_ICONS: Record<ChannelType, LucideIcon> = {
+  whatsapp: MessageCircle,
+  instagram: Camera,
+  facebook_messenger: MessagesSquare,
+  email: Mail,
+  web_chat: Globe,
+  sms: MessageSquare,
+  telegram: Send,
+  phone: Phone,
+};
+
 function canReply(channel: ChannelType): boolean {
   return CONVERSATION_REPLY_CHANNELS.includes(
     channel as (typeof CONVERSATION_REPLY_CHANNELS)[number],
   );
 }
 
-function CustomerRail({ conversation }: { conversation: ConversationDetail }) {
-  const initial = conversation.contact.name.trim().slice(0, 1) || '?';
+function PersonMark({
+  name,
+  channel,
+  size = 'sm',
+}: {
+  name: string;
+  channel: ChannelType;
+  size?: 'sm' | 'lg';
+}) {
+  const initial = name.trim().slice(0, 1) || '?';
+  const Icon = CHANNEL_ICONS[channel];
   return (
-    <div className="space-y-4">
+    <span className="relative inline-flex shrink-0">
+      <span
+        className={cn(
+          'flex items-center justify-center rounded-full bg-secondary font-semibold text-secondary-foreground',
+          size === 'lg' ? 'size-14 text-lg' : 'size-10 text-sm',
+        )}
+        aria-hidden
+      >
+        {initial}
+      </span>
+      <span className="absolute -bottom-0.5 -end-0.5 flex size-5 items-center justify-center rounded-full border-2 border-card bg-background text-foreground">
+        <Icon className="size-3" aria-hidden />
+      </span>
+    </span>
+  );
+}
+
+function FilterChip({
+  pressed,
+  onClick,
+  children,
+}: {
+  pressed: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      onClick={onClick}
+      className={cn(
+        'shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        pressed
+          ? 'bg-secondary/15 text-secondary'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function CustomerRail({ conversation }: { conversation: ConversationDetail }) {
+  const facts = [
+    ['טלפון', conversation.contact.phone || '—'],
+    ['אימייל', conversation.contact.email || '—'],
+    ['סטטוס ליד', conversationLeadLabel(conversation.lead?.status)],
+    ['מקור', CONVERSATION_CHANNEL_LABELS[conversation.channel]],
+    ...(conversation.utmSource || conversation.utmMedium || conversation.utmCampaign
+      ? [[
+          'UTM',
+          [conversation.utmSource, conversation.utmMedium, conversation.utmCampaign]
+            .filter(Boolean)
+            .join(' · '),
+        ] as [string, string]]
+      : []),
+  ];
+  return (
+    <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-full bg-secondary text-sm font-medium text-secondary-foreground">
-          {initial}
-        </div>
+        <PersonMark name={conversation.contact.name} channel={conversation.channel} size="lg" />
         <div className="min-w-0">
-          <p className="truncate font-medium">{conversation.contact.name}</p>
-          <p className="text-sm text-muted-foreground">
-            {CONVERSATION_CHANNEL_LABELS[conversation.channel]}
+          <p className="truncate text-base font-semibold">{conversation.contact.name}</p>
+          <p className="truncate text-sm text-muted-foreground">
+            {conversation.contact.email || CONVERSATION_CHANNEL_LABELS[conversation.channel]}
           </p>
         </div>
       </div>
-      <dl className="space-y-2 text-sm">
-        <div>
-          <dt className="text-muted-foreground">טלפון</dt>
-          <dd>{conversation.contact.phone || '—'}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">אימייל</dt>
-          <dd className="break-all">{conversation.contact.email || '—'}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">סטטוס ליד</dt>
-          <dd>{conversationLeadLabel(conversation.lead?.status)}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">מקור</dt>
-          <dd>{CONVERSATION_CHANNEL_LABELS[conversation.channel]}</dd>
-        </div>
-        {conversation.utmSource || conversation.utmMedium || conversation.utmCampaign ? (
-          <div>
-            <dt className="text-muted-foreground">UTM</dt>
-            <dd>
-              {[conversation.utmSource, conversation.utmMedium, conversation.utmCampaign]
-                .filter(Boolean)
-                .join(' · ')}
-            </dd>
+      <dl className="divide-y text-sm">
+        {facts.map(([label, value]) => (
+          <div key={label} className="flex items-baseline justify-between gap-4 py-2.5">
+            <dt className="shrink-0 text-muted-foreground">{label}</dt>
+            <dd className="min-w-0 break-all text-end">{value}</dd>
           </div>
-        ) : null}
+        ))}
       </dl>
-      <Button asChild variant="secondary" size="sm">
-        <Link href={`/crm/contacts/${conversation.contact.id}`}>איש קשר</Link>
+      <Button asChild variant="outline" className="w-full">
+        <Link href={`/crm/contacts/${conversation.contact.id}`}>פתיחת איש קשר</Link>
       </Button>
     </div>
   );
@@ -104,6 +166,7 @@ export function ConversationsInbox() {
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [showCustomer, setShowCustomer] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), 250);
@@ -130,8 +193,35 @@ export function ConversationsInbox() {
   }
 
   useEffect(() => {
-    void loadList();
+    let ignore = false;
+    setLoadingList(true);
+    void (async () => {
+      try {
+        const res = await api.listConversations({
+          channel: channel === 'all' ? undefined : channel,
+          unread: unreadOnly || undefined,
+          q: debouncedQuery || undefined,
+        });
+        if (ignore) return;
+        setRows(res.conversations);
+        setCounts(Object.fromEntries(res.counts.map((item) => [item.channel, item.count])));
+        setUnreadCount(res.unreadCount);
+        setError(null);
+      } catch (err) {
+        if (ignore) return;
+        setError(isApiError(err) ? err.message : 'שגיאה בטעינת השיחות');
+      } finally {
+        if (!ignore) setLoadingList(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
   }, [channel, unreadOnly, debouncedQuery]);
+
+  useEffect(() => {
+    setShowCustomer(false);
+  }, [conversationId]);
 
   useEffect(() => {
     if (!conversationId) {
@@ -214,63 +304,49 @@ export function ConversationsInbox() {
   }
 
   const list = (
-    <section className="flex min-h-0 flex-col rounded-md border">
+    <section className="flex h-full min-h-0 min-w-0 flex-col">
       <div className="space-y-3 border-b p-3">
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="text-lg font-semibold">שיחות</h1>
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            disabled={syncing}
-            onClick={() => void syncEmail()}
-          >
-            {syncing ? 'מסנכרן...' : 'סנכרן אימייל'}
-          </Button>
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="חיפוש לפי שם, נושא או הודעה"
+            aria-label="חיפוש שיחות"
+            className="ps-9"
+          />
         </div>
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="חיפוש לפי שם, נושא או הודעה"
-          aria-label="חיפוש שיחות"
-        />
-        <div className="flex flex-wrap gap-1.5">
-          <Button
-            type="button"
-            size="sm"
-            variant={channel === 'all' && !unreadOnly ? 'default' : 'outline'}
+        <div className="flex gap-1 overflow-x-auto pb-1">
+          <FilterChip
+            pressed={channel === 'all' && !unreadOnly}
             onClick={() => {
               setChannel('all');
               setUnreadOnly(false);
             }}
           >
             הכל
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={unreadOnly ? 'default' : 'outline'}
-            onClick={() => setUnreadOnly((value) => !value)}
-          >
+          </FilterChip>
+          <FilterChip pressed={unreadOnly} onClick={() => setUnreadOnly((value) => !value)}>
             לא נקראו {unreadCount}
-          </Button>
+          </FilterChip>
           {CHANNEL_TYPES.map((item) => (
-            <Button
+            <FilterChip
               key={item}
-              type="button"
-              size="sm"
-              variant={channel === item ? 'default' : 'outline'}
+              pressed={channel === item}
               onClick={() => {
                 setChannel(item);
                 setUnreadOnly(false);
               }}
             >
               {CONVERSATION_CHANNEL_LABELS[item]} {counts[item] ?? 0}
-            </Button>
+            </FilterChip>
           ))}
         </div>
       </div>
-      <ScrollArea className="h-[28rem] lg:h-[calc(100vh-16rem)]">
+      <ScrollArea className="min-h-0 flex-1">
         {loadingList ? (
           <div className="p-3">
             <CrmLoading label="טוען שיחות..." />
@@ -284,40 +360,56 @@ export function ConversationsInbox() {
           </div>
         ) : (
           <ul>
-            {rows.map((row) => (
-              <li key={row.id}>
-                <button
-                  type="button"
-                  onClick={() => openConversation(row.id)}
-                  className={cn(
-                    'flex w-full items-start gap-3 border-b px-3 py-3 text-start hover:bg-muted/60',
-                    row.id === conversationId && 'bg-muted',
-                  )}
-                >
-                  <span
+            {rows.map((row) => {
+              const selected = row.id === conversationId;
+              const title = row.subject || row.preview || 'שיחה ללא נושא';
+              return (
+                <li key={row.id}>
+                  <button
+                    type="button"
+                    onClick={() => openConversation(row.id)}
+                    aria-current={selected ? 'true' : undefined}
                     className={cn(
-                      'mt-1.5 size-2 shrink-0 rounded-full',
-                      row.unread ? 'bg-primary' : 'bg-transparent',
+                      'flex w-full items-start gap-3 border-b px-3 py-3 text-start transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                      selected && 'bg-muted',
                     )}
-                    aria-hidden
-                  />
-                  <span className="min-w-0 flex-1 space-y-1">
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="truncate font-medium">{row.contact.name}</span>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {formatConversationTime(row.lastMessageAt)}
+                  >
+                    <PersonMark name={row.contact.name} channel={row.channel} />
+                    <span className="min-w-0 flex-1 space-y-1">
+                      <span className="flex items-baseline justify-between gap-2">
+                        <span
+                          className={cn(
+                            'truncate text-sm',
+                            row.unread ? 'font-semibold' : 'font-medium',
+                          )}
+                        >
+                          {row.contact.name}
+                        </span>
+                        <span className="flex shrink-0 items-center gap-1.5 text-xs tabular-nums text-muted-foreground">
+                          {row.unread ? (
+                            <span className="size-1.5 rounded-full bg-primary" aria-hidden />
+                          ) : null}
+                          {formatConversationTime(row.lastMessageAt)}
+                        </span>
                       </span>
+                      <span
+                        className={cn(
+                          'block truncate text-sm',
+                          row.unread ? 'text-foreground' : 'text-muted-foreground',
+                        )}
+                      >
+                        {title}
+                      </span>
+                      {row.subject && row.preview ? (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {row.preview}
+                        </span>
+                      ) : null}
                     </span>
-                    <span className="block text-xs text-muted-foreground">
-                      {CONVERSATION_CHANNEL_LABELS[row.channel]}
-                    </span>
-                    <span className="block truncate text-sm text-muted-foreground">
-                      {row.preview || row.subject || '—'}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            ))}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </ScrollArea>
@@ -325,13 +417,22 @@ export function ConversationsInbox() {
   );
 
   const thread = (
-    <section className="flex min-h-[28rem] flex-col rounded-md border lg:min-h-[calc(100vh-12rem)]">
+    <section className="flex h-full min-h-0 flex-col">
       {!conversationId ? (
-        <div className="flex flex-1 items-center p-6">
+        <div className="flex flex-1 items-center justify-center bg-background p-8">
           <CrmEmpty title="בחרו שיחה" description="ההודעות יופיעו כאן." />
         </div>
       ) : loadingThread || !conversation ? (
         <div className="p-4">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="mb-3 lg:hidden"
+            onClick={closeConversation}
+          >
+            חזרה
+          </Button>
           {error ? (
             <CrmError message={error} onRetry={() => openConversation(conversationId)} />
           ) : (
@@ -340,47 +441,45 @@ export function ConversationsInbox() {
         </div>
       ) : (
         <>
-          <header className="flex items-start justify-between gap-3 border-b p-3">
-            <div className="min-w-0 space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="lg:hidden"
-                  onClick={closeConversation}
-                >
-                  חזרה
-                </Button>
-                <h2 className="truncate text-base font-semibold">
-                  {conversation.contact.name}
-                </h2>
-                <CrmStatusBadge>
-                  {CONVERSATION_CHANNEL_LABELS[conversation.channel]}
-                </CrmStatusBadge>
-                <CrmStatusBadge tone={conversation.status === 'open' ? 'secondary' : 'muted'}>
-                  {CONVERSATION_STATUS_LABELS[conversation.status]}
-                </CrmStatusBadge>
+          <header className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2.5">
+            <div className="flex min-w-0 items-center gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="lg:hidden"
+                onClick={closeConversation}
+              >
+                חזרה
+              </Button>
+              <PersonMark name={conversation.contact.name} channel={conversation.channel} />
+              <div className="min-w-0">
+                <h2 className="truncate text-base font-semibold">{conversation.contact.name}</h2>
+                <p className="truncate text-xs text-muted-foreground">
+                  {conversation.subject || CONVERSATION_CHANNEL_LABELS[conversation.channel]}
+                </p>
               </div>
             </div>
-            <Drawer>
-              <DrawerTrigger asChild>
-                <Button type="button" variant="outline" size="sm" className="lg:hidden">
-                  פרטי לקוח
-                </Button>
-              </DrawerTrigger>
-              <DrawerContent>
-                <DrawerHeader>
-                  <DrawerTitle>פרטי לקוח</DrawerTitle>
-                </DrawerHeader>
-                <div className="px-4 pb-6">
-                  <CustomerRail conversation={conversation} />
-                </div>
-              </DrawerContent>
-            </Drawer>
+            <div className="flex shrink-0 items-center gap-2">
+              <CrmStatusBadge>
+                {CONVERSATION_CHANNEL_LABELS[conversation.channel]}
+              </CrmStatusBadge>
+              <CrmStatusBadge tone={conversation.status === 'open' ? 'secondary' : 'muted'}>
+                {CONVERSATION_STATUS_LABELS[conversation.status]}
+              </CrmStatusBadge>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="lg:hidden"
+                onClick={() => setShowCustomer(true)}
+              >
+                לקוח
+              </Button>
+            </div>
           </header>
-          <ScrollArea className="flex-1">
-            <div className="space-y-3 p-3">
+          <ScrollArea className="min-h-0 flex-1 bg-background">
+            <div className="space-y-3 p-4">
               {conversation.messages.map((message) => {
                 const outbound = message.direction === 'outbound';
                 return (
@@ -390,16 +489,16 @@ export function ConversationsInbox() {
                   >
                     <div
                       className={cn(
-                        'max-w-[80%] rounded-md px-3 py-2 text-sm',
+                        'max-w-[min(36rem,85%)] rounded-lg px-4 py-3 text-sm leading-6',
                         outbound
                           ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted text-foreground',
+                          : 'border bg-card text-foreground',
                       )}
                     >
                       <p className="whitespace-pre-wrap">{message.body || '—'}</p>
                       <p
                         className={cn(
-                          'mt-1 text-xs',
+                          'mt-2 text-xs tabular-nums',
                           outbound ? 'text-primary-foreground/80' : 'text-muted-foreground',
                         )}
                       >
@@ -412,17 +511,20 @@ export function ConversationsInbox() {
             </div>
           </ScrollArea>
           {canReply(conversation.channel) ? (
-            <form className="space-y-2 border-t p-3" onSubmit={sendReply}>
-              <Textarea
-                value={reply}
-                onChange={(event) => setReply(event.target.value)}
-                placeholder="תשובה ללקוח"
-                aria-label="תשובה ללקוח"
-                rows={3}
-              />
-              <Button type="submit" disabled={sending || !reply.trim()}>
-                {sending ? 'שולח...' : 'שלח'}
-              </Button>
+            <form className="border-t bg-background p-3" onSubmit={sendReply}>
+              <div className="flex items-end gap-2 rounded-lg border bg-card p-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                <Textarea
+                  value={reply}
+                  onChange={(event) => setReply(event.target.value)}
+                  placeholder="תשובה ללקוח"
+                  aria-label="תשובה ללקוח"
+                  rows={2}
+                  className="min-h-11 flex-1 resize-none border-0 bg-transparent px-2 py-1.5 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                />
+                <Button type="submit" className="shrink-0" disabled={sending || !reply.trim()}>
+                  {sending ? 'שולח...' : 'שלח'}
+                </Button>
+              </div>
             </form>
           ) : (
             <p className="border-t p-3 text-sm text-muted-foreground">
@@ -434,21 +536,71 @@ export function ConversationsInbox() {
     </section>
   );
 
-  return (
-    <div className="space-y-3">
-      {error && !loadingThread ? (
-        <CrmError message={error} onRetry={() => void loadList()} />
-      ) : null}
-      <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)_16rem]">
-        <div className={cn(conversationId ? 'hidden lg:block' : 'block')}>{list}</div>
-        <div className={cn(conversationId ? 'block' : 'hidden lg:block')}>{thread}</div>
-        <aside className="hidden rounded-md border p-4 lg:block">
+  const customer = (
+    <aside className="flex h-full min-h-0 flex-col">
+      <header className="flex items-center gap-2 border-b px-3 py-2.5">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="lg:hidden"
+          onClick={() => setShowCustomer(false)}
+        >
+          חזרה לשיחה
+        </Button>
+        <h2 className="text-sm font-semibold">לקוח</h2>
+      </header>
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="p-4">
           {conversation ? (
             <CustomerRail conversation={conversation} />
           ) : (
             <p className="text-sm text-muted-foreground">פרטי הלקוח יופיעו כאן.</p>
           )}
-        </aside>
+        </div>
+      </ScrollArea>
+    </aside>
+  );
+
+  return (
+    <div className="-mx-4 -my-6 flex h-[calc(100dvh-3.5rem)] flex-col overflow-hidden bg-card sm:-mx-6 lg:-my-8">
+      <header className="flex items-center justify-between gap-3 border-b px-4 py-3">
+        <h1 className="text-lg font-semibold">שיחות</h1>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          disabled={syncing}
+          onClick={() => void syncEmail()}
+        >
+          {syncing ? 'מסנכרן...' : 'סנכרן אימייל'}
+        </Button>
+      </header>
+      {error && !loadingThread ? (
+        <div className="border-b px-4 py-2">
+          <CrmError message={error} onRetry={() => void loadList()} />
+        </div>
+      ) : null}
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] lg:grid-cols-[22rem_minmax(0,1fr)_18rem]">
+        <div
+          className={cn(
+            'h-full min-h-0 border-e',
+            conversationId ? 'hidden lg:block' : 'block',
+          )}
+        >
+          {list}
+        </div>
+        <div
+          className={cn(
+            'h-full min-h-0 border-e',
+            conversationId && !showCustomer ? 'block' : 'hidden lg:block',
+          )}
+        >
+          {thread}
+        </div>
+        <div className={cn('h-full min-h-0', showCustomer ? 'block' : 'hidden lg:block')}>
+          {customer}
+        </div>
       </div>
     </div>
   );

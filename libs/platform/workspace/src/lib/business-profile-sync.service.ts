@@ -94,13 +94,15 @@ export class BusinessProfileSyncService {
       });
     }
 
-    for (const field of merged.updated) {
-      await this.events.emit({
-        type: EVENT_TYPES.BUSINESS_PROFILE_FIELD_UPDATED,
-        workspaceId,
-        payload: { workspaceId },
-      });
-    }
+    await Promise.all(
+      merged.updated.map(() =>
+        this.events.emit({
+          type: EVENT_TYPES.BUSINESS_PROFILE_FIELD_UPDATED,
+          workspaceId,
+          payload: { workspaceId },
+        }),
+      ),
+    );
 
     next = { ...next, updatedAt: new Date(), version: current.version + 1 };
     await this.profiles.upsert(next);

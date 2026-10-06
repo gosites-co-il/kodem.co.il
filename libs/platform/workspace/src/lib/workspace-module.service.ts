@@ -50,11 +50,9 @@ export class WorkspaceModuleService {
     workspaceId: WorkspaceId,
     moduleIds: ModuleId[],
   ): Promise<WorkspaceModule[]> {
-    const results: WorkspaceModule[] = [];
-    for (const moduleId of moduleIds) {
-      results.push(await this.enable(workspaceId, moduleId));
-    }
-    return results;
+    return Promise.all(
+      moduleIds.map((moduleId) => this.enable(workspaceId, moduleId)),
+    );
   }
 
   async canUseModule(
@@ -83,8 +81,10 @@ export class WorkspaceModuleService {
   async enableMissingEntitledModules(
     workspaceId: WorkspaceId,
   ): Promise<WorkspaceModule[]> {
-    const entitlements = await this.entitlements.resolve(workspaceId);
-    const current = await this.moduleRepo.listByWorkspace(workspaceId);
+    const [entitlements, current] = await Promise.all([
+      this.entitlements.resolve(workspaceId),
+      this.moduleRepo.listByWorkspace(workspaceId),
+    ]);
     const known = new Set(current.map((row) => row.moduleId));
     const missing = entitlements.modules.filter((moduleId) => !known.has(moduleId));
     if (missing.length === 0) return [];
@@ -97,11 +97,12 @@ export class WorkspaceModuleService {
     const entitled = new Set(entitlements.modules);
     const current = await this.moduleRepo.listByWorkspace(workspaceId);
     const results = await this.syncFromSetup(workspaceId, entitlements.modules);
-    for (const row of current) {
-      if (!entitled.has(row.moduleId)) {
-        results.push(await this.disable(workspaceId, row.moduleId));
-      }
-    }
+    const disabled = await Promise.all(
+      current
+        .filter((row) => !entitled.has(row.moduleId))
+        .map((row) => this.disable(workspaceId, row.moduleId)),
+    );
+    results.push(...disabled);
     return results;
   }
 }

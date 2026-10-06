@@ -133,6 +133,44 @@ function MegaLinkCard({ item }: { item: NavLinkItem }) {
   );
 }
 
+function FeatureGridLink({ item }: { item: NavLinkItem }) {
+  const Icon = item.icon;
+
+  return (
+    <NavigationMenuLink asChild>
+      <Link
+        href={item.href}
+        className="flex items-start gap-2 rounded-md p-2 text-sm no-underline outline-none transition-colors hover:bg-muted focus:bg-muted"
+      >
+        <Icon className="mt-0.5 size-5 shrink-0" />
+        <span className="min-w-0">
+          <span className="flex items-center gap-2 font-medium">
+            {item.title}
+            {item.badge ? (
+              <Badge variant="secondary" className="text-[10px] font-normal">
+                {item.badge}
+              </Badge>
+            ) : null}
+          </span>
+          <span className="block text-muted-foreground">{item.description}</span>
+        </span>
+      </Link>
+    </NavigationMenuLink>
+  );
+}
+
+function ModulesFeaturePanel({ section }: { section: NavSection }) {
+  return (
+    <NavigationMenuContent>
+      <div className="grid w-[min(100vw-2rem,44rem)] grid-cols-1 gap-3 p-4 text-start sm:grid-cols-3">
+        {section.items.map((item) => (
+          <FeatureGridLink key={item.title} item={item} />
+        ))}
+      </div>
+    </NavigationMenuContent>
+  );
+}
+
 function DesktopMegaPanel({ section }: { section: NavSection }) {
   return (
     <NavigationMenuContent>
@@ -326,7 +364,11 @@ export function AppNavbar() {
           </Link>
 
           {!isMobile ? (
-            <NavigationMenu dir="rtl" className="hidden max-w-none md:flex">
+            <NavigationMenu
+              dir="rtl"
+              viewport={false}
+              className="hidden max-w-none md:flex"
+            >
               <NavigationMenuList className="justify-start gap-1">
                 <NavigationMenuItem>
                   <NavigationMenuLink asChild>
@@ -360,9 +402,13 @@ export function AppNavbar() {
                 ) : null}
 
                 {APP_NAV_SECTIONS.map((section) => (
-                  <NavigationMenuItem key={section.id}>
+                  <NavigationMenuItem key={section.id} className="relative">
                     <NavigationMenuTrigger>{section.label}</NavigationMenuTrigger>
-                    <DesktopMegaPanel section={section} />
+                    {section.id === 'modules' ? (
+                      <ModulesFeaturePanel section={section} />
+                    ) : (
+                      <DesktopMegaPanel section={section} />
+                    )}
                   </NavigationMenuItem>
                 ))}
               </NavigationMenuList>

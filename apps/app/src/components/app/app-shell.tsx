@@ -31,6 +31,7 @@ function ImpersonationBanner() {
       router.push(ROUTES.adminWorkspaces);
     } catch (err) {
       setError(isApiError(err) ? err.message : 'היציאה מהסביבה נכשלה');
+    } finally {
       setBusy(false);
     }
   }

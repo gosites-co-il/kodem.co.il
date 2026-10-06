@@ -57,7 +57,28 @@ export function LeadDetailPage({ leadId }: { leadId: string }) {
   }
 
   useEffect(() => {
-    void load();
+    let ignore = false;
+    setLoading(true);
+    void (async () => {
+      try {
+        const [leadRes, tasksRes] = await Promise.all([
+          api.getCrmLead(leadId),
+          api.listCrmTasks({ leadId }),
+        ]);
+        if (ignore) return;
+        setLead(leadRes.lead);
+        setTasks(tasksRes.tasks);
+        setError(null);
+      } catch (err) {
+        if (ignore) return;
+        setError(isApiError(err) ? err.message : 'שגיאה בטעינת הליד');
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
   }, [leadId]);
 
   async function save(event: FormEvent) {
@@ -102,6 +123,7 @@ export function LeadDetailPage({ leadId }: { leadId: string }) {
       router.push(`/crm/contacts/${res.contactId}`);
     } catch (err) {
       setError(isApiError(err) ? err.message : 'המרה נכשלה');
+    } finally {
       setBusy(false);
     }
   }

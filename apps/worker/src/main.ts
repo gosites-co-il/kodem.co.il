@@ -7,9 +7,11 @@ import { configureDatabaseEnv } from '@kodem/database';
 configureDatabaseEnv(__dirname);
 
 async function bootstrap() {
-  const { Logger } = await import('@nestjs/common');
-  const { NestFactory } = await import('@nestjs/core');
-  const { AppModule } = await import('./app/app.module');
+  const [{ Logger }, { NestFactory }, { AppModule }] = await Promise.all([
+    import('@nestjs/common'),
+    import('@nestjs/core'),
+    import('./app/app.module'),
+  ]);
 
   const app = await NestFactory.create(AppModule);
   const globalPrefix = 'worker';

@@ -114,6 +114,7 @@ export function SetupJourney() {
   const [identityEpoch, setIdentityEpoch] = useState(0);
   const loadGeneration = useRef(0);
   const guestBootstrapDone = useRef(false);
+  const startOverStarted = useRef(false);
 
   const clearWebsiteUrlQuery = useCallback(() => {
     if (!searchParams.get('websiteUrl') && !searchParams.get('returnTo')) {
@@ -142,22 +143,53 @@ export function SetupJourney() {
   }, []);
 
   // Guest / websiteUrl bootstrap from marketing hero.
+  // Read the landing query once so clearing it does not cancel this request.
+  const landingQuery = useRef(searchParams);
+  const clearLandingQuery = useRef(clearWebsiteUrlQuery);
+  const isSubmittingRef = useRef(isSubmitting);
   useEffect(() => {
-    const returnToParam = searchParams.get('returnTo');
+    clearLandingQuery.current = clearWebsiteUrlQuery;
+  }, [clearWebsiteUrlQuery]);
+  useEffect(() => {
+    isSubmittingRef.current = isSubmitting;
+  }, [isSubmitting]);
+  useEffect(() => {
+    let ignore = false;
+    const params = landingQuery.current;
+    const returnToParam = params.get('returnTo');
     if (returnToParam?.trim()) {
       storeGuestReturnTo(resolveMarketingReturnUrl(returnToParam));
     }
 
-    if (guestBootstrapDone.current) return;
-    const rawUrl = searchParams.get('websiteUrl');
+    if (guestBootstrapDone.current) {
+      return () => {
+        ignore = true;
+      };
+    }
+    guestBootstrapDone.current = true;
+    const rawUrl = params.get('websiteUrl');
     if (!rawUrl?.trim()) {
-      void load();
-      return;
+      void (async () => {
+        try {
+          const next = await api.getSetup();
+          if (ignore) return;
+          setState(next);
+          setError(null);
+        } catch (err) {
+          if (ignore) return;
+          setError(
+            isApiError(err) ? err.message : 'לא ניתן לטעון את ההגדרה.',
+          );
+        } finally {
+          setIsLoading(false);
+        }
+      })();
+      return () => {
+        ignore = true;
+      };
     }
 
-    guestBootstrapDone.current = true;
     const websiteUrl = normalizeWebsiteUrl(rawUrl);
-
     void (async () => {
       setIsLoading(true);
       setError(null);
@@ -166,24 +198,29 @@ export function SetupJourney() {
         if (token) {
           try {
             const existing = await api.getSetup();
+            if (ignore) return;
             if (existing.setup.guest) {
               // Marketing re-entry must start a new guest — reusing one that
               // already reached auth handoff would bounce straight to signup.
               await api.logout().catch(() => undefined);
+              if (ignore) return;
               clearToken();
             } else if (existing.workspace.onboardingStatus !== 'COMPLETED') {
               // Logged-in non-guest: seed URL into current incomplete setup.
               const next = await api.discoverWebsite(websiteUrl);
+              if (ignore) return;
               setState(next);
-              clearWebsiteUrlQuery();
+              clearLandingQuery.current();
               return;
             }
           } catch {
             // Fall through to create a fresh guest session.
+            if (ignore) return;
           }
         }
 
         const guest = await api.createGuestSetup(websiteUrl);
+        if (ignore) return;
         storeGuestClaim({
           workspaceId: guest.workspace.id,
           claimSecret: guest.claimSecret,
@@ -195,8 +232,9 @@ export function SetupJourney() {
           token: guest.accessToken ?? guest.token,
         });
         setState(guest.setup);
-        clearWebsiteUrlQuery();
+        clearLandingQuery.current();
       } catch (err) {
+        if (ignore) return;
         setError(
           isApiError(err)
             ? err.message
@@ -206,11 +244,14 @@ export function SetupJourney() {
         setIsLoading(false);
       }
     })();
-  }, [searchParams, load, clearWebsiteUrlQuery, setSession]);
+    return () => {
+      ignore = true;
+    };
+  }, [setSession]);
 
   // Visiting /setup/start-over ensures a manual identity reset.
   useEffect(() => {
-    if (!state || isLoading || isSubmitting) return;
+    if (!state || isLoading || isSubmittingRef.current) return;
     if (!isSetupStartOverPath(pathname)) return;
     if (state.setup.guest) return;
     // Already past identity — sync will leave start-over; do not wipe again.
@@ -221,8 +262,43 @@ export function SetupJourney() {
     ) {
       return;
     }
-    void startOver();
-  }, [pathname, state, isLoading, isSubmitting]);
+    if (startOverStarted.current) return;
+    startOverStarted.current = true;
+
+    let ignore = false;
+    void (async () => {
+      setIsSubmitting(true);
+      setError(null);
+      loadGeneration.current += 1;
+      try {
+        const next = await api.startOverSetup();
+        if (ignore) return;
+        try {
+          const me = await api.me();
+          if (ignore) return;
+          setSession({
+            user: me.user,
+            workspace: me.workspace,
+            role: me.role,
+          });
+        } catch {
+          // Session refresh is best-effort; setup state still applies.
+        }
+        if (ignore || !next) return;
+        setIdentityEpoch((n) => n + 1);
+        setState(next);
+        router.replace(setupStartOverHref());
+      } catch (err) {
+        if (ignore) return;
+        setError(isApiError(err) ? err.message : 'לא ניתן להתחיל מחדש.');
+      } finally {
+        setIsSubmitting(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [pathname, state, isLoading, router, setSession]);
 
   // Keep the URL in sync with the server-authoritative setup step.
   useEffect(() => {

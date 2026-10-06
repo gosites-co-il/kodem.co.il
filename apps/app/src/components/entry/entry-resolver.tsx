@@ -22,7 +22,10 @@ export function EntryResolver() {
   const router = useRouter();
   const { isAuthenticated, isLoading, workspace } = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const resolveStarted = useRef(false);
+  const workspaceRef = useRef(workspace);
+  useEffect(() => {
+    workspaceRef.current = workspace;
+  }, [workspace]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -34,12 +37,13 @@ export function EntryResolver() {
       return;
     }
 
-    if (resolveStarted.current) return;
-    resolveStarted.current = true;
+    let ignore = false;
+    const currentWorkspace = workspaceRef;
 
     async function resolve() {
       try {
         const resolution = await fetchEntryResolution();
+        if (ignore) return;
 
         if (resolution.error) {
           setError(resolution.error.message);
@@ -48,16 +52,19 @@ export function EntryResolver() {
 
         let route = resolution.route;
         // Safety net: never land on dashboard while active workspace needs setup.
+        const activeWorkspace = currentWorkspace.current;
         if (
-          workspace &&
-          requiresOnboarding(workspace) &&
+          activeWorkspace &&
+          requiresOnboarding(activeWorkspace) &&
           route === ROUTES.dashboard
         ) {
           route = ROUTES.setup;
         }
 
+        if (ignore) return;
         router.replace(route);
       } catch (err) {
+        if (ignore) return;
         setError(
           isApiError(err)
             ? err.message
@@ -67,7 +74,10 @@ export function EntryResolver() {
     }
 
     void resolve();
-  }, [isAuthenticated, isLoading, router, workspace]);
+    return () => {
+      ignore = true;
+    };
+  }, [isAuthenticated, isLoading, router]);
 
   if (error) {
     return (

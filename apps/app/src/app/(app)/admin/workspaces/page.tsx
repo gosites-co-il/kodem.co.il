@@ -232,6 +232,7 @@ export default function AdminWorkspacesPage() {
       router.push(ROUTES.dashboard);
     } catch (err) {
       setError(isApiError(err) ? err.message : 'הכניסה לסביבה נכשלה');
+    } finally {
       setBusy(false);
     }
   }

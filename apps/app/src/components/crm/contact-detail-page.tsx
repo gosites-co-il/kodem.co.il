@@ -51,7 +51,30 @@ export function ContactDetailPage({ contactId }: { contactId: string }) {
   }
 
   useEffect(() => {
-    void load();
+    let ignore = false;
+    setLoading(true);
+    void (async () => {
+      try {
+        const [contactRes, tasksRes, conversationsRes] = await Promise.all([
+          api.getCrmContact(contactId),
+          api.listCrmTasks({ contactId }),
+          api.listConversations({ contactId }),
+        ]);
+        if (ignore) return;
+        setContact(contactRes.contact);
+        setTasks(tasksRes.tasks);
+        setConversations(conversationsRes.conversations);
+        setError(null);
+      } catch (err) {
+        if (ignore) return;
+        setError(isApiError(err) ? err.message : 'שגיאה בטעינת איש הקשר');
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
   }, [contactId]);
 
   async function save(event: FormEvent) {

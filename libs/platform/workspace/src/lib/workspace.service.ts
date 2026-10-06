@@ -126,20 +126,20 @@ export class WorkspaceService {
     }>
   > {
     const memberships = await this.memberRepo.findByUserId(userId);
-    const results = [];
-
-    for (const membership of memberships) {
-      const workspace = await this.workspaceRepo.findById(membership.workspaceId);
-      if (workspace) {
-        results.push({
+    const rows = await Promise.all(
+      memberships.map(async (membership) => {
+        const workspace = await this.workspaceRepo.findById(
+          membership.workspaceId,
+        );
+        if (!workspace) return null;
+        return {
           workspace,
           role: membership.role,
           membership,
-        });
-      }
-    }
-
-    return results;
+        };
+      }),
+    );
+    return rows.flatMap((row) => (row ? [row] : []));
   }
 
   async switchTo(

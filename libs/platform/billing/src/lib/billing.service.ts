@@ -29,8 +29,10 @@ export class UnconfiguredBillingProvider implements BillingProvider {
 
   async getSnapshot(workspaceId: WorkspaceId): Promise<BillingSnapshot> {
     await this.subscriptions.ensureForWorkspace(workspaceId);
-    const subscription = await this.subscriptions.getByWorkspace(workspaceId);
-    const entitlements = await this.entitlements.resolve(workspaceId);
+    const [subscription, entitlements] = await Promise.all([
+      this.subscriptions.getByWorkspace(workspaceId),
+      this.entitlements.resolve(workspaceId),
+    ]);
 
     return {
       configured: false,

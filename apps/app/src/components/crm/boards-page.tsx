@@ -81,6 +81,7 @@ export function BoardsPage() {
       router.push(`/crm/boards/${res.board.id}`);
     } catch (err) {
       setError(isApiError(err) ? err.message : 'יצירת לוח נכשלה');
+    } finally {
       setSaving(false);
     }
   }

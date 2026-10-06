@@ -50,11 +50,7 @@ export class LegalConsentService {
   async recordAcceptances(
     inputs: RecordLegalConsentInput[],
   ): Promise<LegalConsentRecord[]> {
-    const results: LegalConsentRecord[] = [];
-    for (const input of inputs) {
-      results.push(await this.recordAcceptance(input));
-    }
-    return results;
+    return Promise.all(inputs.map((input) => this.recordAcceptance(input)));
   }
 
   async recordSignupConsents(params: {
@@ -83,59 +79,62 @@ export class LegalConsentService {
   }
 
   async getStatus(user: User): Promise<LegalConsentStatus> {
-    const pending: PendingLegalDocument[] = [];
+    const [required, optional] = await Promise.all([
+      Promise.all(
+        SIGNUP_REQUIRED_DOCUMENTS.map(async (code) => {
+          const doc = getLegalDocumentByCode(code);
+          const hasCurrent = await this.repo.hasAcceptedVersion(
+            user.id,
+            code,
+            doc.version,
+          );
+          if (hasCurrent) return null;
 
-    for (const code of SIGNUP_REQUIRED_DOCUMENTS) {
-      const doc = getLegalDocumentByCode(code);
-      const hasCurrent = await this.repo.hasAcceptedVersion(
-        user.id,
-        code,
-        doc.version,
-      );
-      if (hasCurrent) continue;
+          if (doc.requiresReconsent) {
+            const hasAny = await this.repo.hasAcceptedDocument(user.id, code);
+            if (hasAny) return toPending(doc, 'reconsent');
+          }
 
-      if (doc.requiresReconsent) {
-        const hasAny = await this.repo.hasAcceptedDocument(user.id, code);
-        if (hasAny) {
-          pending.push(toPending(doc, 'reconsent'));
-          continue;
-        }
-      }
+          const createdAt =
+            user.createdAt instanceof Date
+              ? user.createdAt
+              : new Date(user.createdAt);
+          const mustConsentAtSignup =
+            createdAt.getTime() >=
+            LEGAL_CONSENT_ENFORCEMENT_STARTED_AT.getTime();
 
-      const createdAt =
-        user.createdAt instanceof Date
-          ? user.createdAt
-          : new Date(user.createdAt);
-      const mustConsentAtSignup =
-        createdAt.getTime() >= LEGAL_CONSENT_ENFORCEMENT_STARTED_AT.getTime();
+          if (mustConsentAtSignup) {
+            const hasAny = await this.repo.hasAcceptedDocument(user.id, code);
+            if (!hasAny) return toPending(doc, 'signup');
+          }
+          return null;
+        }),
+      ),
+      // Optional documents that explicitly require re-consent.
+      Promise.all(
+        [
+          getLegalDocumentByCode('COOKIES'),
+          getLegalDocumentByCode('AI_TERMS'),
+        ].map(async (doc) => {
+          if (!doc.requiresReconsent) return null;
+          const hasCurrent = await this.repo.hasAcceptedVersion(
+            user.id,
+            doc.code,
+            doc.version,
+          );
+          if (hasCurrent) return null;
+          const hasAny = await this.repo.hasAcceptedDocument(user.id, doc.code);
+          if (hasAny) return toPending(doc, 'reconsent');
+          return null;
+        }),
+      ),
+    ]);
 
-      if (mustConsentAtSignup) {
-        const hasAny = await this.repo.hasAcceptedDocument(user.id, code);
-        if (!hasAny) {
-          pending.push(toPending(doc, 'signup'));
-        }
-      }
-    }
-
-    // Optional documents that explicitly require re-consent.
-    for (const doc of [
-      getLegalDocumentByCode('COOKIES'),
-      getLegalDocumentByCode('AI_TERMS'),
-    ]) {
-      if (!doc.requiresReconsent) continue;
-      const hasCurrent = await this.repo.hasAcceptedVersion(
-        user.id,
-        doc.code,
-        doc.version,
-      );
-      if (hasCurrent) continue;
-      const hasAny = await this.repo.hasAcceptedDocument(user.id, doc.code);
-      if (hasAny) {
-        pending.push(toPending(doc, 'reconsent'));
-      }
-    }
-
-    return { pending };
+    return {
+      pending: [...required, ...optional].filter(
+        (item): item is PendingLegalDocument => item !== null,
+      ),
+    };
   }
 }
 

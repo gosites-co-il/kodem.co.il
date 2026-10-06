@@ -231,11 +231,10 @@ export class AuthService {
       throw new Error('User not found');
     }
 
-    const rotated = await this.tokenService.rotateRefresh(
-      user.id,
-      valid.tokenId,
-    );
-    const flags = await this.userRepo.getSessionFlags(user.id);
+    const [rotated, flags] = await Promise.all([
+      this.tokenService.rotateRefresh(user.id, valid.tokenId),
+      this.userRepo.getSessionFlags(user.id),
+    ]);
     if (
       flags.platformRole === SystemRole.SuperAdmin &&
       flags.impersonatingWorkspaceId
